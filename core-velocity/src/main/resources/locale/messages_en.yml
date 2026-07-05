@@ -1,0 +1,24 @@
+prefix: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>"
+general:
+  players-only: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ This command can only be used by players.</gray>"
+  no-permission: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ You do not have permission to do that.</gray>"
+hub:
+  already-there: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>You are already connected to the lobby.</gray>"
+  connected: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ You have been connected to the lobby.</gray>"
+  unreachable: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ The lobby is currently unreachable. Please try again in a moment.</gray>"
+sendall:
+  usage: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Usage: <color:#22D3EE>/sendall server</color></gray>"
+  unknown-server: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ The server <color:#22D3EE><server></color> is not registered.</gray>"
+  success: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Sending <color:#22D3EE><count></color> players to <color:#22D3EE><server></color>.</gray>"
+maintenance:
+  usage: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Usage: <color:#22D3EE>/maintenance on|off|status</color></gray>"
+  enabled: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Maintenance mode enabled. New connections without bypass will be rejected.</gray>"
+  disabled: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Maintenance mode disabled. The network is open to everyone again.</gray>"
+  already-on: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Maintenance mode is already active.</gray>"
+  already-off: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Maintenance mode is already disabled.</gray>"
+  status-on: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Maintenance mode: <color:#FBBF24>● active</color></gray>"
+  status-off: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Maintenance mode: <color:#2DD4BF>● inactive</color></gray>"
+  kick: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient><newline><newline><color:#FBBF24>◆ Maintenance</color><newline><newline><gray>We are working on the network right now.</gray><newline><gray>Please check back shortly.</gray>"
+kick:
+  redirected: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Your connection was closed. You are now in the lobby.</gray>"
+  redirected-reason: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Your connection was closed. You are now in the lobby.</gray><newline><dark_gray>Reason:</dark_gray> <gray><reason></gray>"

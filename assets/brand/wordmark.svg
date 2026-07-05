@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 256" width="960" height="256" role="img" aria-label="PRISMARIN wordmark">
+  <defs>
+    <linearGradient id="prism" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="0.55" stop-color="#27D4D9"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+    <linearGradient id="wordGradient" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.38" r="0.75">
+      <stop offset="0" stop-color="#ECFEFF" stop-opacity="0.5"/>
+      <stop offset="0.45" stop-color="#ECFEFF" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ECFEFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <g transform="translate(-9.6 32) scale(0.75)">
+    <path d="M 114.14 40 Q 128 32 141.86 40 L 197.28 72 Q 211.14 80 211.14 96 L 211.14 160 Q 211.14 176 197.28 184 L 141.86 216 Q 128 224 114.14 216 L 58.72 184 Q 44.86 176 44.86 160 L 44.86 96 Q 44.86 80 58.72 72 Z" fill="url(#prism)"/>
+    <path d="M 114.14 40 Q 128 32 141.86 40 L 197.28 72 Q 211.14 80 211.14 96 L 211.14 160 Q 211.14 176 197.28 184 L 141.86 216 Q 128 224 114.14 216 L 58.72 184 Q 44.86 176 44.86 160 L 44.86 96 Q 44.86 80 58.72 72 Z" fill="url(#glow)"/>
+    <polygon points="50.68,83.36 128,38.72 128,84.8 90.59,106.4" fill="#ECFEFF" opacity="0.14"/>
+    <polygon points="128,38.72 205.32,83.36 165.41,106.4 128,84.8" fill="#ECFEFF" opacity="0.07"/>
+    <polygon points="128,84.8 165.41,106.4 165.41,149.6 128,171.2 90.59,149.6 90.59,106.4" fill="#ECFEFF" opacity="0.08"/>
+    <polygon points="205.32,172.64 128,217.28 128,171.2 165.41,149.6" fill="#0F172A" opacity="0.10"/>
+    <polygon points="128,217.28 50.68,172.64 90.59,149.6 128,171.2" fill="#0F172A" opacity="0.06"/>
+    <g stroke="#ECFEFF" stroke-opacity="0.28" stroke-width="2.5" stroke-linecap="round" fill="none">
+      <line x1="128" y1="38.72" x2="128" y2="84.8"/>
+      <line x1="205.32" y1="83.36" x2="165.41" y2="106.4"/>
+      <line x1="205.32" y1="172.64" x2="165.41" y2="149.6"/>
+      <line x1="128" y1="217.28" x2="128" y2="171.2"/>
+      <line x1="50.68" y1="172.64" x2="90.59" y2="149.6"/>
+      <line x1="50.68" y1="83.36" x2="90.59" y2="106.4"/>
+      <polygon points="128,84.8 165.41,106.4 165.41,149.6 128,171.2 90.59,149.6 90.59,106.4"/>
+    </g>
+  </g>
+  <text x="176" y="160" font-family="Inter, Montserrat, Arial, sans-serif" font-size="96" font-weight="800" letter-spacing="7" fill="url(#wordGradient)">PRISMARIN</text>
+</svg>

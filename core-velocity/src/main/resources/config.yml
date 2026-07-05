@@ -1,0 +1,13 @@
+server-id: proxy
+storage:
+  mode: LOCAL
+  mongo:
+    uri: mongodb://localhost:27017
+    database: prismarin
+redis:
+  enabled: false
+  host: localhost
+  port: 6379
+  password: ""
+locale:
+  default: de

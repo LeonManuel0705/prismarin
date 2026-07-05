@@ -1,0 +1,49 @@
+package net.prismarin.core.command;
+
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+import java.util.List;
+import java.util.Locale;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.locale.LocaleService;
+import net.prismarin.api.profile.ProfileService;
+import net.prismarin.shared.config.CoreConfig;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabExecutor;
+import org.bukkit.entity.Player;
+
+@Singleton
+public final class CoinsCommand implements TabExecutor {
+
+    private final ProfileService profiles;
+    private final LocaleService locale;
+    private final CoreConfig config;
+
+    @Inject
+    public CoinsCommand(ProfileService profiles, LocaleService locale, CoreConfig config) {
+        this.profiles = profiles;
+        this.locale = locale;
+        this.config = config;
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(locale.render("general.players-only",
+                    Locale.forLanguageTag(config.defaultLocale())));
+            return true;
+        }
+        profiles.getCached(player.getUniqueId()).ifPresentOrElse(
+                profile -> player.sendMessage(locale.render("economy.balance", player.locale(),
+                        Placeholder.unparsed("amount", String.valueOf(profile.getCoins())),
+                        Placeholder.component("currency", locale.render("currency.coins", player.locale())))),
+                () -> player.sendMessage(locale.render("general.profile-not-loaded", player.locale())));
+        return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        return List.of();
+    }
+}

@@ -1,0 +1,109 @@
+prefix: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>"
+general:
+  player-not-found: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Der Spieler <color:#22D3EE><player></color> wurde nicht gefunden.</gray>"
+  profile-not-loaded: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Dein Profil ist noch nicht geladen. Versuche es gleich erneut.</gray>"
+  no-permission: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Dafür fehlt dir die Berechtigung.</gray>"
+  players-only: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Dieser Befehl kann nur von Spielern verwendet werden.</gray>"
+currency:
+  coins: "<color:#FBBF24>Coins</color>"
+  gems: "<color:#2DD4BF>Gems</color>"
+chat:
+  format: "<prefix> <name> <dark_gray>»</dark_gray> <message>"
+rank:
+  admin-prefix: "<red><b>Admin</b></red>"
+  default-prefix: "<gray>Spieler</gray>"
+join:
+  message: "<dark_gray>[<color:#2DD4BF>+</color>]</dark_gray> <gray><player></gray>"
+  first-message: "<dark_gray>[<color:#FBBF24>◆</color>]</dark_gray> <color:#FBBF24><player></color> <gray>ist zum ersten Mal auf</gray> <gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient><gray>!</gray>"
+  profile-error: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient><newline><newline><gray>✖ Dein Profil konnte nicht geladen werden.</gray><newline><gray>Bitte versuche es gleich erneut.</gray>"
+quit:
+  message: "<dark_gray>[<red>-</red>]</dark_gray> <gray><player></gray>"
+economy:
+  balance: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Dein Kontostand: <color:#FBBF24>◆ <amount></color> <currency></gray>"
+  deposit-success: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Dir wurden <color:#FBBF24><amount></color> <currency> <gray>gutgeschrieben. Neuer Stand: <color:#FBBF24><balance></color></gray>"
+  withdraw-success: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Es wurden <color:#FBBF24><amount></color> <currency> <gray>abgebucht. Neuer Stand: <color:#FBBF24><balance></color></gray>"
+  insufficient-funds: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Nicht genug <currency><gray>. Dir fehlen <color:#FBBF24><missing></color>.</gray>"
+  transaction-failed: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Die Transaktion konnte nicht ausgeführt werden.</gray>"
+  usage: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Verwendung: <color:#22D3EE>/economy give|take|set Spieler coins|gems Betrag</color></gray>"
+  invalid-currency: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Unbekannte Währung. Verfügbar: <color:#FBBF24>coins</color> <gray>und</gray> <color:#2DD4BF>gems</color><gray>.</gray>"
+  invalid-amount: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Der Betrag muss eine ganze Zahl größer als 0 sein.</gray>"
+  give-success: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ <color:#FBBF24><amount></color> <currency> <gray>an <color:#22D3EE><player></color> vergeben. Neuer Stand: <color:#FBBF24><balance></color></gray>"
+  take-success: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ <color:#FBBF24><amount></color> <currency> <gray>von <color:#22D3EE><player></color> eingezogen. Neuer Stand: <color:#FBBF24><balance></color></gray>"
+  take-insufficient: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ <color:#22D3EE><player></color> <gray>hat nicht genug</gray> <currency><gray>. Kontostand: <color:#FBBF24><balance></color></gray>"
+  set-success: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Kontostand von <color:#22D3EE><player></color> auf <color:#FBBF24><amount></color> <currency> <gray>gesetzt.</gray>"
+menu:
+  back: "<gray>Zurück</gray>"
+  close: "<red>Schließen</red>"
+  next: "<color:#22D3EE>Nächste Seite ●</color>"
+  previous: "<color:#22D3EE>● Vorherige Seite</color>"
+tablist:
+  header: "<title><newline><gray>Spieler online: <color:#22D3EE><online></color></gray>"
+  footer: "<gray>play.prismarin.net</gray>"
+sidebar:
+  title: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient>"
+lobby:
+  join:
+    title: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient>"
+    subtitle: "<gray>Willkommen zurück, <color:#22D3EE><player></color>.</gray>"
+    first-title: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient>"
+    first-subtitle: "<color:#FBBF24>◆</color> <gray>Willkommen, <color:#FBBF24><player></color>! Öffne den Navigator mit dem Kompass.</gray>"
+  item:
+    navigator:
+      name: "<color:#22D3EE>◆ Navigator</color> <dark_gray>› Rechtsklick</dark_gray>"
+      lore: "<gray>Öffnet die Serverauswahl.</gray>"
+    profile:
+      name: "<color:#2DD4BF>● <player></color> <dark_gray>› Rechtsklick</dark_gray>"
+      lore:
+        coins: "<gray>Coins:</gray> <color:#FBBF24>◆ <coins></color>"
+        gems: "<gray>Gems:</gray> <color:#2DD4BF><gems></color>"
+        level: "<gray>Level:</gray> <color:#22D3EE><level></color>"
+    hider:
+      visible: "<color:#2DD4BF>● Spieler sichtbar</color> <dark_gray>› Rechtsklick</dark_gray>"
+      hidden: "<gray>● Spieler versteckt</gray> <dark_gray>› Rechtsklick</dark_gray>"
+      lore: "<gray>Blendet alle anderen Spieler aus.</gray>"
+  navigator:
+    title: "<gradient:#22D3EE:#2DD4BF><b>Navigator</b></gradient>"
+    here-name: "<gray><server></gray>"
+    here: "<gray>● Du bist hier.</gray>"
+    connect: "<color:#22D3EE>» Klicke zum Verbinden</color>"
+    connecting: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Verbinde mit <server><gray> ...</gray>"
+    already-here: "<gray>Du bist bereits auf diesem Server.</gray>"
+    description:
+      lobby: "<gray>Der zentrale Treffpunkt des Netzwerks.</gray>"
+      build: "<gray>Freies Bauen auf eigenen Plots.</gray>"
+      game: "<gray>Runden, Punkte und Ranglisten.</gray>"
+  profile:
+    title: "<gradient:#22D3EE:#2DD4BF><b>Profil</b></gradient>"
+    coins:
+      name: "<color:#FBBF24>◆ Coins</color>"
+      lore: "<gray>Kontostand:</gray> <color:#FBBF24><coins></color>"
+    gems:
+      name: "<color:#2DD4BF>◆ Gems</color>"
+      lore: "<gray>Kontostand:</gray> <color:#2DD4BF><gems></color>"
+    level:
+      name: "<color:#22D3EE>◆ Level <level></color>"
+      lore: "<bar> <gray><xp>/<max> XP</gray>"
+    locale:
+      name: "<color:#22D3EE>◆ Sprache</color>"
+      current: "<gray>Aktuell:</gray> <color:#22D3EE>Deutsch</color>"
+      hint: "<color:#22D3EE>» Klicke für Englisch</color>"
+      changed: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Sprache auf <color:#22D3EE>Deutsch</color> umgestellt.</gray>"
+  hider:
+    hidden: "<gray>Alle Spieler sind jetzt <color:#22D3EE>versteckt</color>.</gray>"
+    shown: "<gray>Alle Spieler sind jetzt <color:#2DD4BF>sichtbar</color>.</gray>"
+    cooldown: "<gray>Bitte warte noch <color:#FBBF24><seconds>s</color>.</gray>"
+  build:
+    enabled: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Baumodus <color:#2DD4BF>aktiviert</color>. Die Lobby-Schutzregeln sind für dich aufgehoben.</gray>"
+    disabled: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Baumodus <color:#22D3EE>deaktiviert</color>. Die Lobby-Schutzregeln gelten wieder.</gray>"
+  setspawn:
+    success: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Spawn gesetzt: <color:#22D3EE><x> / <y> / <z></color> <gray>in</gray> <color:#22D3EE><world></color><gray>.</gray>"
+    failed: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Der Spawn konnte nicht gespeichert werden.</gray>"
+  sidebar:
+    rank-label: "<gray>Rang</gray>"
+    rank: " <rank>"
+    coins: "<color:#FBBF24>◆</color> <gray>Coins:</gray> <color:#FBBF24><coins></color>"
+    gems: "<color:#2DD4BF>◆</color> <gray>Gems:</gray> <color:#2DD4BF><gems></color>"
+    level: "<gray>Level</gray> <color:#22D3EE><level></color>"
+    progress: " <bar> <dark_gray><xp>/<max></dark_gray>"
+    online: "<gray>Online:</gray> <color:#22D3EE><online></color>"
+    footer: "<color:#22D3EE>prismarin.net</color>"

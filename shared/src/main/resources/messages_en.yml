@@ -1,0 +1,14 @@
+prefix: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>"
+general:
+  player-not-found: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>The player <color:#22D3EE><player></color> could not be found.</gray>"
+  profile-not-loaded: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Your profile is not loaded yet. Please try again in a moment.</gray>"
+  no-permission: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ You do not have permission to do that.</gray>"
+currency:
+  coins: "<color:#FBBF24>Coins</color>"
+  gems: "<color:#2DD4BF>Gems</color>"
+economy:
+  balance: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Your balance: <color:#FBBF24>◆ <amount></color> <currency></gray>"
+  deposit-success: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ You received <color:#FBBF24><amount></color> <currency><gray>. New balance: <color:#FBBF24><balance></color></gray>"
+  withdraw-success: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Withdrew <color:#FBBF24><amount></color> <currency><gray>. New balance: <color:#FBBF24><balance></color></gray>"
+  insufficient-funds: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Not enough <currency><gray>. You are missing <color:#FBBF24><missing></color>.</gray>"
+  transaction-failed: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ The transaction could not be completed.</gray>"

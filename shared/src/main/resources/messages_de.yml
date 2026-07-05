@@ -1,0 +1,14 @@
+prefix: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>"
+general:
+  player-not-found: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Der Spieler <color:#22D3EE><player></color> wurde nicht gefunden.</gray>"
+  profile-not-loaded: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Dein Profil ist noch nicht geladen. Versuche es gleich erneut.</gray>"
+  no-permission: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Dafür fehlt dir die Berechtigung.</gray>"
+currency:
+  coins: "<color:#FBBF24>Coins</color>"
+  gems: "<color:#2DD4BF>Gems</color>"
+economy:
+  balance: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>Dein Kontostand: <color:#FBBF24>◆ <amount></color> <currency></gray>"
+  deposit-success: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Dir wurden <color:#FBBF24><amount></color> <currency> <gray>gutgeschrieben. Neuer Stand: <color:#FBBF24><balance></color></gray>"
+  withdraw-success: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✔ Es wurden <color:#FBBF24><amount></color> <currency> <gray>abgebucht. Neuer Stand: <color:#FBBF24><balance></color></gray>"
+  insufficient-funds: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Nicht genug <currency><gray>. Dir fehlen <color:#FBBF24><missing></color>.</gray>"
+  transaction-failed: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>✖ Die Transaktion konnte nicht ausgeführt werden.</gray>"

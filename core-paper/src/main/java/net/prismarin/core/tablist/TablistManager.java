@@ -1,0 +1,115 @@
+package net.prismarin.core.tablist;
+
+import com.google.inject.Inject;
+import com.google.inject.Singleton;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.locale.LocaleService;
+import net.prismarin.core.PrismarinCorePlugin;
+import net.prismarin.core.rank.RankFormatProvider;
+import net.prismarin.core.scoreboard.AnimatedTitle;
+import net.prismarin.core.scoreboard.PlayerBoards;
+import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
+
+@Singleton
+public final class TablistManager {
+
+    private static final long REFRESH_INTERVAL_TICKS = 100L;
+
+    private final PrismarinCorePlugin plugin;
+    private final PlayerBoards boards;
+    private final RankFormatProvider ranks;
+    private final LocaleService locale;
+    private final AnimatedTitle title;
+    private BukkitTask task;
+
+    @Inject
+    public TablistManager(PrismarinCorePlugin plugin, PlayerBoards boards, RankFormatProvider ranks,
+                          LocaleService locale, MiniMessage miniMessage) {
+        this.plugin = plugin;
+        this.boards = boards;
+        this.ranks = ranks;
+        this.locale = locale;
+        this.title = AnimatedTitle.prismarin(miniMessage);
+    }
+
+    public void start() {
+        task = plugin.getServer().getScheduler()
+                .runTaskTimer(plugin, this::refreshAll, REFRESH_INTERVAL_TICKS, REFRESH_INTERVAL_TICKS);
+    }
+
+    public void stop() {
+        if (task != null) {
+            task.cancel();
+            task = null;
+        }
+    }
+
+    public void handleJoin(Player player) {
+        refreshAll();
+    }
+
+    public void handleQuit(Player player) {
+        for (Player viewer : plugin.getServer().getOnlinePlayers()) {
+            if (viewer.getUniqueId().equals(player.getUniqueId())) {
+                continue;
+            }
+            removeEntry(boards.board(viewer), player.getName());
+        }
+    }
+
+    public void refreshAll() {
+        Component frame = title.next();
+        String online = String.valueOf(plugin.getServer().getOnlinePlayers().size());
+        for (Player viewer : plugin.getServer().getOnlinePlayers()) {
+            viewer.sendPlayerListHeaderAndFooter(
+                    locale.render("tablist.header", viewer.locale(),
+                            Placeholder.component("title", frame),
+                            Placeholder.unparsed("online", online)),
+                    locale.render("tablist.footer", viewer.locale(),
+                            Placeholder.unparsed("online", online)));
+            syncTeams(boards.board(viewer));
+        }
+    }
+
+    private void syncTeams(Scoreboard board) {
+        for (Player target : plugin.getServer().getOnlinePlayers()) {
+            String key = TeamSortKeys.sortKey(ranks.weight(target), target.getName());
+            Team current = board.getEntryTeam(target.getName());
+            if (current != null && !current.getName().equals(key) && isManaged(current.getName())) {
+                current.removeEntry(target.getName());
+                if (current.getEntries().isEmpty()) {
+                    current.unregister();
+                }
+            }
+            Team team = board.getTeam(key);
+            if (team == null) {
+                team = board.registerNewTeam(key);
+            }
+            team.prefix(ranks.prefix(target).append(Component.space()));
+            team.color(ranks.nameColor(target));
+            if (!team.hasEntry(target.getName())) {
+                team.addEntry(target.getName());
+            }
+        }
+    }
+
+    private static void removeEntry(Scoreboard board, String entry) {
+        Team team = board.getEntryTeam(entry);
+        if (team == null || !isManaged(team.getName())) {
+            return;
+        }
+        team.removeEntry(entry);
+        if (team.getEntries().isEmpty()) {
+            team.unregister();
+        }
+    }
+
+    private static boolean isManaged(String teamName) {
+        return teamName.length() >= 4 && teamName.chars().limit(4).allMatch(Character::isDigit);
+    }
+}

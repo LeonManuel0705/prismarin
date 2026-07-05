@@ -1,0 +1,16 @@
+servers:
+  lobby:
+    display-name: "<gradient:#22D3EE:#2DD4BF>Lobby</gradient>"
+    host: "127.0.0.1"
+    port: 25566
+    category: LOBBY
+  creative:
+    display-name: "<color:#2DD4BF>Creative</color>"
+    host: "127.0.0.1"
+    port: 25567
+    category: BUILD
+  minigame:
+    display-name: "<color:#FBBF24>Minigame</color>"
+    host: "127.0.0.1"
+    port: 25568
+    category: GAME

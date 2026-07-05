@@ -1,0 +1,18 @@
+name: PrismarinLobby
+version: "${version}"
+main: net.prismarin.lobby.LobbyPlugin
+api-version: "1.21"
+depend:
+  - PrismarinCore
+commands:
+  lobbybuild:
+    description: Toggles the lobby build mode for admins.
+    permission: prismarin.lobby.build
+  setspawn:
+    description: Saves the current position as the lobby spawn.
+    permission: prismarin.lobby.setspawn
+permissions:
+  prismarin.lobby.build:
+    default: op
+  prismarin.lobby.setspawn:
+    default: op
