@@ -18,19 +18,25 @@ class YamlLocaleServiceTest {
     @TempDir
     Path dataDirectory;
 
-    private YamlLocaleService serviceWithCustomFiles() throws IOException {
+    private void writeCustomFiles() throws IOException {
         Files.writeString(dataDirectory.resolve("messages_de.yml"), """
                 test:
                   only-de: "nur deutsch"
+                  only-en-missing: "deutscher fallback"
                   both: "beide deutsch"
                   styled: "<gray>hallo</gray>"
                 """);
         Files.writeString(dataDirectory.resolve("messages_en.yml"), """
                 test:
+                  only-en: "english only"
                   both: "both english"
                   styled: "<gray>hello</gray>"
                 """);
-        return new YamlLocaleService(dataDirectory);
+    }
+
+    private YamlLocaleService serviceWithCustomFiles() throws IOException {
+        writeCustomFiles();
+        return new YamlLocaleService(dataDirectory, "de");
     }
 
     @Test
@@ -41,9 +47,23 @@ class YamlLocaleServiceTest {
     }
 
     @Test
-    void fallsBackToGermanWhenKeyMissingInLocale() throws IOException {
+    void fallsBackToDefaultLanguageWhenKeyMissingInLocale() throws IOException {
         YamlLocaleService service = serviceWithCustomFiles();
         assertEquals("nur deutsch", service.raw("test.only-de", Locale.ENGLISH));
+    }
+
+    @Test
+    void fallbackFollowsConfiguredDefaultLanguage() throws IOException {
+        writeCustomFiles();
+        YamlLocaleService service = new YamlLocaleService(dataDirectory, "en");
+        assertEquals("english only", service.raw("test.only-en", Locale.GERMAN));
+        assertEquals("both english", service.raw("test.both", null));
+    }
+
+    @Test
+    void unknownLanguagesResolveToDefaultLanguage() throws IOException {
+        YamlLocaleService service = serviceWithCustomFiles();
+        assertEquals("beide deutsch", service.raw("test.both", Locale.forLanguageTag("fr")));
     }
 
     @Test
@@ -68,7 +88,7 @@ class YamlLocaleServiceTest {
 
     @Test
     void seedsBundledLocaleFilesOnFirstRun() {
-        YamlLocaleService service = new YamlLocaleService(dataDirectory);
+        YamlLocaleService service = new YamlLocaleService(dataDirectory, "de");
         assertTrue(Files.exists(dataDirectory.resolve("messages_de.yml")));
         assertTrue(Files.exists(dataDirectory.resolve("messages_en.yml")));
         assertNotEquals("prefix", service.raw("prefix", Locale.GERMAN));

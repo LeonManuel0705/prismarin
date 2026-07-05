@@ -5,7 +5,6 @@ import com.google.inject.Singleton;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -16,6 +15,7 @@ import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.PrismarinCorePlugin;
+import net.prismarin.core.permission.CorePermissions;
 import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
@@ -47,6 +47,10 @@ public final class EconomyCommand implements TabExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (!sender.hasPermission(CorePermissions.ADMIN_ECONOMY)) {
+            send(sender, "general.no-permission");
+            return true;
+        }
         EconomyCommandParser.Result result = EconomyCommandParser.parse(args);
         if (result instanceof EconomyCommandParser.Invalid invalid) {
             send(sender, invalid.messageKey());
@@ -64,6 +68,9 @@ public final class EconomyCommand implements TabExecutor {
 
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        if (!sender.hasPermission(CorePermissions.ADMIN_ECONOMY)) {
+            return List.of();
+        }
         return switch (args.length) {
             case 1 -> filter(List.of("give", "take", "set"), args[0]);
             case 2 -> filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
@@ -90,8 +97,8 @@ public final class EconomyCommand implements TabExecutor {
             case TAKE -> economy.withdraw(targetId, parsed.currency(), parsed.amount())
                     .whenComplete((result, error) -> handleTransfer(sender, parsed, targetId, targetName,
                             "economy.take-success", "economy.withdraw-success", result, error));
-            case SET -> profiles.modify(targetId, profile -> profile.balance(parsed.currency(), parsed.amount()))
-                    .whenComplete((profile, error) -> handleSet(sender, parsed, targetName, error));
+            case SET -> economy.set(targetId, parsed.currency(), parsed.amount())
+                    .whenComplete((result, error) -> handleSet(sender, parsed, targetId, targetName, result, error));
         }
     }
 
@@ -133,21 +140,21 @@ public final class EconomyCommand implements TabExecutor {
         });
     }
 
-    private void handleSet(CommandSender sender, EconomyCommandParser.Parsed parsed, String targetName,
-                           Throwable error) {
+    private void handleSet(CommandSender sender, EconomyCommandParser.Parsed parsed, UUID targetId,
+                           String targetName, EconomyResult result, Throwable error) {
         Bukkit.getScheduler().runTask(plugin, () -> {
             Locale senderLocale = localeOf(sender);
-            if (error != null) {
-                Throwable cause = error instanceof CompletionException && error.getCause() != null
-                        ? error.getCause()
-                        : error;
-                String key = cause instanceof IllegalStateException
-                        ? "general.player-not-found"
-                        : "economy.transaction-failed";
-                sender.sendMessage(locale.render(key, senderLocale,
+            if (error != null || result == null) {
+                sender.sendMessage(locale.render("economy.transaction-failed", senderLocale));
+                return;
+            }
+            if (!result.success()) {
+                sender.sendMessage(locale.render("general.player-not-found", senderLocale,
                         Placeholder.unparsed("player", targetName)));
                 return;
             }
+            profiles.getCached(targetId)
+                    .ifPresent(profile -> profile.balance(parsed.currency(), result.newBalance()));
             sender.sendMessage(locale.render("economy.set-success", senderLocale,
                     Placeholder.unparsed("player", targetName),
                     Placeholder.unparsed("amount", String.valueOf(parsed.amount())),

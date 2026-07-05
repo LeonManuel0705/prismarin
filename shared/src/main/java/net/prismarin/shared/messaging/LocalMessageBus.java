@@ -6,10 +6,14 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.prismarin.api.messaging.MessageBus;
 import net.prismarin.api.messaging.NetworkMessage;
 
 public final class LocalMessageBus implements MessageBus {
+
+    private static final Logger LOGGER = Logger.getLogger(LocalMessageBus.class.getName());
 
     private final String serverId;
     private final Map<String, CopyOnWriteArrayList<Consumer<NetworkMessage>>> subscribers = new ConcurrentHashMap<>();
@@ -32,7 +36,11 @@ public final class LocalMessageBus implements MessageBus {
             return;
         }
         for (Consumer<NetworkMessage> handler : handlers) {
-            handler.accept(message);
+            try {
+                handler.accept(message);
+            } catch (Throwable throwable) {
+                LOGGER.log(Level.WARNING, "Message handler on channel " + channel + " failed", throwable);
+            }
         }
     }
 

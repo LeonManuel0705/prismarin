@@ -3,17 +3,20 @@ package net.prismarin.core.rank;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.prismarin.api.locale.LocaleService;
+import net.prismarin.core.permission.CorePermissions;
+import net.prismarin.core.permission.PermissionSnapshots;
 import org.bukkit.entity.Player;
 
 public final class DefaultRankFormatProvider implements RankFormatProvider {
 
-    private static final String ADMIN_PERMISSION = "prismarin.rank.admin";
     private static final int ADMIN_WEIGHT = 100;
 
     private final LocaleService locale;
+    private final PermissionSnapshots snapshots;
 
-    public DefaultRankFormatProvider(LocaleService locale) {
+    public DefaultRankFormatProvider(LocaleService locale, PermissionSnapshots snapshots) {
         this.locale = locale;
+        this.snapshots = snapshots;
     }
 
     @Override
@@ -32,7 +35,7 @@ public final class DefaultRankFormatProvider implements RankFormatProvider {
         return isAdmin(player) ? NamedTextColor.RED : NamedTextColor.GRAY;
     }
 
-    private static boolean isAdmin(Player player) {
-        return player.hasPermission(ADMIN_PERMISSION);
+    private boolean isAdmin(Player player) {
+        return snapshots.has(player, CorePermissions.RANK_ADMIN);
     }
 }

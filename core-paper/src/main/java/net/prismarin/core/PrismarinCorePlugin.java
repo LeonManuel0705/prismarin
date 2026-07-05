@@ -80,10 +80,22 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         }
         if (injector != null) {
             flushProfiles(injector.getInstance(ProfileService.class));
+            shutdownExecutor(injector.getInstance(ExecutorService.class));
             injector.getInstance(ProfileStorage.class).close();
             injector.getInstance(MessageBus.class).close();
-            injector.getInstance(ExecutorService.class).shutdown();
             injector = null;
+        }
+    }
+
+    private void shutdownExecutor(ExecutorService executor) {
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(SHUTDOWN_SAVE_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            executor.shutdownNow();
         }
     }
 

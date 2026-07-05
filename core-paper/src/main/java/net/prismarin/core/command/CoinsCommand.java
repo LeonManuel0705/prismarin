@@ -7,6 +7,7 @@ import java.util.Locale;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.core.permission.CorePermissions;
 import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -32,6 +33,10 @@ public final class CoinsCommand implements TabExecutor {
         if (!(sender instanceof Player player)) {
             sender.sendMessage(locale.render("general.players-only",
                     Locale.forLanguageTag(config.defaultLocale())));
+            return true;
+        }
+        if (!player.hasPermission(CorePermissions.COMMAND_COINS)) {
+            player.sendMessage(locale.render("general.no-permission", player.locale()));
             return true;
         }
         profiles.getCached(player.getUniqueId()).ifPresentOrElse(

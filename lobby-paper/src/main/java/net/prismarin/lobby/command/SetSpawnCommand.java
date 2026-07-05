@@ -13,6 +13,7 @@ import net.prismarin.lobby.LobbyPlugin;
 import net.prismarin.lobby.config.LocationsFile;
 import net.prismarin.lobby.config.SpawnPoint;
 import net.prismarin.lobby.player.PlayerLocales;
+import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.Location;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -22,26 +23,35 @@ import org.bukkit.entity.Player;
 @Singleton
 public final class SetSpawnCommand implements TabExecutor {
 
+    private static final String PERMISSION = "prismarin.lobby.setspawn";
+
     private final LobbyPlugin plugin;
     private final LocationsFile locations;
     private final LocaleService locale;
     private final ProfileService profiles;
     private final ExecutorService executor;
+    private final CoreConfig config;
 
     @Inject
     public SetSpawnCommand(LobbyPlugin plugin, LocationsFile locations, LocaleService locale,
-                           ProfileService profiles, ExecutorService executor) {
+                           ProfileService profiles, ExecutorService executor, CoreConfig config) {
         this.plugin = plugin;
         this.locations = locations;
         this.locale = locale;
         this.profiles = profiles;
         this.executor = executor;
+        this.config = config;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(locale.render("general.players-only", Locale.GERMAN));
+            sender.sendMessage(locale.render("general.players-only",
+                    Locale.forLanguageTag(config.defaultLocale())));
+            return true;
+        }
+        if (!player.hasPermission(PERMISSION)) {
+            player.sendMessage(locale.render("general.no-permission", PlayerLocales.of(player, profiles)));
             return true;
         }
         Location location = player.getLocation();

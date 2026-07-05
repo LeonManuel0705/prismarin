@@ -49,11 +49,17 @@ public final class JsonFileProfileRepository implements ProfileRepository {
     }
 
     @Override
-    public void upsert(PlayerProfile profile) {
+    public void save(PlayerProfile profile) {
         ReentrantLock lock = lockFor(profile.getUuid());
         lock.lock();
         try {
-            writeUnlocked(profile);
+            StoredProfile stored = toStored(profile);
+            Optional<PlayerProfile> existing = readUnlocked(profile.getUuid());
+            if (existing.isPresent()) {
+                stored.coins = existing.get().getCoins();
+                stored.gems = existing.get().getGems();
+            }
+            writeUnlocked(profile.getUuid(), stored);
         } finally {
             lock.unlock();
         }
@@ -70,15 +76,41 @@ public final class JsonFileProfileRepository implements ProfileRepository {
             }
             PlayerProfile profile = found.get();
             long current = profile.balance(currency);
-            long updated = current + delta;
+            long updated = saturatedAdd(current, delta);
             if (!allowNegative && updated < 0) {
                 return EconomyResult.failure(EconomyResult.FailureReason.INSUFFICIENT_FUNDS, current);
             }
             profile.balance(currency, updated);
-            writeUnlocked(profile);
+            writeUnlocked(uuid, toStored(profile));
             return EconomyResult.success(updated);
         } finally {
             lock.unlock();
+        }
+    }
+
+    @Override
+    public EconomyResult setCurrency(UUID uuid, Currency currency, long value) {
+        ReentrantLock lock = lockFor(uuid);
+        lock.lock();
+        try {
+            Optional<PlayerProfile> found = readUnlocked(uuid);
+            if (found.isEmpty()) {
+                return EconomyResult.failure(EconomyResult.FailureReason.PROFILE_NOT_LOADED, 0L);
+            }
+            PlayerProfile profile = found.get();
+            profile.balance(currency, value);
+            writeUnlocked(uuid, toStored(profile));
+            return EconomyResult.success(value);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private static long saturatedAdd(long current, long delta) {
+        try {
+            return Math.addExact(current, delta);
+        } catch (ArithmeticException e) {
+            return delta > 0 ? Long.MAX_VALUE : Long.MIN_VALUE;
         }
     }
 
@@ -95,11 +127,11 @@ public final class JsonFileProfileRepository implements ProfileRepository {
         }
     }
 
-    private void writeUnlocked(PlayerProfile profile) {
-        Path file = fileFor(profile.getUuid());
-        Path temp = directory.resolve(profile.getUuid() + ".json.tmp");
+    private void writeUnlocked(UUID uuid, StoredProfile stored) {
+        Path file = fileFor(uuid);
+        Path temp = directory.resolve(uuid + ".json.tmp");
         try {
-            Files.writeString(temp, gson.toJson(toStored(profile)), StandardCharsets.UTF_8);
+            Files.writeString(temp, gson.toJson(stored), StandardCharsets.UTF_8);
             Files.move(temp, file, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
         } catch (IOException e) {
             throw new UncheckedIOException(e);

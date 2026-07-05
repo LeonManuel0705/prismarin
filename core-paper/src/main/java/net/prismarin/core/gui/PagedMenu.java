@@ -1,7 +1,10 @@
 package net.prismarin.core.gui;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 import net.kyori.adventure.text.Component;
@@ -15,7 +18,7 @@ public class PagedMenu extends Menu {
     private final BiConsumer<ClickContext, ItemStack> itemAction;
     private final Component previousLabel;
     private final Component nextLabel;
-    private int page;
+    private final Map<UUID, Integer> pages = new ConcurrentHashMap<>();
 
     public PagedMenu(Component title, int rows, Supplier<List<ItemStack>> itemSupplier,
                      BiConsumer<ClickContext, ItemStack> itemAction, Component previousLabel, Component nextLabel) {
@@ -29,8 +32,8 @@ public class PagedMenu extends Menu {
         this.nextLabel = Objects.requireNonNull(nextLabel, "nextLabel");
     }
 
-    public int page() {
-        return page;
+    public int page(Player viewer) {
+        return pages.getOrDefault(viewer.getUniqueId(), 0);
     }
 
     @Override
@@ -39,7 +42,8 @@ public class PagedMenu extends Menu {
         List<ItemStack> items = List.copyOf(itemSupplier.get());
         int capacity = (rows() - 1) * 9;
         int maxPage = items.isEmpty() ? 0 : (items.size() - 1) / capacity;
-        page = Math.clamp(page, 0, maxPage);
+        int page = Math.clamp(page(viewer), 0, maxPage);
+        pages.put(viewer.getUniqueId(), page);
         int start = page * capacity;
         for (int slot = 0; slot < capacity && start + slot < items.size(); slot++) {
             ItemStack stack = items.get(start + slot);
@@ -47,17 +51,18 @@ public class PagedMenu extends Menu {
         }
         int navRow = (rows() - 1) * 9;
         if (page > 0) {
-            button(navRow, new MenuButton(navIcon(previousLabel), context -> {
-                page--;
-                context.menus().open(context.player(), this);
-            }));
+            int target = page - 1;
+            button(navRow, new MenuButton(navIcon(previousLabel), context -> turnTo(context, target)));
         }
         if (start + capacity < items.size()) {
-            button(navRow + 8, new MenuButton(navIcon(nextLabel), context -> {
-                page++;
-                context.menus().open(context.player(), this);
-            }));
+            int target = page + 1;
+            button(navRow + 8, new MenuButton(navIcon(nextLabel), context -> turnTo(context, target)));
         }
+    }
+
+    private void turnTo(ClickContext context, int page) {
+        pages.put(context.player().getUniqueId(), page);
+        context.menus().open(context.player(), this);
     }
 
     private static ItemStack navIcon(Component label) {

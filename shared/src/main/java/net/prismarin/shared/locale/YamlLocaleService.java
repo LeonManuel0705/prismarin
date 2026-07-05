@@ -19,14 +19,15 @@ import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 
 public final class YamlLocaleService implements LocaleService {
 
-    private static final String FALLBACK_LANGUAGE = "de";
     private static final List<String> BUNDLED_LANGUAGES = List.of("de", "en");
 
     private final MiniMessage miniMessage = MiniMessage.miniMessage();
     private final Map<String, Map<String, String>> messages = new ConcurrentHashMap<>();
     private final Map<CacheKey, Component> componentCache = new ConcurrentHashMap<>();
+    private final String fallbackLanguage;
 
-    public YamlLocaleService(Path dataDirectory) {
+    public YamlLocaleService(Path dataDirectory, String defaultLanguage) {
+        this.fallbackLanguage = defaultLanguage.toLowerCase(Locale.ROOT);
         try {
             Files.createDirectories(dataDirectory);
             for (String language : BUNDLED_LANGUAGES) {
@@ -61,7 +62,7 @@ public final class YamlLocaleService implements LocaleService {
                 return value;
             }
         }
-        Map<String, String> fallback = messages.get(FALLBACK_LANGUAGE);
+        Map<String, String> fallback = messages.get(fallbackLanguage);
         if (fallback != null) {
             String value = fallback.get(key);
             if (value != null) {
@@ -71,11 +72,12 @@ public final class YamlLocaleService implements LocaleService {
         return key;
     }
 
-    private static String languageOf(Locale locale) {
+    private String languageOf(Locale locale) {
         if (locale == null || locale.getLanguage().isEmpty()) {
-            return FALLBACK_LANGUAGE;
+            return fallbackLanguage;
         }
-        return locale.getLanguage().toLowerCase(Locale.ROOT);
+        String language = locale.getLanguage().toLowerCase(Locale.ROOT);
+        return messages.containsKey(language) ? language : fallbackLanguage;
     }
 
     private static void seedIfAbsent(Path file, String resourceName) throws IOException {

@@ -23,6 +23,10 @@ public final class MaintenanceCommand implements SimpleCommand {
     @Override
     public void execute(Invocation invocation) {
         CommandSource source = invocation.source();
+        if (!source.hasPermission(PERMISSION)) {
+            messages.send(source, "general.no-permission");
+            return;
+        }
         String[] args = invocation.arguments();
         if (args.length != 1) {
             messages.send(source, "maintenance.usage");
@@ -59,12 +63,10 @@ public final class MaintenanceCommand implements SimpleCommand {
     }
 
     @Override
-    public boolean hasPermission(Invocation invocation) {
-        return invocation.source().hasPermission(PERMISSION);
-    }
-
-    @Override
     public List<String> suggest(Invocation invocation) {
+        if (!invocation.source().hasPermission(PERMISSION)) {
+            return List.of();
+        }
         String[] args = invocation.arguments();
         if (args.length > 1) {
             return List.of();

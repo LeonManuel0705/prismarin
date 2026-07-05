@@ -32,6 +32,9 @@ public interface ProfileService {
 
     /**
      * Persists the given profile to storage.
+     * Currency balances are deliberately excluded from the write so that
+     * atomic economy transactions are never overwritten by stale cached
+     * values.
      *
      * @param profile the profile to save
      * @return a future completing once the write finished
@@ -39,7 +42,8 @@ public interface ProfileService {
     CompletableFuture<Void> save(PlayerProfile profile);
 
     /**
-     * Removes the profile from the cache and persists its final state.
+     * Removes the profile from the cache and persists its final state,
+     * excluding currency balances.
      *
      * @param uuid the player's unique id
      * @return a future completing once the profile is saved and evicted
@@ -49,7 +53,9 @@ public interface ProfileService {
     /**
      * Applies a mutation to the player's profile and persists the result.
      * Uses the cached instance when present and falls back to loading from
-     * storage for offline players.
+     * storage for offline players. Mutations of the same player through
+     * this service are applied in order. Balance changes are not persisted
+     * by this method; currency writes must go through the economy service.
      *
      * @param uuid the player's unique id
      * @param action the mutation to apply

@@ -50,7 +50,7 @@ class MongoProfileRepositoryIT {
     @Test
     void roundtripPreservesAllFields() {
         UUID uuid = UUID.randomUUID();
-        repository.upsert(sampleProfile(uuid));
+        repository.save(sampleProfile(uuid));
 
         Optional<PlayerProfile> found = repository.find(uuid);
 
@@ -65,20 +65,26 @@ class MongoProfileRepositoryIT {
     }
 
     @Test
-    void upsertReplacesExistingDocument() {
+    void saveDoesNotOverwriteStoredBalances() {
         UUID uuid = UUID.randomUUID();
         PlayerProfile profile = sampleProfile(uuid);
-        repository.upsert(profile);
-        profile.setCoins(999L);
-        repository.upsert(profile);
+        repository.save(profile);
+        repository.incrementCurrency(uuid, Currency.COINS, 400L, true);
 
-        assertEquals(999L, repository.find(uuid).orElseThrow().getCoins());
+        profile.setCoins(999L);
+        profile.setName("LeonNeu");
+        repository.save(profile);
+
+        PlayerProfile stored = repository.find(uuid).orElseThrow();
+        assertEquals("LeonNeu", stored.getName());
+        assertEquals(500L, stored.getCoins());
+        assertEquals(5L, stored.getGems());
     }
 
     @Test
     void incrementCurrencyIsAtomicAndGuardsNegativeBalance() {
         UUID uuid = UUID.randomUUID();
-        repository.upsert(sampleProfile(uuid));
+        repository.save(sampleProfile(uuid));
 
         EconomyResult deposit = repository.incrementCurrency(uuid, Currency.COINS, 50L, true);
         assertTrue(deposit.success());
@@ -95,8 +101,42 @@ class MongoProfileRepositoryIT {
     }
 
     @Test
+    void incrementCurrencySaturatesInsteadOfOverflowing() {
+        UUID uuid = UUID.randomUUID();
+        PlayerProfile profile = sampleProfile(uuid);
+        profile.setCoins(Long.MAX_VALUE - 10L);
+        repository.save(profile);
+
+        EconomyResult result = repository.incrementCurrency(uuid, Currency.COINS, 100L, true);
+
+        assertTrue(result.success());
+        assertEquals(Long.MAX_VALUE, result.newBalance());
+        assertEquals(Long.MAX_VALUE, repository.find(uuid).orElseThrow().getCoins());
+    }
+
+    @Test
     void incrementCurrencyOnUnknownProfileFails() {
         EconomyResult result = repository.incrementCurrency(UUID.randomUUID(), Currency.GEMS, 10L, true);
+
+        assertFalse(result.success());
+        assertEquals(EconomyResult.FailureReason.PROFILE_NOT_LOADED, result.failureReason());
+    }
+
+    @Test
+    void setCurrencyWritesExactBalance() {
+        UUID uuid = UUID.randomUUID();
+        repository.save(sampleProfile(uuid));
+
+        EconomyResult result = repository.setCurrency(uuid, Currency.GEMS, 77L);
+
+        assertTrue(result.success());
+        assertEquals(77L, result.newBalance());
+        assertEquals(77L, repository.find(uuid).orElseThrow().getGems());
+    }
+
+    @Test
+    void setCurrencyOnUnknownProfileFails() {
+        EconomyResult result = repository.setCurrency(UUID.randomUUID(), Currency.COINS, 10L);
 
         assertFalse(result.success());
         assertEquals(EconomyResult.FailureReason.PROFILE_NOT_LOADED, result.failureReason());

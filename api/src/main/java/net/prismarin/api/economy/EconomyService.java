@@ -41,4 +41,17 @@ public interface EconomyService {
      * @throws IllegalArgumentException if the amount is not strictly positive
      */
     CompletableFuture<EconomyResult> withdraw(UUID uuid, Currency currency, long amount);
+
+    /**
+     * Atomically sets the player's balance to the given value,
+     * failing with {@link EconomyResult.FailureReason#PROFILE_NOT_LOADED}
+     * if no profile exists in storage.
+     *
+     * @param uuid the player's unique id
+     * @param currency the currency to write
+     * @param value the non-negative balance to set
+     * @return a future completing with the transaction result
+     * @throws IllegalArgumentException if the value is negative
+     */
+    CompletableFuture<EconomyResult> set(UUID uuid, Currency currency, long value);
 }

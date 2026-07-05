@@ -1,9 +1,9 @@
 package net.prismarin.core.scoreboard;
 
 import com.google.inject.Singleton;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Scoreboard;
@@ -11,7 +11,7 @@ import org.bukkit.scoreboard.Scoreboard;
 @Singleton
 public final class PlayerBoards {
 
-    private final Map<UUID, Scoreboard> boards = new HashMap<>();
+    private final Map<UUID, Scoreboard> boards = new ConcurrentHashMap<>();
 
     public Scoreboard board(Player player) {
         return boards.computeIfAbsent(player.getUniqueId(), uuid -> {

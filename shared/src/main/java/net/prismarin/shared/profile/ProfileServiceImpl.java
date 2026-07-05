@@ -6,8 +6,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.shared.storage.ProfileRepository;
@@ -18,10 +18,7 @@ public final class ProfileServiceImpl implements ProfileService {
     private final String defaultLocale;
     private final ExecutorService executor;
     private final ConcurrentHashMap<UUID, PlayerProfile> cache = new ConcurrentHashMap<>();
-
-    public ProfileServiceImpl(ProfileRepository repository, String defaultLocale) {
-        this(repository, defaultLocale, Executors.newVirtualThreadPerTaskExecutor());
-    }
+    private final ConcurrentHashMap<UUID, CompletableFuture<Void>> chains = new ConcurrentHashMap<>();
 
     public ProfileServiceImpl(ProfileRepository repository, String defaultLocale, ExecutorService executor) {
         this.repository = repository;
@@ -31,18 +28,18 @@ public final class ProfileServiceImpl implements ProfileService {
 
     @Override
     public CompletableFuture<PlayerProfile> load(UUID uuid, String name) {
-        return CompletableFuture.supplyAsync(() -> {
+        return ordered(uuid, () -> {
             PlayerProfile profile = repository.find(uuid).orElse(null);
             if (profile == null) {
                 profile = PlayerProfile.create(uuid, name, defaultLocale);
-                repository.upsert(profile);
+                repository.save(profile);
             } else {
                 profile.setName(name);
                 profile.setLastSeen(Instant.now());
             }
             cache.put(uuid, profile);
             return profile;
-        }, executor);
+        });
     }
 
     @Override
@@ -52,31 +49,52 @@ public final class ProfileServiceImpl implements ProfileService {
 
     @Override
     public CompletableFuture<Void> save(PlayerProfile profile) {
-        return CompletableFuture.runAsync(() -> repository.upsert(profile), executor);
+        return ordered(profile.getUuid(), () -> {
+            repository.save(profile);
+            return null;
+        });
     }
 
     @Override
     public CompletableFuture<Void> unload(UUID uuid) {
-        return CompletableFuture.runAsync(() -> {
+        return ordered(uuid, () -> {
             PlayerProfile profile = cache.remove(uuid);
             if (profile != null) {
                 profile.setLastSeen(Instant.now());
-                repository.upsert(profile);
+                repository.save(profile);
             }
-        }, executor);
+            return null;
+        });
     }
 
     @Override
     public CompletableFuture<PlayerProfile> modify(UUID uuid, Consumer<PlayerProfile> action) {
-        return CompletableFuture.supplyAsync(() -> {
+        return ordered(uuid, () -> {
             PlayerProfile profile = cache.get(uuid);
             if (profile == null) {
                 profile = repository.find(uuid)
                         .orElseThrow(() -> new IllegalStateException("no profile stored for " + uuid));
             }
             action.accept(profile);
-            repository.upsert(profile);
+            repository.save(profile);
             return profile;
-        }, executor);
+        });
+    }
+
+    private <T> CompletableFuture<T> ordered(UUID uuid, Supplier<T> task) {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        CompletableFuture<Void> tail = chains.compute(uuid, (key, previous) -> {
+            CompletableFuture<Void> base = previous == null ? CompletableFuture.completedFuture(null) : previous;
+            return base.handleAsync((unused, error) -> {
+                try {
+                    result.complete(task.get());
+                } catch (Throwable throwable) {
+                    result.completeExceptionally(throwable);
+                }
+                return null;
+            }, executor);
+        });
+        tail.whenComplete((unused, error) -> chains.remove(uuid, tail));
+        return result;
     }
 }

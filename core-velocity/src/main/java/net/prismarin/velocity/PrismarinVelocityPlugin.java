@@ -54,7 +54,7 @@ public final class PrismarinVelocityPlugin {
     public void onProxyInitialize(ProxyInitializeEvent event) {
         executor = Executors.newVirtualThreadPerTaskExecutor();
         CoreConfig coreConfig = loadCoreConfig();
-        LocaleService localeService = loadLocale();
+        LocaleService localeService = loadLocale(coreConfig.defaultLocale());
         ProxyMessages messages = new ProxyMessages(localeService, Locale.forLanguageTag(coreConfig.defaultLocale()));
         ProxyConfigStore configStore = new ProxyConfigStore(dataDirectory.resolve("proxy.yml"), executor, logger);
         messageBus = MessageBusFactory.create(coreConfig);
@@ -93,10 +93,10 @@ public final class PrismarinVelocityPlugin {
         return ConfigLoader.load(file);
     }
 
-    private LocaleService loadLocale() {
+    private LocaleService loadLocale(String defaultLocale) {
         seedResource(dataDirectory.resolve("messages_de.yml"), "locale/messages_de.yml");
         seedResource(dataDirectory.resolve("messages_en.yml"), "locale/messages_en.yml");
-        return new YamlLocaleService(dataDirectory);
+        return new YamlLocaleService(dataDirectory, defaultLocale);
     }
 
     private void seedResource(Path file, String resourceName) {

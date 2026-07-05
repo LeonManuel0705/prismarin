@@ -4,8 +4,8 @@ import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
 import com.mongodb.client.model.FindOneAndUpdateOptions;
-import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.ReturnDocument;
+import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import java.time.Instant;
 import java.util.HashMap;
@@ -29,56 +29,96 @@ public final class MongoProfileRepository implements ProfileRepository {
 
     @Override
     public Optional<PlayerProfile> find(UUID uuid) {
-        Document document = collection.find(Filters.eq("_id", uuid.toString())).first();
+        Document document = collection.find(idFilter(uuid)).first();
         return Optional.ofNullable(document).map(MongoProfileRepository::toProfile);
     }
 
     @Override
-    public void upsert(PlayerProfile profile) {
-        collection.replaceOne(
-                Filters.eq("_id", profile.getUuid().toString()),
-                toDocument(profile),
-                new ReplaceOptions().upsert(true)
+    public void save(PlayerProfile profile) {
+        collection.updateOne(
+                idFilter(profile.getUuid()),
+                Updates.combine(
+                        Updates.set("name", profile.getName()),
+                        Updates.set("firstJoin", profile.getFirstJoin().toEpochMilli()),
+                        Updates.set("lastSeen", profile.getLastSeen().toEpochMilli()),
+                        Updates.set("locale", profile.getLocale()),
+                        Updates.set("level", profile.getLevel()),
+                        Updates.set("xp", profile.getXp()),
+                        Updates.set("settings", new Document(new HashMap<>(profile.getSettings()))),
+                        Updates.setOnInsert("coins", profile.getCoins()),
+                        Updates.setOnInsert("gems", profile.getGems())
+                ),
+                new UpdateOptions().upsert(true)
         );
     }
 
     @Override
     public EconomyResult incrementCurrency(UUID uuid, Currency currency, long delta, boolean allowNegative) {
         String field = fieldFor(currency);
-        Bson idFilter = Filters.eq("_id", uuid.toString());
-        Bson filter = allowNegative || delta >= 0
-                ? idFilter
-                : Filters.and(idFilter, Filters.gte(field, -delta));
+        Bson filter = guardedFilter(uuid, field, delta, allowNegative);
         Document updated = collection.findOneAndUpdate(
                 filter,
                 Updates.inc(field, delta),
                 new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER)
         );
         if (updated != null) {
-            return EconomyResult.success(updated.getLong(field));
+            return EconomyResult.success(balanceOf(updated, field));
         }
-        Document existing = collection.find(idFilter).first();
+        if (delta > 0) {
+            Document saturated = collection.findOneAndUpdate(
+                    Filters.and(idFilter(uuid), Filters.gt(field, Long.MAX_VALUE - delta)),
+                    Updates.set(field, Long.MAX_VALUE),
+                    new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER)
+            );
+            if (saturated != null) {
+                return EconomyResult.success(Long.MAX_VALUE);
+            }
+        }
+        Document existing = collection.find(idFilter(uuid)).first();
         if (existing == null) {
             return EconomyResult.failure(EconomyResult.FailureReason.PROFILE_NOT_LOADED, 0L);
         }
-        return EconomyResult.failure(EconomyResult.FailureReason.INSUFFICIENT_FUNDS, existing.getLong(field));
+        return EconomyResult.failure(EconomyResult.FailureReason.INSUFFICIENT_FUNDS, balanceOf(existing, field));
+    }
+
+    @Override
+    public EconomyResult setCurrency(UUID uuid, Currency currency, long value) {
+        String field = fieldFor(currency);
+        Document updated = collection.findOneAndUpdate(
+                idFilter(uuid),
+                Updates.set(field, value),
+                new FindOneAndUpdateOptions().returnDocument(ReturnDocument.AFTER)
+        );
+        if (updated == null) {
+            return EconomyResult.failure(EconomyResult.FailureReason.PROFILE_NOT_LOADED, 0L);
+        }
+        return EconomyResult.success(balanceOf(updated, field));
+    }
+
+    private static Bson guardedFilter(UUID uuid, String field, long delta, boolean allowNegative) {
+        Bson idFilter = idFilter(uuid);
+        if (delta > 0) {
+            return Filters.and(idFilter, Filters.or(
+                    Filters.exists(field, false),
+                    Filters.lte(field, Long.MAX_VALUE - delta)));
+        }
+        if (allowNegative) {
+            return idFilter;
+        }
+        return Filters.and(idFilter, Filters.gte(field, -delta));
+    }
+
+    private static Bson idFilter(UUID uuid) {
+        return Filters.eq("_id", uuid.toString());
+    }
+
+    private static long balanceOf(Document document, String field) {
+        Long value = document.getLong(field);
+        return value == null ? 0L : value;
     }
 
     private static String fieldFor(Currency currency) {
         return currency.name().toLowerCase(Locale.ROOT);
-    }
-
-    private static Document toDocument(PlayerProfile profile) {
-        return new Document("_id", profile.getUuid().toString())
-                .append("name", profile.getName())
-                .append("firstJoin", profile.getFirstJoin().toEpochMilli())
-                .append("lastSeen", profile.getLastSeen().toEpochMilli())
-                .append("locale", profile.getLocale())
-                .append("coins", profile.getCoins())
-                .append("gems", profile.getGems())
-                .append("level", profile.getLevel())
-                .append("xp", profile.getXp())
-                .append("settings", new Document(new HashMap<>(profile.getSettings())));
     }
 
     private static PlayerProfile toProfile(Document document) {
@@ -93,8 +133,8 @@ public final class MongoProfileRepository implements ProfileRepository {
                 Instant.ofEpochMilli(document.getLong("firstJoin")),
                 Instant.ofEpochMilli(document.getLong("lastSeen")),
                 document.getString("locale"),
-                document.getLong("coins"),
-                document.getLong("gems"),
+                balanceOf(document, "coins"),
+                balanceOf(document, "gems"),
                 document.getInteger("level"),
                 document.getLong("xp"),
                 settings

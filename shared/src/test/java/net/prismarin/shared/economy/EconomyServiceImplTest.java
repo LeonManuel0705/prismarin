@@ -2,10 +2,13 @@ package net.prismarin.shared.economy;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.economy.EconomyResult;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.shared.storage.ProfileRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,12 +29,19 @@ class EconomyServiceImplTest {
     @Mock
     private ProfileRepository repository;
 
+    private ExecutorService executor;
     private EconomyServiceImpl service;
     private final UUID uuid = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        service = new EconomyServiceImpl(repository);
+        executor = Executors.newVirtualThreadPerTaskExecutor();
+        service = new EconomyServiceImpl(repository, executor);
+    }
+
+    @AfterEach
+    void tearDown() {
+        executor.shutdown();
     }
 
     @Test
@@ -71,10 +81,34 @@ class EconomyServiceImplTest {
     }
 
     @Test
+    void setDelegatesToAtomicSet() {
+        when(repository.setCurrency(uuid, Currency.COINS, 250L))
+                .thenReturn(EconomyResult.success(250L));
+
+        EconomyResult result = service.set(uuid, Currency.COINS, 250L).join();
+
+        assertTrue(result.success());
+        assertEquals(250L, result.newBalance());
+        verify(repository).setCurrency(uuid, Currency.COINS, 250L);
+    }
+
+    @Test
+    void setMapsProfileNotLoaded() {
+        when(repository.setCurrency(uuid, Currency.GEMS, 5L))
+                .thenReturn(EconomyResult.failure(EconomyResult.FailureReason.PROFILE_NOT_LOADED, 0L));
+
+        EconomyResult result = service.set(uuid, Currency.GEMS, 5L).join();
+
+        assertFalse(result.success());
+        assertEquals(EconomyResult.FailureReason.PROFILE_NOT_LOADED, result.failureReason());
+    }
+
+    @Test
     void negativeAndZeroAmountsAreRejectedBeforeTouchingStorage() {
         assertThrows(IllegalArgumentException.class, () -> service.deposit(uuid, Currency.COINS, -1L));
         assertThrows(IllegalArgumentException.class, () -> service.deposit(uuid, Currency.COINS, 0L));
         assertThrows(IllegalArgumentException.class, () -> service.withdraw(uuid, Currency.GEMS, -20L));
+        assertThrows(IllegalArgumentException.class, () -> service.set(uuid, Currency.COINS, -1L));
         verifyNoInteractions(repository);
     }
 

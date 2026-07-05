@@ -7,11 +7,17 @@ val includedProjects: Configuration by configurations.creating {
     isTransitive = false
 }
 
+val bundledLibraries: Configuration by configurations.creating {
+    isCanBeConsumed = false
+}
+
 dependencies {
     implementation(project(":api"))
     implementation(project(":shared"))
     includedProjects(project(":api"))
     includedProjects(project(":shared"))
+    bundledLibraries(libs.guice)
+    bundledLibraries(libs.configurate.yaml)
 
     compileOnly(libs.paper.api)
     compileOnly(libs.luckperms.api)
@@ -33,7 +39,20 @@ tasks.processResources {
 }
 
 tasks.jar {
-    dependsOn(includedProjects)
+    dependsOn(includedProjects, bundledLibraries)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes("Multi-Release" to "true")
+    }
     from(includedProjects.elements.map { elements -> elements.map { zipTree(it.asFile) } })
+    from(bundledLibraries.elements.map { elements -> elements.map { zipTree(it.asFile) } }) {
+        exclude(
+            "META-INF/MANIFEST.MF",
+            "META-INF/*.SF",
+            "META-INF/*.DSA",
+            "META-INF/*.RSA",
+            "module-info.class",
+            "META-INF/versions/**/module-info.class"
+        )
+    }
 }

@@ -3,7 +3,6 @@ package net.prismarin.shared.economy;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.economy.EconomyResult;
 import net.prismarin.api.economy.EconomyService;
@@ -13,10 +12,6 @@ public final class EconomyServiceImpl implements EconomyService {
 
     private final ProfileRepository repository;
     private final ExecutorService executor;
-
-    public EconomyServiceImpl(ProfileRepository repository) {
-        this(repository, Executors.newVirtualThreadPerTaskExecutor());
-    }
 
     public EconomyServiceImpl(ProfileRepository repository, ExecutorService executor) {
         this.repository = repository;
@@ -45,6 +40,17 @@ public final class EconomyServiceImpl implements EconomyService {
         requirePositive(amount);
         return CompletableFuture.supplyAsync(
                 () -> repository.incrementCurrency(uuid, currency, -amount, false),
+                executor
+        );
+    }
+
+    @Override
+    public CompletableFuture<EconomyResult> set(UUID uuid, Currency currency, long value) {
+        if (value < 0) {
+            throw new IllegalArgumentException("value must not be negative");
+        }
+        return CompletableFuture.supplyAsync(
+                () -> repository.setCurrency(uuid, currency, value),
                 executor
         );
     }

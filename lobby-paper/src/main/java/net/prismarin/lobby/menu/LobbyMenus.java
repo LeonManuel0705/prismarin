@@ -27,6 +27,7 @@ import net.prismarin.lobby.player.PlayerHiderService;
 import net.prismarin.lobby.player.PlayerLocales;
 import net.prismarin.lobby.server.ServerConnector;
 import net.prismarin.lobby.util.XpProgressBar;
+import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -55,11 +56,12 @@ public final class LobbyMenus {
     private final LobbyItems items;
     private final PlayerHiderService hider;
     private final ServerConnector connector;
+    private final CoreConfig config;
 
     @Inject
     public LobbyMenus(LobbyPlugin plugin, MenuService menuService, LocaleService locale, ProfileService profiles,
                       ServerDirectory directory, MiniMessage miniMessage, LobbyItems items,
-                      PlayerHiderService hider, ServerConnector connector) {
+                      PlayerHiderService hider, ServerConnector connector, CoreConfig config) {
         this.plugin = plugin;
         this.menuService = menuService;
         this.locale = locale;
@@ -69,6 +71,7 @@ public final class LobbyMenus {
         this.items = items;
         this.hider = hider;
         this.connector = connector;
+        this.config = config;
     }
 
     public void openNavigator(Player player) {
@@ -111,7 +114,7 @@ public final class LobbyMenus {
     }
 
     private MenuButton serverButton(Locale playerLocale, NetworkServer server) {
-        boolean here = server.category() == NetworkServer.Category.LOBBY;
+        boolean here = server.name().equalsIgnoreCase(config.serverId());
         Component name = here
                 ? locale.render("lobby.navigator.here-name", playerLocale,
                         Placeholder.unparsed("server", capitalize(server.name())))
@@ -192,7 +195,10 @@ public final class LobbyMenus {
     private void switchLocale(Player player, String current) {
         String next = current != null && current.startsWith("de") ? "en" : "de";
         Locale fallback = PlayerLocales.of(player, profiles);
-        profiles.modify(player.getUniqueId(), profile -> profile.setLocale(next))
+        profiles.modify(player.getUniqueId(), profile -> {
+                    profile.setLocale(next);
+                    profile.getSettings().put(PlayerProfile.SETTING_LOCALE_OVERRIDE, "true");
+                })
                 .whenComplete((profile, error) -> plugin.getServer().getScheduler().runTask(plugin, () -> {
                     if (!player.isOnline()) {
                         return;

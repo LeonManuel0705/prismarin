@@ -5,18 +5,13 @@ api-version: "1.21"
 softdepend:
   - LuckPerms
 libraries:
-  - com.google.inject:guice:7.0.0
   - org.mongodb:mongodb-driver-sync:5.2.1
   - io.lettuce:lettuce-core:6.5.5.RELEASE
-  - org.spongepowered:configurate-yaml:4.2.0
-  - org.spongepowered:configurate-core:4.2.0
 commands:
   coins:
     description: Shows your own coin balance.
-    permission: prismarin.command.coins
   economy:
     description: Manages player balances.
-    permission: prismarin.admin.economy
 permissions:
   prismarin.command.coins:
     default: true

@@ -10,6 +10,8 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.prismarin.api.locale.LocaleService;
+import net.prismarin.core.permission.CorePermissions;
+import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.rank.RankFormatProvider;
 import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.entity.Player;
@@ -19,28 +21,28 @@ import org.bukkit.event.Listener;
 @Singleton
 public final class AsyncChatListener implements Listener {
 
-    private static final String FORMAT_PERMISSION = "prismarin.chat.format";
-
     private final RankFormatProvider ranks;
     private final LocaleService locale;
     private final MiniMessage miniMessage;
     private final CoreConfig config;
+    private final PermissionSnapshots snapshots;
     private final PlainTextComponentSerializer plainText = PlainTextComponentSerializer.plainText();
 
     @Inject
     public AsyncChatListener(RankFormatProvider ranks, LocaleService locale, MiniMessage miniMessage,
-                             CoreConfig config) {
+                             CoreConfig config, PermissionSnapshots snapshots) {
         this.ranks = ranks;
         this.locale = locale;
         this.miniMessage = miniMessage;
         this.config = config;
+        this.snapshots = snapshots;
     }
 
     @EventHandler
     public void onChat(AsyncChatEvent event) {
         Player player = event.getPlayer();
         String plain = plainText.serialize(event.message());
-        Component content = player.hasPermission(FORMAT_PERMISSION)
+        Component content = snapshots.has(player, CorePermissions.CHAT_FORMAT)
                 ? miniMessage.deserialize(plain)
                 : Component.text(miniMessage.stripTags(plain));
         event.message(content);

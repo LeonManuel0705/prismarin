@@ -2,6 +2,7 @@ package net.prismarin.core.task;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.util.logging.Level;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.PrismarinCorePlugin;
 import org.bukkit.entity.Player;
@@ -21,7 +22,13 @@ public final class PeriodicSaveTask implements Runnable {
     @Override
     public void run() {
         for (Player player : plugin.getServer().getOnlinePlayers()) {
-            profiles.getCached(player.getUniqueId()).ifPresent(profiles::save);
+            profiles.getCached(player.getUniqueId())
+                    .ifPresent(profile -> profiles.save(profile).whenComplete((unused, error) -> {
+                        if (error != null) {
+                            plugin.getLogger().log(Level.WARNING,
+                                    "Periodic profile save failed for " + profile.getName(), error);
+                        }
+                    }));
         }
     }
 }

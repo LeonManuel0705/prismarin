@@ -1,18 +1,27 @@
 package net.prismarin.api.profile;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.prismarin.api.economy.Currency;
 
 /**
  * Mutable network-wide profile of a single player.
  * Instances are cached per server by the {@link ProfileService} and persisted
- * through the storage layer; they are not thread-safe on their own.
+ * through the storage layer. Individual field reads and writes are safe from
+ * any thread; compound read-modify-write sequences that span multiple calls
+ * must be routed through {@link ProfileService#modify}.
  */
 public final class PlayerProfile {
+
+    /**
+     * Settings key marking that the player explicitly chose a locale.
+     * While the value is {@code "true"} the stored locale must not be
+     * overwritten with the locale reported by the client.
+     */
+    public static final String SETTING_LOCALE_OVERRIDE = "locale-override";
 
     private final UUID uuid;
     private String name;
@@ -51,7 +60,7 @@ public final class PlayerProfile {
         this.gems = gems;
         this.level = level;
         this.xp = xp;
-        this.settings = new HashMap<>(Objects.requireNonNull(settings, "settings"));
+        this.settings = new ConcurrentHashMap<>(Objects.requireNonNull(settings, "settings"));
     }
 
     /**
@@ -65,7 +74,7 @@ public final class PlayerProfile {
      */
     public static PlayerProfile create(UUID uuid, String name, String locale) {
         Instant now = Instant.now();
-        return new PlayerProfile(uuid, name, now, now, locale, 0L, 0L, 0, 0L, new HashMap<>());
+        return new PlayerProfile(uuid, name, now, now, locale, 0L, 0L, 0, 0L, Map.of());
     }
 
     /**
@@ -82,7 +91,7 @@ public final class PlayerProfile {
      *
      * @return the current name
      */
-    public String getName() {
+    public synchronized String getName() {
         return name;
     }
 
@@ -91,7 +100,7 @@ public final class PlayerProfile {
      *
      * @param name the new name
      */
-    public void setName(String name) {
+    public synchronized void setName(String name) {
         this.name = Objects.requireNonNull(name, "name");
     }
 
@@ -109,7 +118,7 @@ public final class PlayerProfile {
      *
      * @return the last-seen instant
      */
-    public Instant getLastSeen() {
+    public synchronized Instant getLastSeen() {
         return lastSeen;
     }
 
@@ -118,7 +127,7 @@ public final class PlayerProfile {
      *
      * @param lastSeen the new last-seen instant
      */
-    public void setLastSeen(Instant lastSeen) {
+    public synchronized void setLastSeen(Instant lastSeen) {
         this.lastSeen = Objects.requireNonNull(lastSeen, "lastSeen");
     }
 
@@ -127,7 +136,7 @@ public final class PlayerProfile {
      *
      * @return the locale tag
      */
-    public String getLocale() {
+    public synchronized String getLocale() {
         return locale;
     }
 
@@ -136,7 +145,7 @@ public final class PlayerProfile {
      *
      * @param locale the new locale tag
      */
-    public void setLocale(String locale) {
+    public synchronized void setLocale(String locale) {
         this.locale = Objects.requireNonNull(locale, "locale");
     }
 
@@ -145,7 +154,7 @@ public final class PlayerProfile {
      *
      * @return the coin balance
      */
-    public long getCoins() {
+    public synchronized long getCoins() {
         return coins;
     }
 
@@ -154,7 +163,7 @@ public final class PlayerProfile {
      *
      * @param coins the new coin balance
      */
-    public void setCoins(long coins) {
+    public synchronized void setCoins(long coins) {
         this.coins = coins;
     }
 
@@ -163,7 +172,7 @@ public final class PlayerProfile {
      *
      * @return the gem balance
      */
-    public long getGems() {
+    public synchronized long getGems() {
         return gems;
     }
 
@@ -172,7 +181,7 @@ public final class PlayerProfile {
      *
      * @param gems the new gem balance
      */
-    public void setGems(long gems) {
+    public synchronized void setGems(long gems) {
         this.gems = gems;
     }
 
@@ -182,7 +191,7 @@ public final class PlayerProfile {
      * @param currency the currency to read
      * @return the current balance in that currency
      */
-    public long balance(Currency currency) {
+    public synchronized long balance(Currency currency) {
         return currency == Currency.COINS ? coins : gems;
     }
 
@@ -192,7 +201,7 @@ public final class PlayerProfile {
      * @param currency the currency to write
      * @param value the new balance
      */
-    public void balance(Currency currency, long value) {
+    public synchronized void balance(Currency currency, long value) {
         if (currency == Currency.COINS) {
             this.coins = value;
         } else {
@@ -205,7 +214,7 @@ public final class PlayerProfile {
      *
      * @return the level, starting at 0
      */
-    public int getLevel() {
+    public synchronized int getLevel() {
         return level;
     }
 
@@ -214,7 +223,7 @@ public final class PlayerProfile {
      *
      * @param level the new level
      */
-    public void setLevel(int level) {
+    public synchronized void setLevel(int level) {
         this.level = level;
     }
 
@@ -223,7 +232,7 @@ public final class PlayerProfile {
      *
      * @return the current xp amount
      */
-    public long getXp() {
+    public synchronized long getXp() {
         return xp;
     }
 
@@ -232,12 +241,14 @@ public final class PlayerProfile {
      *
      * @param xp the new xp amount
      */
-    public void setXp(long xp) {
+    public synchronized void setXp(long xp) {
         this.xp = xp;
     }
 
     /**
      * Returns the mutable per-player settings map.
+     * The returned map is safe for concurrent access and backs this
+     * profile directly.
      *
      * @return the live settings map backing this profile
      */
@@ -251,8 +262,8 @@ public final class PlayerProfile {
      *
      * @return the xp threshold for the next level-up
      */
-    public long xpForNextLevel() {
-        return 500L + (long) level * 250L;
+    public synchronized long xpForNextLevel() {
+        return xpRequirement(level);
     }
 
     /**
@@ -262,14 +273,18 @@ public final class PlayerProfile {
      * @param amount the non-negative amount of xp to add
      * @throws IllegalArgumentException if the amount is negative
      */
-    public void addXp(long amount) {
+    public synchronized void addXp(long amount) {
         if (amount < 0) {
             throw new IllegalArgumentException("amount must not be negative");
         }
         xp += amount;
-        while (xp >= xpForNextLevel()) {
-            xp -= xpForNextLevel();
+        while (xp >= xpRequirement(level)) {
+            xp -= xpRequirement(level);
             level++;
         }
+    }
+
+    private static long xpRequirement(int level) {
+        return 500L + (long) level * 250L;
     }
 }

@@ -1,10 +1,13 @@
 package net.prismarin.velocity.config;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import net.prismarin.api.brand.Brand;
 import org.spongepowered.configurate.CommentedConfigurationNode;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.yaml.NodeStyle;
@@ -12,46 +15,34 @@ import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 
 public final class ProxyConfigCodec {
 
-    private static final String DEFAULT_MOTD_LINE1 = Brand.gradient("<b>" + Brand.NAME + "</b>");
-    private static final String DEFAULT_MOTD_LINE2 =
-            "<gray>Lobby · Creative · Minigame</gray> <dark_gray>—</dark_gray> <gray>1.8 bis 1.21</gray>";
-    private static final String DEFAULT_MAINTENANCE_LINE1 =
-            Brand.gradient("<b>" + Brand.NAME + "</b>")
-                    + " <dark_gray>—</dark_gray> <color:" + Brand.GOLD + "><b>Wartung</b></color>";
-    private static final String DEFAULT_MAINTENANCE_LINE2 =
-            "<gray>Wir schrauben gerade am Netzwerk und sind bald zurück.</gray>";
-    private static final String DEFAULT_MAINTENANCE_VERSION_NAME = "Wartung";
-    private static final int DEFAULT_MAX_PLAYERS = 200;
-    private static final String DEFAULT_LOBBY_SERVER = "lobby";
+    private static final String RESOURCE_NAME = "proxy.yml";
 
     private ProxyConfigCodec() {
         throw new AssertionError();
     }
 
     public static ProxyConfig defaults() {
-        return new ProxyConfig(DEFAULT_MOTD_LINE1, DEFAULT_MOTD_LINE2, DEFAULT_MAINTENANCE_LINE1,
-                DEFAULT_MAINTENANCE_LINE2, DEFAULT_MAINTENANCE_VERSION_NAME, false, DEFAULT_MAX_PLAYERS,
-                DEFAULT_LOBBY_SERVER);
+        try (InputStream resource = ProxyConfigCodec.class.getClassLoader().getResourceAsStream(RESOURCE_NAME)) {
+            if (resource == null) {
+                throw new IllegalStateException("bundled " + RESOURCE_NAME + " is missing from the jar");
+            }
+            BufferedReader reader = new BufferedReader(new InputStreamReader(resource, StandardCharsets.UTF_8));
+            ConfigurationNode root = YamlConfigurationLoader.builder().source(() -> reader).build().load();
+            return fromNode(root, null);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     public static ProxyConfig load(Path file) {
         try {
+            ProxyConfig defaults = defaults();
             if (Files.notExists(file)) {
-                ProxyConfig defaults = defaults();
                 save(file, defaults);
                 return defaults;
             }
             ConfigurationNode root = loaderFor(file).load();
-            return new ProxyConfig(
-                    root.node("motd", "line1").getString(DEFAULT_MOTD_LINE1),
-                    root.node("motd", "line2").getString(DEFAULT_MOTD_LINE2),
-                    root.node("maintenance", "motd", "line1").getString(DEFAULT_MAINTENANCE_LINE1),
-                    root.node("maintenance", "motd", "line2").getString(DEFAULT_MAINTENANCE_LINE2),
-                    root.node("maintenance", "version-name").getString(DEFAULT_MAINTENANCE_VERSION_NAME),
-                    root.node("maintenance", "enabled").getBoolean(false),
-                    root.node("max-players").getInt(DEFAULT_MAX_PLAYERS),
-                    root.node("lobby-server").getString(DEFAULT_LOBBY_SERVER)
-            );
+            return fromNode(root, defaults);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -77,6 +68,22 @@ public final class ProxyConfigCodec {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    private static ProxyConfig fromNode(ConfigurationNode root, ProxyConfig defaults) {
+        return new ProxyConfig(
+                root.node("motd", "line1").getString(defaults == null ? "" : defaults.motdLine1()),
+                root.node("motd", "line2").getString(defaults == null ? "" : defaults.motdLine2()),
+                root.node("maintenance", "motd", "line1")
+                        .getString(defaults == null ? "" : defaults.maintenanceMotdLine1()),
+                root.node("maintenance", "motd", "line2")
+                        .getString(defaults == null ? "" : defaults.maintenanceMotdLine2()),
+                root.node("maintenance", "version-name")
+                        .getString(defaults == null ? "" : defaults.maintenanceVersionName()),
+                root.node("maintenance", "enabled").getBoolean(defaults != null && defaults.maintenance()),
+                root.node("max-players").getInt(defaults == null ? 0 : defaults.maxPlayers()),
+                root.node("lobby-server").getString(defaults == null ? "" : defaults.lobbyServer())
+        );
     }
 
     private static YamlConfigurationLoader loaderFor(Path file) {

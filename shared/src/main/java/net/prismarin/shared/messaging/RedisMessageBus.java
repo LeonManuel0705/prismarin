@@ -8,14 +8,19 @@ import io.lettuce.core.pubsub.RedisPubSubAdapter;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.prismarin.api.messaging.MessageBus;
 import net.prismarin.api.messaging.NetworkMessage;
 
 public final class RedisMessageBus implements MessageBus {
+
+    private static final Logger LOGGER = Logger.getLogger(RedisMessageBus.class.getName());
 
     private final String serverId;
     private final Gson gson = new Gson();
@@ -23,6 +28,7 @@ public final class RedisMessageBus implements MessageBus {
     private final StatefulRedisConnection<String, String> pubConnection;
     private final StatefulRedisPubSubConnection<String, String> subConnection;
     private final Map<String, CopyOnWriteArrayList<Consumer<NetworkMessage>>> subscribers = new ConcurrentHashMap<>();
+    private final Set<String> subscribedChannels = ConcurrentHashMap.newKeySet();
 
     public RedisMessageBus(String serverId, String host, int port, String password) {
         this.serverId = serverId;
@@ -30,9 +36,22 @@ public final class RedisMessageBus implements MessageBus {
         if (password != null && !password.isEmpty()) {
             uri.withPassword(password.toCharArray());
         }
-        this.client = RedisClient.create(uri.build());
-        this.pubConnection = client.connect();
-        this.subConnection = client.connectPubSub();
+        RedisClient createdClient = RedisClient.create(uri.build());
+        StatefulRedisConnection<String, String> createdPub = null;
+        StatefulRedisPubSubConnection<String, String> createdSub = null;
+        try {
+            createdPub = createdClient.connect();
+            createdSub = createdClient.connectPubSub();
+        } catch (RuntimeException e) {
+            if (createdPub != null) {
+                createdPub.close();
+            }
+            createdClient.shutdown();
+            throw e;
+        }
+        this.client = createdClient;
+        this.pubConnection = createdPub;
+        this.subConnection = createdSub;
         this.subConnection.addListener(new RedisPubSubAdapter<>() {
             @Override
             public void message(String channel, String message) {
@@ -48,7 +67,11 @@ public final class RedisMessageBus implements MessageBus {
         }
         NetworkMessage message = gson.fromJson(json, NetworkMessage.class);
         for (Consumer<NetworkMessage> handler : handlers) {
-            handler.accept(message);
+            try {
+                handler.accept(message);
+            } catch (Throwable throwable) {
+                LOGGER.log(Level.WARNING, "Message handler on channel " + channel + " failed", throwable);
+            }
         }
     }
 
@@ -61,15 +84,24 @@ public final class RedisMessageBus implements MessageBus {
                 System.currentTimeMillis(),
                 payloadJson
         );
-        pubConnection.sync().publish(channel, gson.toJson(message));
+        pubConnection.async().publish(channel, gson.toJson(message)).whenComplete((receivers, throwable) -> {
+            if (throwable != null) {
+                LOGGER.log(Level.WARNING, "Could not publish message on channel " + channel, throwable);
+            }
+        });
     }
 
     @Override
     public void subscribe(String channel, Consumer<NetworkMessage> handler) {
-        subscribers.computeIfAbsent(channel, key -> {
-            subConnection.sync().subscribe(key);
-            return new CopyOnWriteArrayList<>();
-        }).add(handler);
+        subscribers.computeIfAbsent(channel, key -> new CopyOnWriteArrayList<>()).add(handler);
+        if (subscribedChannels.add(channel)) {
+            try {
+                subConnection.sync().subscribe(channel);
+            } catch (RuntimeException e) {
+                subscribedChannels.remove(channel);
+                throw e;
+            }
+        }
     }
 
     @Override

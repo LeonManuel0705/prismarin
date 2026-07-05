@@ -10,7 +10,9 @@ public interface ProfileRepository {
 
     Optional<PlayerProfile> find(UUID uuid);
 
-    void upsert(PlayerProfile profile);
+    void save(PlayerProfile profile);
 
     EconomyResult incrementCurrency(UUID uuid, Currency currency, long delta, boolean allowNegative);
+
+    EconomyResult setCurrency(UUID uuid, Currency currency, long value);
 }

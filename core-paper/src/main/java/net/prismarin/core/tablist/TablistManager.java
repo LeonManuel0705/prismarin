@@ -7,6 +7,7 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.core.PrismarinCorePlugin;
+import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.rank.RankFormatProvider;
 import net.prismarin.core.scoreboard.AnimatedTitle;
 import net.prismarin.core.scoreboard.PlayerBoards;
@@ -24,16 +25,18 @@ public final class TablistManager {
     private final PlayerBoards boards;
     private final RankFormatProvider ranks;
     private final LocaleService locale;
+    private final PermissionSnapshots snapshots;
     private final AnimatedTitle title;
     private BukkitTask task;
 
     @Inject
     public TablistManager(PrismarinCorePlugin plugin, PlayerBoards boards, RankFormatProvider ranks,
-                          LocaleService locale, MiniMessage miniMessage) {
+                          LocaleService locale, PermissionSnapshots snapshots, MiniMessage miniMessage) {
         this.plugin = plugin;
         this.boards = boards;
         this.ranks = ranks;
         this.locale = locale;
+        this.snapshots = snapshots;
         this.title = AnimatedTitle.prismarin(miniMessage);
     }
 
@@ -66,6 +69,7 @@ public final class TablistManager {
         Component frame = title.next();
         String online = String.valueOf(plugin.getServer().getOnlinePlayers().size());
         for (Player viewer : plugin.getServer().getOnlinePlayers()) {
+            snapshots.refresh(viewer);
             viewer.sendPlayerListHeaderAndFooter(
                     locale.render("tablist.header", viewer.locale(),
                             Placeholder.component("title", frame),
@@ -80,7 +84,7 @@ public final class TablistManager {
         for (Player target : plugin.getServer().getOnlinePlayers()) {
             String key = TeamSortKeys.sortKey(ranks.weight(target), target.getName());
             Team current = board.getEntryTeam(target.getName());
-            if (current != null && !current.getName().equals(key) && isManaged(current.getName())) {
+            if (current != null && !current.getName().equals(key) && TeamSortKeys.isManaged(current.getName())) {
                 current.removeEntry(target.getName());
                 if (current.getEntries().isEmpty()) {
                     current.unregister();
@@ -100,16 +104,12 @@ public final class TablistManager {
 
     private static void removeEntry(Scoreboard board, String entry) {
         Team team = board.getEntryTeam(entry);
-        if (team == null || !isManaged(team.getName())) {
+        if (team == null || !TeamSortKeys.isManaged(team.getName())) {
             return;
         }
         team.removeEntry(entry);
         if (team.getEntries().isEmpty()) {
             team.unregister();
         }
-    }
-
-    private static boolean isManaged(String teamName) {
-        return teamName.length() >= 4 && teamName.chars().limit(4).allMatch(Character::isDigit);
     }
 }

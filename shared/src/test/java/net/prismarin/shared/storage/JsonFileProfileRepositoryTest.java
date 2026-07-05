@@ -43,7 +43,7 @@ class JsonFileProfileRepositoryTest {
     @Test
     void roundtripPreservesAllFields() {
         UUID uuid = UUID.randomUUID();
-        repository.upsert(sampleProfile(uuid));
+        repository.save(sampleProfile(uuid));
 
         Optional<PlayerProfile> found = repository.find(uuid);
 
@@ -67,9 +67,25 @@ class JsonFileProfileRepositoryTest {
     }
 
     @Test
+    void saveDoesNotOverwriteStoredBalances() {
+        UUID uuid = UUID.randomUUID();
+        PlayerProfile profile = sampleProfile(uuid);
+        repository.save(profile);
+        repository.incrementCurrency(uuid, Currency.COINS, 400L, true);
+
+        profile.setName("LeonNeu");
+        repository.save(profile);
+
+        PlayerProfile stored = repository.find(uuid).orElseThrow();
+        assertEquals("LeonNeu", stored.getName());
+        assertEquals(500L, stored.getCoins());
+        assertEquals(5L, stored.getGems());
+    }
+
+    @Test
     void incrementCurrencyAppliesDelta() {
         UUID uuid = UUID.randomUUID();
-        repository.upsert(sampleProfile(uuid));
+        repository.save(sampleProfile(uuid));
 
         EconomyResult result = repository.incrementCurrency(uuid, Currency.COINS, 50L, true);
 
@@ -81,7 +97,7 @@ class JsonFileProfileRepositoryTest {
     @Test
     void incrementCurrencyGuardsAgainstNegativeBalance() {
         UUID uuid = UUID.randomUUID();
-        repository.upsert(sampleProfile(uuid));
+        repository.save(sampleProfile(uuid));
 
         EconomyResult result = repository.incrementCurrency(uuid, Currency.COINS, -200L, false);
 
@@ -94,12 +110,26 @@ class JsonFileProfileRepositoryTest {
     @Test
     void incrementCurrencyAllowsNegativeWhenPermitted() {
         UUID uuid = UUID.randomUUID();
-        repository.upsert(sampleProfile(uuid));
+        repository.save(sampleProfile(uuid));
 
         EconomyResult result = repository.incrementCurrency(uuid, Currency.COINS, -200L, true);
 
         assertTrue(result.success());
         assertEquals(-100L, result.newBalance());
+    }
+
+    @Test
+    void incrementCurrencySaturatesInsteadOfOverflowing() {
+        UUID uuid = UUID.randomUUID();
+        PlayerProfile profile = sampleProfile(uuid);
+        profile.setCoins(Long.MAX_VALUE - 10L);
+        repository.save(profile);
+
+        EconomyResult result = repository.incrementCurrency(uuid, Currency.COINS, 100L, true);
+
+        assertTrue(result.success());
+        assertEquals(Long.MAX_VALUE, result.newBalance());
+        assertEquals(Long.MAX_VALUE, repository.find(uuid).orElseThrow().getCoins());
     }
 
     @Test
@@ -111,9 +141,29 @@ class JsonFileProfileRepositoryTest {
     }
 
     @Test
+    void setCurrencyWritesExactBalance() {
+        UUID uuid = UUID.randomUUID();
+        repository.save(sampleProfile(uuid));
+
+        EconomyResult result = repository.setCurrency(uuid, Currency.GEMS, 77L);
+
+        assertTrue(result.success());
+        assertEquals(77L, result.newBalance());
+        assertEquals(77L, repository.find(uuid).orElseThrow().getGems());
+    }
+
+    @Test
+    void setCurrencyOnUnknownProfileFails() {
+        EconomyResult result = repository.setCurrency(UUID.randomUUID(), Currency.COINS, 10L);
+
+        assertFalse(result.success());
+        assertEquals(EconomyResult.FailureReason.PROFILE_NOT_LOADED, result.failureReason());
+    }
+
+    @Test
     void concurrentIncrementsAreAtomic() throws InterruptedException {
         UUID uuid = UUID.randomUUID();
-        repository.upsert(sampleProfile(uuid));
+        repository.save(sampleProfile(uuid));
         int threads = 8;
         int incrementsPerThread = 25;
         CountDownLatch done = new CountDownLatch(threads);

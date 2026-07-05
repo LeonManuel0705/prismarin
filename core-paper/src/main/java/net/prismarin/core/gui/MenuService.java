@@ -2,10 +2,10 @@ package net.prismarin.core.gui;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.key.InvalidKeyException;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
@@ -24,7 +24,7 @@ public final class MenuService implements Listener {
 
     private final PrismarinCorePlugin plugin;
     private final Sound clickSound;
-    private final Map<UUID, Menu> openMenus = new HashMap<>();
+    private final Map<UUID, Menu> openMenus = new ConcurrentHashMap<>();
 
     @Inject
     public MenuService(PrismarinCorePlugin plugin, MenuSettings settings) {
@@ -42,10 +42,10 @@ public final class MenuService implements Listener {
                 return;
             }
             menu.prepare(player);
-            MenuHolder holder = new MenuHolder(menu);
+            MenuHolder holder = new MenuHolder(menu, menu.buttons());
             Inventory inventory = plugin.getServer().createInventory(holder, menu.size(), menu.title());
             holder.inventory(inventory);
-            menu.buttons().forEach((slot, button) -> inventory.setItem(slot, button.icon()));
+            holder.buttons().forEach((slot, button) -> inventory.setItem(slot, button.icon()));
             player.openInventory(inventory);
             openMenus.put(player.getUniqueId(), menu);
         });
@@ -67,7 +67,7 @@ public final class MenuService implements Listener {
         if (event.getClickedInventory() != event.getInventory()) {
             return;
         }
-        MenuButton button = holder.menu().buttonAt(event.getSlot());
+        MenuButton button = holder.buttonAt(event.getSlot());
         if (button == null) {
             return;
         }

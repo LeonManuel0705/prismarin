@@ -3,10 +3,10 @@ package net.prismarin.core.scoreboard;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import io.papermc.paper.scoreboard.numbers.NumberFormat;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.core.PrismarinCorePlugin;
@@ -28,7 +28,7 @@ public final class SidebarManager {
     private final PrismarinCorePlugin plugin;
     private final PlayerBoards boards;
     private final LocaleService locale;
-    private final Map<UUID, Integer> lineCounts = new HashMap<>();
+    private final Map<UUID, Integer> lineCounts = new ConcurrentHashMap<>();
     private volatile SidebarProvider provider;
     private BukkitTask task;
 

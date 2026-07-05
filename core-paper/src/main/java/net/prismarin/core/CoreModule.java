@@ -13,6 +13,7 @@ import net.prismarin.api.messaging.MessageBus;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.core.config.MenuSettings;
+import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.rank.DefaultRankFormatProvider;
 import net.prismarin.core.rank.LuckPermsRankFormatProvider;
 import net.prismarin.core.rank.RankFormatProvider;
@@ -53,8 +54,8 @@ public final class CoreModule extends AbstractModule {
 
     @Provides
     @Singleton
-    LocaleService localeService() {
-        return new YamlLocaleService(dataDirectory());
+    LocaleService localeService(CoreConfig config) {
+        return new YamlLocaleService(dataDirectory(), config.defaultLocale());
     }
 
     @Provides
@@ -71,14 +72,14 @@ public final class CoreModule extends AbstractModule {
 
     @Provides
     @Singleton
-    ProfileService profileService(ProfileRepository repository, CoreConfig config) {
-        return new ProfileServiceImpl(repository, config.defaultLocale());
+    ProfileService profileService(ProfileRepository repository, CoreConfig config, ExecutorService executor) {
+        return new ProfileServiceImpl(repository, config.defaultLocale(), executor);
     }
 
     @Provides
     @Singleton
-    EconomyService economyService(ProfileRepository repository) {
-        return new EconomyServiceImpl(repository);
+    EconomyService economyService(ProfileRepository repository, ExecutorService executor) {
+        return new EconomyServiceImpl(repository, executor);
     }
 
     @Provides
@@ -107,8 +108,9 @@ public final class CoreModule extends AbstractModule {
 
     @Provides
     @Singleton
-    RankFormatProvider rankFormatProvider(LocaleService localeService, MiniMessage miniMessage) {
-        DefaultRankFormatProvider fallback = new DefaultRankFormatProvider(localeService);
+    RankFormatProvider rankFormatProvider(LocaleService localeService, MiniMessage miniMessage,
+                                          PermissionSnapshots snapshots) {
+        DefaultRankFormatProvider fallback = new DefaultRankFormatProvider(localeService, snapshots);
         if (plugin.getServer().getPluginManager().getPlugin("LuckPerms") != null) {
             return new LuckPermsRankFormatProvider(miniMessage, fallback);
         }
