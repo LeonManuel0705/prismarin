@@ -7,23 +7,27 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import net.prismarin.api.locale.LocaleService;
-import net.prismarin.api.messaging.MessageBus;
+import net.prismarin.api.Prismarin;
+import net.prismarin.api.PrismarinProvider;
 import net.prismarin.api.profile.ProfileService;
-import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.core.chat.AsyncChatListener;
 import net.prismarin.core.command.CoinsCommand;
 import net.prismarin.core.command.EconomyCommand;
 import net.prismarin.core.gui.MenuService;
+import net.prismarin.core.network.HeartbeatTask;
+import net.prismarin.core.network.NetworkCommand;
+import net.prismarin.core.network.NetworkMenu;
 import net.prismarin.core.profile.ConnectionListener;
 import net.prismarin.core.scoreboard.SidebarManager;
-import net.prismarin.core.storage.ProfileStorage;
 import net.prismarin.core.tablist.TablistManager;
 import net.prismarin.core.task.PeriodicSaveTask;
 import net.prismarin.shared.config.CoreConfig;
+import net.prismarin.shared.platform.CoreServices;
+import net.prismarin.shared.status.NetworkStatusService;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -31,41 +35,80 @@ public final class PrismarinCorePlugin extends JavaPlugin {
 
     private static final long SAVE_INTERVAL_TICKS = 20L * 60L * 5L;
     private static final long SHUTDOWN_SAVE_TIMEOUT_SECONDS = 15L;
+    private static final long HEARTBEAT_INTERVAL_TICKS = 100L;
+    private static final long STATUS_INTERVAL_TICKS = 200L;
 
     private Injector injector;
     private SidebarManager sidebarManager;
     private TablistManager tablistManager;
     private BukkitTask saveTask;
+    private BukkitTask heartbeatTask;
+    private BukkitTask statusTask;
 
     @Override
     public void onEnable() {
         injector = Guice.createInjector(new CoreModule(this));
-        injector.getInstance(CoreConfig.class);
-        injector.getInstance(LocaleService.class);
-        injector.getInstance(ServerDirectory.class);
-        injector.getInstance(MessageBus.class);
-        sidebarManager = injector.getInstance(SidebarManager.class);
-        tablistManager = injector.getInstance(TablistManager.class);
+        CoreConfig config = injector.getInstance(CoreConfig.class);
+        injector.getInstance(CoreServices.class);
+        Prismarin prismarin = injector.getInstance(Prismarin.class);
 
         PluginManager pluginManager = getServer().getPluginManager();
-        pluginManager.registerEvents(injector.getInstance(AsyncChatListener.class), this);
+        if (config.moduleEnabled(CoreModules.CHAT)) {
+            pluginManager.registerEvents(injector.getInstance(AsyncChatListener.class), this);
+        }
         pluginManager.registerEvents(injector.getInstance(ConnectionListener.class), this);
         pluginManager.registerEvents(injector.getInstance(MenuService.class), this);
 
-        registerCommand("coins", injector.getInstance(CoinsCommand.class));
-        registerCommand("economy", injector.getInstance(EconomyCommand.class));
+        if (config.moduleEnabled(CoreModules.ECONOMY_COMMANDS)) {
+            registerCommand("coins", injector.getInstance(CoinsCommand.class));
+            registerCommand("economy", injector.getInstance(EconomyCommand.class));
+        } else {
+            removeCommand("coins");
+            removeCommand("economy");
+        }
 
-        sidebarManager.start();
-        tablistManager.start();
+        getServer().getMessenger().registerOutgoingPluginChannel(this, NetworkMenu.CHANNEL);
+        if (config.moduleEnabled(CoreModules.NETWORK_MENU)) {
+            registerCommand("network", injector.getInstance(NetworkCommand.class));
+        } else {
+            removeCommand("network");
+        }
+        NetworkStatusService networkStatus = injector.getInstance(NetworkStatusService.class);
+        heartbeatTask = getServer().getScheduler()
+                .runTaskTimer(this, injector.getInstance(HeartbeatTask.class), 20L, HEARTBEAT_INTERVAL_TICKS);
+        statusTask = getServer().getScheduler()
+                .runTaskTimerAsynchronously(this, () -> networkStatus.refresh(), 40L, STATUS_INTERVAL_TICKS);
+
+        if (config.moduleEnabled(CoreModules.SIDEBAR)) {
+            sidebarManager = injector.getInstance(SidebarManager.class);
+            sidebarManager.start();
+        }
+        if (config.moduleEnabled(CoreModules.TABLIST)) {
+            tablistManager = injector.getInstance(TablistManager.class);
+            tablistManager.start();
+        }
         saveTask = getServer().getScheduler()
                 .runTaskTimer(this, injector.getInstance(PeriodicSaveTask.class), SAVE_INTERVAL_TICKS, SAVE_INTERVAL_TICKS);
 
         CoreApi.register(injector);
+        PrismarinProvider.register(prismarin);
+        getServer().getServicesManager().register(Prismarin.class, prismarin, this, ServicePriority.Normal);
+        getLogger().info("Enabled as '" + config.serverId() + "' with modules " + enabledModules(config));
     }
 
     @Override
     public void onDisable() {
+        getServer().getServicesManager().unregisterAll(this);
+        PrismarinProvider.unregister();
         CoreApi.unregister();
+        for (BukkitTask task : new BukkitTask[]{heartbeatTask, statusTask}) {
+            if (task != null) {
+                task.cancel();
+            }
+        }
+        heartbeatTask = null;
+        statusTask = null;
+        getServer().getMessenger().unregisterOutgoingPluginChannel(this);
         if (saveTask != null) {
             saveTask.cancel();
             saveTask = null;
@@ -81,8 +124,7 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         if (injector != null) {
             flushProfiles(injector.getInstance(ProfileService.class));
             shutdownExecutor(injector.getInstance(ExecutorService.class));
-            injector.getInstance(ProfileStorage.class).close();
-            injector.getInstance(MessageBus.class).close();
+            injector.getInstance(CoreServices.class).close();
             injector = null;
         }
     }
@@ -114,6 +156,19 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         } catch (ExecutionException | TimeoutException e) {
             getLogger().warning("Could not save all profiles on shutdown: " + e.getMessage());
         }
+    }
+
+    private void removeCommand(String name) {
+        PluginCommand command = getCommand(name);
+        if (command == null) {
+            return;
+        }
+        command.unregister(getServer().getCommandMap());
+        getServer().getCommandMap().getKnownCommands().values().removeIf(known -> known == command);
+    }
+
+    private static String enabledModules(CoreConfig config) {
+        return CoreModules.ALL.stream().filter(config::moduleEnabled).toList().toString();
     }
 
     private void registerCommand(String name, TabExecutor executor) {

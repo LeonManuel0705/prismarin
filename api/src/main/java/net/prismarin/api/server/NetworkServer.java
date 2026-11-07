@@ -1,34 +1,30 @@
 package net.prismarin.api.server;
 
-/**
- * Static description of one backend server in the network.
- *
- * @param name the unique technical name, e.g. {@code lobby-1}
- * @param displayName the display name in MiniMessage format
- * @param host the hostname or IP the server listens on
- * @param port the port the server listens on
- * @param category the coarse role of the server within the network
- */
-public record NetworkServer(String name, String displayName, String host, int port, Category category) {
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 
-    /**
-     * Coarse roles a backend server can fulfil.
-     */
-    public enum Category {
+public record NetworkServer(String name, String displayName, String host, int port, String group,
+                            Map<String, String> properties) {
 
-        /**
-         * A hub players idle and navigate on.
-         */
-        LOBBY,
+    public static final String GROUP_LOBBY = "lobby";
 
-        /**
-         * A server running an actual game mode.
-         */
-        GAME,
+    public static final String GROUP_DEFAULT = "default";
 
-        /**
-         * A creative or staff build server.
-         */
-        BUILD
+    public NetworkServer {
+        Objects.requireNonNull(name, "name");
+        Objects.requireNonNull(displayName, "displayName");
+        Objects.requireNonNull(host, "host");
+        group = Objects.requireNonNull(group, "group").toLowerCase(Locale.ROOT);
+        properties = Map.copyOf(Objects.requireNonNull(properties, "properties"));
+    }
+
+    public Optional<String> property(String key) {
+        return Optional.ofNullable(properties.get(key));
+    }
+
+    public boolean inGroup(String group) {
+        return this.group.equalsIgnoreCase(group);
     }
 }

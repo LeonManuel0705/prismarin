@@ -3,14 +3,17 @@ servers:
     display-name: "<gradient:#22D3EE:#2DD4BF>Lobby</gradient>"
     host: "127.0.0.1"
     port: 25566
-    category: LOBBY
+    group: lobby
+    icon: PRISMARINE
   creative:
-    display-name: "<color:#2DD4BF>Creative</color>"
+    display-name: "&#2DD4BFCreative"
     host: "127.0.0.1"
     port: 25567
-    category: BUILD
+    group: build
+    icon: GRASS_BLOCK
   minigame:
-    display-name: "<color:#FBBF24>Minigame</color>"
+    display-name: "&#FBBF24Minigame"
     host: "127.0.0.1"
     port: 25568
-    category: GAME
+    group: game
+    icon: ENDER_PEARL

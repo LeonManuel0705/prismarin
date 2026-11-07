@@ -1,12 +1,9 @@
-package net.prismarin.core.storage;
+package net.prismarin.shared.storage;
 
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import java.nio.file.Path;
 import net.prismarin.shared.config.CoreConfig;
-import net.prismarin.shared.storage.JsonFileProfileRepository;
-import net.prismarin.shared.storage.MongoProfileRepository;
-import net.prismarin.shared.storage.ProfileRepository;
 
 public final class ProfileStorage implements AutoCloseable {
 

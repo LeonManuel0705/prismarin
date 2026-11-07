@@ -13,7 +13,6 @@ import net.prismarin.api.economy.Currency;
 import net.prismarin.api.economy.EconomyResult;
 import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.locale.LocaleService;
-import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.PrismarinCorePlugin;
 import net.prismarin.core.permission.CorePermissions;
 import net.prismarin.shared.config.CoreConfig;
@@ -29,17 +28,15 @@ public final class EconomyCommand implements TabExecutor {
 
     private final PrismarinCorePlugin plugin;
     private final EconomyService economy;
-    private final ProfileService profiles;
     private final LocaleService locale;
     private final CoreConfig config;
     private final ExecutorService executor;
 
     @Inject
-    public EconomyCommand(PrismarinCorePlugin plugin, EconomyService economy, ProfileService profiles,
+    public EconomyCommand(PrismarinCorePlugin plugin, EconomyService economy,
                           LocaleService locale, CoreConfig config, ExecutorService executor) {
         this.plugin = plugin;
         this.economy = economy;
-        this.profiles = profiles;
         this.locale = locale;
         this.config = config;
         this.executor = executor;
@@ -51,9 +48,9 @@ public final class EconomyCommand implements TabExecutor {
             send(sender, "general.no-permission");
             return true;
         }
-        EconomyCommandParser.Result result = EconomyCommandParser.parse(args);
+        EconomyCommandParser.Result result = EconomyCommandParser.parse(args, economy.currencies());
         if (result instanceof EconomyCommandParser.Invalid invalid) {
-            send(sender, invalid.messageKey());
+            send(sender, invalid.messageKey(), Placeholder.unparsed("currencies", currencyList()));
             return true;
         }
         EconomyCommandParser.Parsed parsed = (EconomyCommandParser.Parsed) result;
@@ -74,7 +71,7 @@ public final class EconomyCommand implements TabExecutor {
         return switch (args.length) {
             case 1 -> filter(List.of("give", "take", "set"), args[0]);
             case 2 -> filter(Bukkit.getOnlinePlayers().stream().map(Player::getName).toList(), args[1]);
-            case 3 -> filter(List.of("coins", "gems"), args[2]);
+            case 3 -> filter(economy.currencies().stream().map(Currency::id).toList(), args[2]);
             case 4 -> filter(List.of("1", "10", "100", "1000"), args[3]);
             default -> List.of();
         };
@@ -123,8 +120,6 @@ public final class EconomyCommand implements TabExecutor {
                 }
                 return;
             }
-            profiles.getCached(targetId)
-                    .ifPresent(profile -> profile.balance(parsed.currency(), result.newBalance()));
             sender.sendMessage(locale.render(senderKey, senderLocale,
                     Placeholder.unparsed("player", targetName),
                     Placeholder.unparsed("amount", String.valueOf(parsed.amount())),
@@ -153,8 +148,6 @@ public final class EconomyCommand implements TabExecutor {
                         Placeholder.unparsed("player", targetName)));
                 return;
             }
-            profiles.getCached(targetId)
-                    .ifPresent(profile -> profile.balance(parsed.currency(), result.newBalance()));
             sender.sendMessage(locale.render("economy.set-success", senderLocale,
                     Placeholder.unparsed("player", targetName),
                     Placeholder.unparsed("amount", String.valueOf(parsed.amount())),
@@ -172,8 +165,11 @@ public final class EconomyCommand implements TabExecutor {
     }
 
     private TagResolver currencyResolver(Currency currency, Locale target) {
-        String key = currency == Currency.COINS ? "currency.coins" : "currency.gems";
-        return Placeholder.component("currency", locale.render(key, target));
+        return Placeholder.component("currency", CurrencyNames.render(locale, currency, target));
+    }
+
+    private String currencyList() {
+        return String.join(", ", economy.currencies().stream().map(Currency::id).toList());
     }
 
     private Locale localeOf(CommandSender sender) {

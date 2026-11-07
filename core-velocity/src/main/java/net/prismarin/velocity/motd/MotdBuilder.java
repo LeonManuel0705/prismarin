@@ -1,12 +1,20 @@
 package net.prismarin.velocity.motd;
 
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.prismarin.shared.text.TextFormatter;
 import net.prismarin.velocity.config.ProxyConfig;
 
 public final class MotdBuilder {
 
-    private final MiniMessage miniMessage = MiniMessage.miniMessage();
+    private final TextFormatter formatter;
+
+    public MotdBuilder() {
+        this(TextFormatter.plain());
+    }
+
+    public MotdBuilder(TextFormatter formatter) {
+        this.formatter = formatter;
+    }
 
     public Component description(ProxyConfig config) {
         if (config.maintenance()) {
@@ -16,8 +24,8 @@ public final class MotdBuilder {
     }
 
     private Component lines(String line1, String line2) {
-        return miniMessage.deserialize(line1)
+        return formatter.format(line1)
                 .append(Component.newline())
-                .append(miniMessage.deserialize(line2));
+                .append(formatter.format(line2));
     }
 }

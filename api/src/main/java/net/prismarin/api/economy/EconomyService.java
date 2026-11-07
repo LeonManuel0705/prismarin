@@ -1,57 +1,25 @@
 package net.prismarin.api.economy;
 
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Asynchronous access to player balances with atomic transaction
- * semantics backed by the storage layer.
- */
 public interface EconomyService {
 
-    /**
-     * Reads the current balance for the given currency.
-     *
-     * @param uuid the player's unique id
-     * @param currency the currency to read
-     * @return a future completing with the balance, 0 if no profile exists
-     */
+    List<Currency> currencies();
+
+    Currency primaryCurrency();
+
+    default Optional<Currency> currency(String id) {
+        return currencies().stream().filter(currency -> currency.id().equalsIgnoreCase(id)).findFirst();
+    }
+
     CompletableFuture<Long> balance(UUID uuid, Currency currency);
 
-    /**
-     * Atomically adds the given amount to the player's balance.
-     *
-     * @param uuid the player's unique id
-     * @param currency the currency to credit
-     * @param amount the strictly positive amount to add
-     * @return a future completing with the transaction result
-     * @throws IllegalArgumentException if the amount is not strictly positive
-     */
     CompletableFuture<EconomyResult> deposit(UUID uuid, Currency currency, long amount);
 
-    /**
-     * Atomically removes the given amount from the player's balance,
-     * failing with {@link EconomyResult.FailureReason#INSUFFICIENT_FUNDS}
-     * instead of allowing a negative balance.
-     *
-     * @param uuid the player's unique id
-     * @param currency the currency to debit
-     * @param amount the strictly positive amount to remove
-     * @return a future completing with the transaction result
-     * @throws IllegalArgumentException if the amount is not strictly positive
-     */
     CompletableFuture<EconomyResult> withdraw(UUID uuid, Currency currency, long amount);
 
-    /**
-     * Atomically sets the player's balance to the given value,
-     * failing with {@link EconomyResult.FailureReason#PROFILE_NOT_LOADED}
-     * if no profile exists in storage.
-     *
-     * @param uuid the player's unique id
-     * @param currency the currency to write
-     * @param value the non-negative balance to set
-     * @return a future completing with the transaction result
-     * @throws IllegalArgumentException if the value is negative
-     */
     CompletableFuture<EconomyResult> set(UUID uuid, Currency currency, long value);
 }

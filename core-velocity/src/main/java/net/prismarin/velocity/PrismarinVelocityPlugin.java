@@ -16,12 +16,13 @@ import java.nio.file.Path;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import net.prismarin.api.locale.LocaleService;
-import net.prismarin.api.messaging.MessageBus;
+import net.prismarin.api.PrismarinProvider;
+import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.shared.config.ConfigLoader;
 import net.prismarin.shared.config.CoreConfig;
-import net.prismarin.shared.locale.YamlLocaleService;
-import net.prismarin.shared.messaging.MessageBusFactory;
+import net.prismarin.shared.platform.CoreServices;
+import net.prismarin.shared.server.YamlServerDirectory;
+import net.prismarin.shared.status.NetworkStatusService;
 import net.prismarin.velocity.command.HubCommand;
 import net.prismarin.velocity.command.MaintenanceCommand;
 import net.prismarin.velocity.command.SendAllCommand;
@@ -31,9 +32,10 @@ import net.prismarin.velocity.listener.MaintenanceLoginListener;
 import net.prismarin.velocity.listener.PingListener;
 import net.prismarin.velocity.locale.ProxyMessages;
 import net.prismarin.velocity.motd.MotdBuilder;
+import net.prismarin.velocity.server.ProxyServerDirectory;
 import org.slf4j.Logger;
 
-@Plugin(id = "prismarin-core", name = "PrismarinCore", version = "0.1.0", authors = {"Leon"})
+@Plugin(id = "prismarin-core", name = "PrismarinCore", version = "0.2.0", authors = {"Leon"})
 public final class PrismarinVelocityPlugin {
 
     private final ProxyServer proxy;
@@ -41,7 +43,7 @@ public final class PrismarinVelocityPlugin {
     private final Path dataDirectory;
 
     private ExecutorService executor;
-    private MessageBus messageBus;
+    private CoreServices services;
 
     @Inject
     public PrismarinVelocityPlugin(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory) {
@@ -54,32 +56,47 @@ public final class PrismarinVelocityPlugin {
     public void onProxyInitialize(ProxyInitializeEvent event) {
         executor = Executors.newVirtualThreadPerTaskExecutor();
         CoreConfig coreConfig = loadCoreConfig();
-        LocaleService localeService = loadLocale(coreConfig.defaultLocale());
-        ProxyMessages messages = new ProxyMessages(localeService, Locale.forLanguageTag(coreConfig.defaultLocale()));
+        services = CoreServices.start(coreConfig, dataDirectory, executor);
+        ProxyMessages messages = new ProxyMessages(services.locale(), Locale.forLanguageTag(coreConfig.defaultLocale()));
         ProxyConfigStore configStore = new ProxyConfigStore(dataDirectory.resolve("proxy.yml"), executor, logger);
-        messageBus = MessageBusFactory.create(coreConfig);
+        ServerDirectory directory = new ProxyServerDirectory(proxy,
+                new YamlServerDirectory(dataDirectory.resolve("servers.yml")), configStore.config().lobbyServer());
 
-        proxy.getEventManager().register(this, new PingListener(configStore, new MotdBuilder()));
-        proxy.getEventManager().register(this, new MaintenanceLoginListener(configStore, messages));
-        proxy.getEventManager().register(this, new LobbyRedirectListener(proxy, configStore, messages));
+        if (coreConfig.moduleEnabled(ProxyModules.MOTD)) {
+            proxy.getEventManager().register(this, new PingListener(configStore, new MotdBuilder(services.formatter())));
+        }
+        if (coreConfig.moduleEnabled(ProxyModules.LOBBY_FALLBACK)) {
+            proxy.getEventManager().register(this, new LobbyRedirectListener(proxy, configStore, messages));
+        }
 
         CommandManager commands = proxy.getCommandManager();
-        commands.register(commands.metaBuilder("hub").aliases("lobby").plugin(this).build(),
-                new HubCommand(proxy, configStore, messages));
-        commands.register(commands.metaBuilder("sendall").plugin(this).build(),
-                new SendAllCommand(proxy, messages));
-        commands.register(commands.metaBuilder("maintenance").plugin(this).build(),
-                new MaintenanceCommand(configStore, messages));
+        if (coreConfig.moduleEnabled(ProxyModules.HUB_COMMAND)) {
+            commands.register(commands.metaBuilder("hub").aliases("lobby").plugin(this).build(),
+                    new HubCommand(proxy, configStore, messages));
+        }
+        if (coreConfig.moduleEnabled(ProxyModules.SENDALL_COMMAND)) {
+            commands.register(commands.metaBuilder("sendall").plugin(this).build(),
+                    new SendAllCommand(proxy, messages));
+        }
+        if (coreConfig.moduleEnabled(ProxyModules.MAINTENANCE)) {
+            proxy.getEventManager().register(this, new MaintenanceLoginListener(configStore, messages));
+            commands.register(commands.metaBuilder("maintenance").plugin(this).build(),
+                    new MaintenanceCommand(configStore, messages));
+        }
 
-        logger.info("PRISMARIN proxy core enabled as '{}' with {}",
-                coreConfig.serverId(), messageBus.getClass().getSimpleName());
+        NetworkStatusService networkStatus = new NetworkStatusService(directory, services.messageBus(), executor);
+        PrismarinProvider.register(services.prismarin(directory, networkStatus));
+        logger.info("PRISMARIN proxy core enabled as '{}' with {} and modules {}",
+                coreConfig.serverId(), services.messageBus().getClass().getSimpleName(),
+                ProxyModules.ALL.stream().filter(coreConfig::moduleEnabled).toList());
     }
 
     @Subscribe
     public void onProxyShutdown(ProxyShutdownEvent event) {
-        if (messageBus != null) {
-            messageBus.close();
-            messageBus = null;
+        PrismarinProvider.unregister();
+        if (services != null) {
+            services.close();
+            services = null;
         }
         if (executor != null) {
             executor.shutdown();
@@ -90,13 +107,7 @@ public final class PrismarinVelocityPlugin {
     private CoreConfig loadCoreConfig() {
         Path file = dataDirectory.resolve("config.yml");
         seedResource(file, "config.yml");
-        return ConfigLoader.load(file);
-    }
-
-    private LocaleService loadLocale(String defaultLocale) {
-        seedResource(dataDirectory.resolve("messages_de.yml"), "locale/messages_de.yml");
-        seedResource(dataDirectory.resolve("messages_en.yml"), "locale/messages_en.yml");
-        return new YamlLocaleService(dataDirectory, defaultLocale);
+        return ConfigLoader.load(file, ProxyModules.ALL);
     }
 
     private void seedResource(Path file, String resourceName) {

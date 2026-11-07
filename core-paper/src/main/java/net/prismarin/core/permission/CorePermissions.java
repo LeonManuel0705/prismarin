@@ -6,6 +6,7 @@ public final class CorePermissions {
     public static final String ADMIN_ECONOMY = "prismarin.admin.economy";
     public static final String CHAT_FORMAT = "prismarin.chat.format";
     public static final String RANK_ADMIN = "prismarin.rank.admin";
+    public static final String ADMIN_NETWORK = "prismarin.admin.network";
 
     private CorePermissions() {
         throw new AssertionError();

@@ -1,12 +1,12 @@
 # PRISMARIN — Architektur
 
-Monorepo für das PRISMARIN-Netzwerk: ein Velocity-Proxy vor mehreren Paper-Backends, gemeinsame Dienste für Profile, Economy, Cross-Server-Messaging und Lokalisierung. Gradle 9 (Kotlin DSL), Java 21 (`options.release = 21`), Group `net.prismarin`, Version `0.1.0`.
+Monorepo für das PRISMARIN-Netzwerk: ein Velocity-Proxy vor mehreren Paper-Backends, gemeinsame Dienste für Profile, Economy, Cross-Server-Messaging und Lokalisierung. Gradle 9 (Kotlin DSL), Java 21 (`options.release = 21`), Group `net.prismarin`, Version `0.2.0`.
 
 ## Modulübersicht
 
 | Modul | Rolle | Artefakt |
 | --- | --- | --- |
-| `:api` | Plattformneutrale Verträge (Interfaces, Records, `Brand`) | wird in `PrismarinCore.jar` und `PrismarinVelocity.jar` eingebettet |
+| `:api` | Plattformneutrale Verträge (Interfaces, Records, Events) | wird in `PrismarinCore.jar` und `PrismarinVelocity.jar` eingebettet |
 | `:shared` | Implementierungen der API: Config, Storage, Messaging, Locale | dito |
 | `:core-paper` | Kern-Plugin für alle Paper-Backends | `dist/PrismarinCore.jar` |
 | `:core-velocity` | Kern-Plugin für den Velocity-Proxy | `dist/PrismarinVelocity.jar` (Shadow) |
@@ -131,4 +131,4 @@ sequenceDiagram
     PS->>VT: setLastSeen + upsert + Cache-Eviction
 ```
 
-Schreibzugriffe für Offline-Spieler laufen über `ProfileService.modify` (Cache-Hit oder Storage-Fallback, danach Upsert). Economy-Transaktionen umgehen den Profil-Cache und arbeiten atomar auf dem Repository (`incrementCurrency` mit `INSUFFICIENT_FUNDS`/`PROFILE_NOT_LOADED`-Semantik); `EconomyCommand` synchronisiert den Cache nach erfolgreicher Transaktion zurück.
+Schreibzugriffe für Offline-Spieler laufen über `ProfileService.modify` (Cache-Hit oder Storage-Fallback, danach Upsert). Economy-Transaktionen umgehen den Profil-Cache und arbeiten atomar auf dem Repository (`incrementCurrency` mit `INSUFFICIENT_FUNDS`/`PROFILE_NOT_LOADED`-Semantik); `CoreServices` hört auf `BalanceChangedEvent` und schreibt den neuen Stand in den Profil-Cache, egal welches Plugin gebucht hat.

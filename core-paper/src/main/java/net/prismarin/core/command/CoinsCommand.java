@@ -5,6 +5,8 @@ import com.google.inject.Singleton;
 import java.util.List;
 import java.util.Locale;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.economy.Currency;
+import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.permission.CorePermissions;
@@ -18,12 +20,14 @@ import org.bukkit.entity.Player;
 public final class CoinsCommand implements TabExecutor {
 
     private final ProfileService profiles;
+    private final EconomyService economy;
     private final LocaleService locale;
     private final CoreConfig config;
 
     @Inject
-    public CoinsCommand(ProfileService profiles, LocaleService locale, CoreConfig config) {
+    public CoinsCommand(ProfileService profiles, EconomyService economy, LocaleService locale, CoreConfig config) {
         this.profiles = profiles;
+        this.economy = economy;
         this.locale = locale;
         this.config = config;
     }
@@ -39,10 +43,11 @@ public final class CoinsCommand implements TabExecutor {
             player.sendMessage(locale.render("general.no-permission", player.locale()));
             return true;
         }
+        Currency currency = economy.primaryCurrency();
         profiles.getCached(player.getUniqueId()).ifPresentOrElse(
                 profile -> player.sendMessage(locale.render("economy.balance", player.locale(),
-                        Placeholder.unparsed("amount", String.valueOf(profile.getCoins())),
-                        Placeholder.component("currency", locale.render("currency.coins", player.locale())))),
+                        Placeholder.unparsed("amount", String.valueOf(profile.balance(currency))),
+                        Placeholder.component("currency", CurrencyNames.render(locale, currency, player.locale())))),
                 () -> player.sendMessage(locale.render("general.profile-not-loaded", player.locale())));
         return true;
     }

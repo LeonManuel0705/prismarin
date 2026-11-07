@@ -1,6 +1,12 @@
 package net.prismarin.shared.storage;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,10 +22,6 @@ import net.prismarin.api.profile.PlayerProfile;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JsonFileProfileRepositoryTest {
 
@@ -37,7 +39,7 @@ class JsonFileProfileRepositoryTest {
         Map<String, String> settings = new HashMap<>();
         settings.put("scoreboard", "true");
         return new PlayerProfile(uuid, "Leon", Instant.ofEpochMilli(1000L), Instant.ofEpochMilli(2000L),
-                "de", 100L, 5L, 3, 200L, settings);
+                "de", Map.of(Currency.COINS, 100L, Currency.GEMS, 5L), 3, 200L, settings);
     }
 
     @Test
@@ -54,8 +56,8 @@ class JsonFileProfileRepositoryTest {
         assertEquals(Instant.ofEpochMilli(1000L), profile.getFirstJoin());
         assertEquals(Instant.ofEpochMilli(2000L), profile.getLastSeen());
         assertEquals("de", profile.getLocale());
-        assertEquals(100L, profile.getCoins());
-        assertEquals(5L, profile.getGems());
+        assertEquals(100L, profile.balance(Currency.COINS));
+        assertEquals(5L, profile.balance(Currency.GEMS));
         assertEquals(3, profile.getLevel());
         assertEquals(200L, profile.getXp());
         assertEquals("true", profile.getSettings().get("scoreboard"));
@@ -78,8 +80,8 @@ class JsonFileProfileRepositoryTest {
 
         PlayerProfile stored = repository.find(uuid).orElseThrow();
         assertEquals("LeonNeu", stored.getName());
-        assertEquals(500L, stored.getCoins());
-        assertEquals(5L, stored.getGems());
+        assertEquals(500L, stored.balance(Currency.COINS));
+        assertEquals(5L, stored.balance(Currency.GEMS));
     }
 
     @Test
@@ -91,7 +93,7 @@ class JsonFileProfileRepositoryTest {
 
         assertTrue(result.success());
         assertEquals(150L, result.newBalance());
-        assertEquals(150L, repository.find(uuid).orElseThrow().getCoins());
+        assertEquals(150L, repository.find(uuid).orElseThrow().balance(Currency.COINS));
     }
 
     @Test
@@ -104,7 +106,7 @@ class JsonFileProfileRepositoryTest {
         assertFalse(result.success());
         assertEquals(EconomyResult.FailureReason.INSUFFICIENT_FUNDS, result.failureReason());
         assertEquals(100L, result.newBalance());
-        assertEquals(100L, repository.find(uuid).orElseThrow().getCoins());
+        assertEquals(100L, repository.find(uuid).orElseThrow().balance(Currency.COINS));
     }
 
     @Test
@@ -122,14 +124,14 @@ class JsonFileProfileRepositoryTest {
     void incrementCurrencySaturatesInsteadOfOverflowing() {
         UUID uuid = UUID.randomUUID();
         PlayerProfile profile = sampleProfile(uuid);
-        profile.setCoins(Long.MAX_VALUE - 10L);
+        profile.balance(Currency.COINS, Long.MAX_VALUE - 10L);
         repository.save(profile);
 
         EconomyResult result = repository.incrementCurrency(uuid, Currency.COINS, 100L, true);
 
         assertTrue(result.success());
         assertEquals(Long.MAX_VALUE, result.newBalance());
-        assertEquals(Long.MAX_VALUE, repository.find(uuid).orElseThrow().getCoins());
+        assertEquals(Long.MAX_VALUE, repository.find(uuid).orElseThrow().balance(Currency.COINS));
     }
 
     @Test
@@ -149,7 +151,7 @@ class JsonFileProfileRepositoryTest {
 
         assertTrue(result.success());
         assertEquals(77L, result.newBalance());
-        assertEquals(77L, repository.find(uuid).orElseThrow().getGems());
+        assertEquals(77L, repository.find(uuid).orElseThrow().balance(Currency.GEMS));
     }
 
     @Test
@@ -179,6 +181,35 @@ class JsonFileProfileRepositoryTest {
             assertTrue(done.await(30, TimeUnit.SECONDS));
         }
 
-        assertEquals(100L + threads * incrementsPerThread, repository.find(uuid).orElseThrow().getCoins());
+        assertEquals(100L + threads * incrementsPerThread, repository.find(uuid).orElseThrow().balance(Currency.COINS));
+    }
+
+    @Test
+    void legacyCoinAndGemFieldsAreMigrated() throws IOException {
+        UUID uuid = UUID.randomUUID();
+        Files.writeString(dataDirectory.resolve("profiles").resolve(uuid + ".json"), "{\"uuid\":\"" + uuid
+                + "\",\"name\":\"Leon\",\"firstJoin\":1,\"lastSeen\":2,\"locale\":\"de\","
+                + "\"coins\":420,\"gems\":7,\"level\":1,\"xp\":5,\"settings\":{}}");
+
+        PlayerProfile profile = repository.find(uuid).orElseThrow();
+        assertEquals(420L, profile.balance(Currency.COINS));
+        assertEquals(7L, profile.balance(Currency.GEMS));
+
+        repository.incrementCurrency(uuid, Currency.COINS, 80L, true);
+        String stored = Files.readString(dataDirectory.resolve("profiles").resolve(uuid + ".json"));
+        assertEquals(500L, repository.find(uuid).orElseThrow().balance(Currency.COINS));
+        assertEquals(7L, repository.find(uuid).orElseThrow().balance(Currency.GEMS));
+        assertTrue(stored.contains("\"balances\""));
+        assertFalse(stored.contains("\"coins\":420"));
+    }
+
+    @Test
+    void customCurrenciesArePersisted() {
+        UUID uuid = UUID.randomUUID();
+        repository.save(sampleProfile(uuid));
+        Currency tokens = Currency.of("tokens");
+        repository.incrementCurrency(uuid, tokens, 12L, true);
+        assertEquals(12L, repository.find(uuid).orElseThrow().balance(tokens));
+        assertEquals(100L, repository.find(uuid).orElseThrow().balance(Currency.COINS));
     }
 }

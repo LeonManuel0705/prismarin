@@ -6,7 +6,7 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.prismarin.api.brand.Brand;
+import net.prismarin.api.brand.Branding;
 
 public final class AnimatedTitle {
 
@@ -22,18 +22,19 @@ public final class AnimatedTitle {
         this.frames = List.copyOf(frames);
     }
 
-    public static AnimatedTitle prismarin(MiniMessage miniMessage) {
-        return brandGradient(miniMessage, Brand.NAME, DEFAULT_FRAME_COUNT);
+    public static AnimatedTitle brand(MiniMessage miniMessage, Branding branding) {
+        return brandGradient(miniMessage, branding, branding.name(), DEFAULT_FRAME_COUNT);
     }
 
-    public static AnimatedTitle brandGradient(MiniMessage miniMessage, String text, int frameCount) {
+    public static AnimatedTitle brandGradient(MiniMessage miniMessage, Branding branding, String text,
+                                             int frameCount) {
         if (frameCount < 1) {
             throw new IllegalArgumentException("frameCount must be at least 1");
         }
         List<Component> frames = new ArrayList<>(frameCount);
         for (int i = 0; i < frameCount; i++) {
             double phase = (double) i / frameCount;
-            String frame = "<gradient:" + Brand.PRIMARY + ":" + Brand.ACCENT + ":"
+            String frame = "<gradient:" + branding.primaryColor() + ":" + branding.accentColor() + ":"
                     + String.format(Locale.ROOT, "%.4f", phase)
                     + "><b>" + text + "</b></gradient>";
             frames.add(miniMessage.deserialize(frame));

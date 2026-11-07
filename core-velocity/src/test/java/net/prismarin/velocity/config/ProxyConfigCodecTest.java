@@ -23,8 +23,8 @@ class ProxyConfigCodecTest {
         assertEquals("lobby", config.lobbyServer());
         assertEquals(200, config.maxPlayers());
         assertEquals("Wartung", config.maintenanceVersionName());
-        assertTrue(config.motdLine1().contains("PRISMARIN"));
-        assertTrue(config.motdLine2().contains("Lobby · Creative · Minigame"));
+        assertTrue(config.motdLine1().contains("%brand%"));
+        assertTrue(config.motdLine2().contains("Lobby, Spiele"));
     }
 
     @Test

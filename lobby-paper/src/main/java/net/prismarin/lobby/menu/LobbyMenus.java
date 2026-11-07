@@ -11,6 +11,8 @@ import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.brand.Branding;
+import net.prismarin.api.economy.Currency;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
@@ -57,11 +59,13 @@ public final class LobbyMenus {
     private final PlayerHiderService hider;
     private final ServerConnector connector;
     private final CoreConfig config;
+    private final Branding branding;
 
     @Inject
     public LobbyMenus(LobbyPlugin plugin, MenuService menuService, LocaleService locale, ProfileService profiles,
                       ServerDirectory directory, MiniMessage miniMessage, LobbyItems items,
-                      PlayerHiderService hider, ServerConnector connector, CoreConfig config) {
+                      PlayerHiderService hider, ServerConnector connector, CoreConfig config,
+                      Branding branding) {
         this.plugin = plugin;
         this.menuService = menuService;
         this.locale = locale;
@@ -72,6 +76,7 @@ public final class LobbyMenus {
         this.hider = hider;
         this.connector = connector;
         this.config = config;
+        this.branding = branding;
     }
 
     public void openNavigator(Player player) {
@@ -118,14 +123,14 @@ public final class LobbyMenus {
         Component name = here
                 ? locale.render("lobby.navigator.here-name", playerLocale,
                         Placeholder.unparsed("server", capitalize(server.name())))
-                : miniMessage.deserialize(server.displayName());
+                : locale.format(server.displayName());
         List<Component> lore = List.of(
-                locale.render(descriptionKey(server.category()), playerLocale),
+                description(server, playerLocale),
                 Component.empty(),
                 here
                         ? locale.render("lobby.navigator.here", playerLocale)
                         : locale.render("lobby.navigator.connect", playerLocale));
-        ItemStack icon = ItemBuilder.of(iconFor(server.category()))
+        ItemStack icon = ItemBuilder.of(iconFor(server))
                 .name(name)
                 .lore(lore)
                 .glow(!here)
@@ -141,7 +146,7 @@ public final class LobbyMenus {
     private void connect(Player player, NetworkServer server) {
         Locale playerLocale = PlayerLocales.of(player, profiles);
         player.sendMessage(locale.render("lobby.navigator.connecting", playerLocale,
-                Placeholder.component("server", miniMessage.deserialize(server.displayName()))));
+                Placeholder.component("server", locale.format(server.displayName()))));
         player.playSound(Sound.sound(Key.key("entity.enderman.teleport"), Sound.Source.MASTER, 0.7f, 1.2f),
                 Sound.Emitter.self());
         connector.connect(player, server.name());
@@ -157,7 +162,7 @@ public final class LobbyMenus {
         return ItemBuilder.of(Material.GOLD_INGOT)
                 .name(locale.render("lobby.profile.coins.name", playerLocale))
                 .lore(locale.render("lobby.profile.coins.lore", playerLocale,
-                        Placeholder.unparsed("coins", String.valueOf(profile.getCoins()))))
+                        Placeholder.unparsed("coins", String.valueOf(profile.balance(Currency.COINS)))))
                 .build();
     }
 
@@ -165,13 +170,14 @@ public final class LobbyMenus {
         return ItemBuilder.of(Material.EMERALD)
                 .name(locale.render("lobby.profile.gems.name", playerLocale))
                 .lore(locale.render("lobby.profile.gems.lore", playerLocale,
-                        Placeholder.unparsed("gems", String.valueOf(profile.getGems()))))
+                        Placeholder.unparsed("gems", String.valueOf(profile.balance(Currency.GEMS)))))
                 .build();
     }
 
     private ItemStack levelIcon(Locale playerLocale, PlayerProfile profile) {
         Component bar = miniMessage.deserialize(
-                XpProgressBar.render(profile.getXp(), profile.xpForNextLevel(), LEVEL_BAR_SEGMENTS));
+                XpProgressBar.render(profile.getXp(), profile.xpForNextLevel(), LEVEL_BAR_SEGMENTS,
+                        branding.primaryColor()));
         return ItemBuilder.of(Material.EXPERIENCE_BOTTLE)
                 .name(locale.render("lobby.profile.level.name", playerLocale,
                         Placeholder.unparsed("level", String.valueOf(profile.getLevel()))))
@@ -221,20 +227,29 @@ public final class LobbyMenus {
         }
     }
 
-    private static Material iconFor(NetworkServer.Category category) {
-        return switch (category) {
-            case LOBBY -> Material.PRISMARINE;
-            case BUILD -> Material.GRASS_BLOCK;
-            case GAME -> Material.ENDER_PEARL;
-        };
+    private static Material iconFor(NetworkServer server) {
+        return server.property("icon")
+                .map(name -> Material.matchMaterial(name))
+                .filter(Material::isItem)
+                .orElseGet(() -> switch (server.group()) {
+                    case NetworkServer.GROUP_LOBBY -> Material.PRISMARINE;
+                    case "build" -> Material.GRASS_BLOCK;
+                    default -> Material.ENDER_PEARL;
+                });
     }
 
-    private static String descriptionKey(NetworkServer.Category category) {
-        return switch (category) {
-            case LOBBY -> "lobby.navigator.description.lobby";
-            case BUILD -> "lobby.navigator.description.build";
-            case GAME -> "lobby.navigator.description.game";
-        };
+    private Component description(NetworkServer server, Locale playerLocale) {
+        Optional<String> configured = server.property("description");
+        if (configured.isPresent()) {
+            String text = configured.get();
+            return locale.raw(text, playerLocale).equals(text)
+                    ? locale.format(text)
+                    : locale.render(text, playerLocale);
+        }
+        String key = "lobby.navigator.description." + server.group();
+        return locale.raw(key, playerLocale).equals(key)
+                ? locale.render("lobby.navigator.description.game", playerLocale)
+                : locale.render(key, playerLocale);
     }
 
     private static String capitalize(String name) {

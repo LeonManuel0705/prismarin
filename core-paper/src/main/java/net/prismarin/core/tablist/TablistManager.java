@@ -5,6 +5,7 @@ import com.google.inject.Singleton;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.brand.Branding;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.core.PrismarinCorePlugin;
 import net.prismarin.core.permission.PermissionSnapshots;
@@ -31,13 +32,14 @@ public final class TablistManager {
 
     @Inject
     public TablistManager(PrismarinCorePlugin plugin, PlayerBoards boards, RankFormatProvider ranks,
-                          LocaleService locale, PermissionSnapshots snapshots, MiniMessage miniMessage) {
+                          LocaleService locale, PermissionSnapshots snapshots, MiniMessage miniMessage,
+                          Branding branding) {
         this.plugin = plugin;
         this.boards = boards;
         this.ranks = ranks;
         this.locale = locale;
         this.snapshots = snapshots;
-        this.title = AnimatedTitle.prismarin(miniMessage);
+        this.title = AnimatedTitle.brand(miniMessage, branding);
     }
 
     public void start() {

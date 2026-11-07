@@ -3,7 +3,7 @@ package net.prismarin.lobby.util;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import net.prismarin.api.brand.Brand;
+import net.prismarin.api.brand.Branding;
 import org.junit.jupiter.api.Test;
 
 class XpProgressBarTest {
@@ -42,13 +42,13 @@ class XpProgressBarTest {
 
     @Test
     void rendersMiniMessageBarWithBrandColor() {
-        String expected = "<color:" + Brand.PRIMARY + ">▮▮</color><dark_gray>▯▯</dark_gray>";
-        assertEquals(expected, XpProgressBar.render(250L, 500L, 4));
+        String expected = "<color:" + Branding.DEFAULT.primaryColor() + ">▮▮</color><dark_gray>▯▯</dark_gray>";
+        assertEquals(expected, XpProgressBar.render(250L, 500L, 4, Branding.DEFAULT.primaryColor()));
     }
 
     @Test
     void rendersOnlyEmptyGlyphsAtZeroProgress() {
-        String expected = "<color:" + Brand.PRIMARY + "></color><dark_gray>▯▯▯▯</dark_gray>";
-        assertEquals(expected, XpProgressBar.render(0L, 500L, 4));
+        String expected = "<color:" + Branding.DEFAULT.primaryColor() + "></color><dark_gray>▯▯▯▯</dark_gray>";
+        assertEquals(expected, XpProgressBar.render(0L, 500L, 4, Branding.DEFAULT.primaryColor()));
     }
 }

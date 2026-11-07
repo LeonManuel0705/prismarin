@@ -1,10 +1,10 @@
 motd:
-  line1: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient>"
-  line2: "<gray>Lobby · Creative · Minigame</gray> <dark_gray>—</dark_gray> <gray>1.8 bis 1.21</gray>"
+  line1: "%brand%"
+  line2: "<gray>Lobby, Spiele und mehr</gray>"
 maintenance:
   enabled: false
   motd:
-    line1: "<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>—</dark_gray> <color:#FBBF24><b>Wartung</b></color>"
+    line1: "%brand% <dark_gray>—</dark_gray> <color:#FBBF24><b>Wartung</b></color>"
     line2: "<gray>Wir schrauben gerade am Netzwerk und sind bald zurück.</gray>"
   version-name: "Wartung"
 max-players: 200

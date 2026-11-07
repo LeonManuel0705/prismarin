@@ -1,20 +1,5 @@
 package net.prismarin.shared.economy;
 
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import net.prismarin.api.economy.Currency;
-import net.prismarin.api.economy.EconomyResult;
-import net.prismarin.api.profile.PlayerProfile;
-import net.prismarin.shared.storage.ProfileRepository;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -23,6 +8,25 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import net.prismarin.api.economy.BalanceChangedEvent;
+import net.prismarin.api.economy.Currency;
+import net.prismarin.api.economy.EconomyResult;
+import net.prismarin.api.profile.PlayerProfile;
+import net.prismarin.shared.event.SimpleEventBus;
+import net.prismarin.shared.storage.ProfileRepository;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 @ExtendWith(MockitoExtension.class)
 class EconomyServiceImplTest {
 
@@ -30,13 +34,15 @@ class EconomyServiceImplTest {
     private ProfileRepository repository;
 
     private ExecutorService executor;
+    private final SimpleEventBus events = new SimpleEventBus();
     private EconomyServiceImpl service;
     private final UUID uuid = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
         executor = Executors.newVirtualThreadPerTaskExecutor();
-        service = new EconomyServiceImpl(repository, executor);
+        service = new EconomyServiceImpl(repository, executor, List.of(Currency.COINS, Currency.GEMS), Currency.COINS,
+                events);
     }
 
     @AfterEach
@@ -115,7 +121,7 @@ class EconomyServiceImplTest {
     @Test
     void balanceReadsFromRepository() {
         PlayerProfile profile = PlayerProfile.create(uuid, "Leon", "de");
-        profile.setCoins(42L);
+        profile.balance(Currency.COINS, 42L);
         when(repository.find(uuid)).thenReturn(Optional.of(profile));
 
         assertEquals(42L, service.balance(uuid, Currency.COINS).join());
@@ -126,5 +132,39 @@ class EconomyServiceImplTest {
         when(repository.find(uuid)).thenReturn(Optional.empty());
 
         assertEquals(0L, service.balance(uuid, Currency.GEMS).join());
+    }
+
+    @Test
+    void unknownCurrencyFailsWithoutTouchingStorage() {
+        EconomyResult result = service.deposit(uuid, Currency.of("tokens"), 5L).join();
+
+        assertFalse(result.success());
+        assertEquals(EconomyResult.FailureReason.UNKNOWN_CURRENCY, result.failureReason());
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void successfulTransactionPublishesEvent() {
+        List<BalanceChangedEvent> received = new ArrayList<>();
+        events.subscribe(BalanceChangedEvent.class, received::add);
+        when(repository.incrementCurrency(uuid, Currency.GEMS, -3L, false))
+                .thenReturn(EconomyResult.success(9L));
+
+        service.withdraw(uuid, Currency.GEMS, 3L).join();
+
+        assertEquals(List.of(new BalanceChangedEvent(uuid, Currency.GEMS, BalanceChangedEvent.Type.WITHDRAW, 3L, 9L)),
+                received);
+    }
+
+    @Test
+    void failedTransactionPublishesNothing() {
+        List<BalanceChangedEvent> received = new ArrayList<>();
+        events.subscribe(BalanceChangedEvent.class, received::add);
+        when(repository.incrementCurrency(uuid, Currency.COINS, -50L, false))
+                .thenReturn(EconomyResult.failure(EconomyResult.FailureReason.INSUFFICIENT_FUNDS, 10L));
+
+        service.withdraw(uuid, Currency.COINS, 50L).join();
+
+        assertTrue(received.isEmpty());
     }
 }

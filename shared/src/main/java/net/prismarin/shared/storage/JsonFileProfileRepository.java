@@ -56,8 +56,7 @@ public final class JsonFileProfileRepository implements ProfileRepository {
             StoredProfile stored = toStored(profile);
             Optional<PlayerProfile> existing = readUnlocked(profile.getUuid());
             if (existing.isPresent()) {
-                stored.coins = existing.get().getCoins();
-                stored.gems = existing.get().getGems();
+                stored.balances = balancesOf(existing.get());
             }
             writeUnlocked(profile.getUuid(), stored);
         } finally {
@@ -153,12 +152,31 @@ public final class JsonFileProfileRepository implements ProfileRepository {
         stored.firstJoin = profile.getFirstJoin().toEpochMilli();
         stored.lastSeen = profile.getLastSeen().toEpochMilli();
         stored.locale = profile.getLocale();
-        stored.coins = profile.getCoins();
-        stored.gems = profile.getGems();
+        stored.balances = balancesOf(profile);
         stored.level = profile.getLevel();
         stored.xp = profile.getXp();
         stored.settings = new HashMap<>(profile.getSettings());
         return stored;
+    }
+
+    private static Map<String, Long> balancesOf(PlayerProfile profile) {
+        Map<String, Long> balances = new HashMap<>();
+        profile.balances().forEach((currency, value) -> balances.put(currency.id(), value));
+        return balances;
+    }
+
+    private static Map<Currency, Long> readBalances(StoredProfile stored) {
+        Map<Currency, Long> balances = new HashMap<>();
+        if (stored.balances != null) {
+            stored.balances.forEach((id, value) -> balances.put(Currency.of(id), value));
+        }
+        if (stored.coins != null) {
+            balances.putIfAbsent(Currency.COINS, stored.coins);
+        }
+        if (stored.gems != null) {
+            balances.putIfAbsent(Currency.GEMS, stored.gems);
+        }
+        return balances;
     }
 
     private static PlayerProfile toProfile(StoredProfile stored) {
@@ -168,8 +186,7 @@ public final class JsonFileProfileRepository implements ProfileRepository {
                 Instant.ofEpochMilli(stored.firstJoin),
                 Instant.ofEpochMilli(stored.lastSeen),
                 stored.locale,
-                stored.coins,
-                stored.gems,
+                readBalances(stored),
                 stored.level,
                 stored.xp,
                 stored.settings == null ? new HashMap<>() : stored.settings
@@ -182,8 +199,9 @@ public final class JsonFileProfileRepository implements ProfileRepository {
         long firstJoin;
         long lastSeen;
         String locale;
-        long coins;
-        long gems;
+        Map<String, Long> balances;
+        Long coins;
+        Long gems;
         int level;
         long xp;
         Map<String, String> settings;

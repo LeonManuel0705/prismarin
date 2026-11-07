@@ -18,16 +18,19 @@ Verbindlich für jedes Modul in diesem Repo. Abweichungen gelten als Review-Fehl
 ## Locale & Texte
 
 - Jeder für Spieler sichtbare String liegt in Locale-Dateien, niemals im Java-Code. `messages_de.yml` ist die Default-Sprache, `messages_en.yml` der vollständige Fallback — beide Dateien haben immer identische Key-Sets.
-- Format ist MiniMessage. Aufgelöst wird über `LocaleService.render(key, locale, resolvers)`; Platzhalter mit `Placeholder.unparsed` (Rohtext) bzw. `Placeholder.component` (bereits gerenderte Components).
+- Format ist MiniMessage, dazu `&`-Farbcodes (`&a`, `&l`, `&r`), Hex als `&#RRGGBB` oder `&x&R&R&G&G&B&B` und `§` statt `&`. Die Umwandlung macht `TextFormatter` in `:shared`, alles Gerenderte läuft darüber (`LocaleService.render` und `LocaleService.format`).
+- Platzhalter schreiben wir als `%name%`. `<name>` funktioniert weiter, in mitgelieferten Texten steht aber immer `%name%`. Unbekannte `%x%` bleiben stehen, damit später PlaceholderAPI sie auflösen kann. Im Code weiter `Placeholder.unparsed` (Rohtext) bzw. `Placeholder.component`.
+- Mitgelieferte Sprachdateien sind die Rückfallebene: Fehlt ein Key in der Datei des Betreibers, gilt der Text aus dem Jar.
 - Fallback-Kette zur Laufzeit (`YamlLocaleService`): Spieler-Sprache → `de` → Key selbst.
 - Paper-Module ohne eigenen LocaleService (wie `lobby-paper`) legen ihre Keys in den Locale-Dateien von `core-paper` ab, mit Modul-Prefix (`lobby.*`).
 - Spieler-Locale immer über den Profil-Cache bevorzugen (`PlayerLocales.of(player, profiles)`), Konsole/Fallback über `locale.default` aus der Config.
 
 ## Brand
 
-- Name `PRISMARIN`; Farben PRIMARY `#22D3EE`, ACCENT `#2DD4BF`, BG_DARK `#0F172A`, GOLD `#FBBF24`, Fließtext `gray` — Konstanten aus `net.prismarin.api.brand.Brand`, nie hart kodiert.
-- Chat-Prefix exakt: `<gradient:#22D3EE:#2DD4BF><b>PRISMARIN</b></gradient> <dark_gray>|</dark_gray> <gray>` — ein Netzwerk, ein Prefix; Subsysteme erfinden keine eigenen.
+- Die Marke ist Konfiguration, kein Code: `branding.name`, `primary-color`, `accent-color`, `prefix` in der `config.yml`, als Record `Branding` in der API. `Branding.DEFAULT` ist die PRISMARIN-Marke.
+- In Texten nur über Tags: `%brand%` (fetter Name im Verlauf), `%brand_prefix%` (Chat-Prefix), `<brand_primary>` und `<brand_accent>` als Farben. Kein Text nennt `PRISMARIN` fest.
 - Keine Emojis. Einfache Unicode-Glyphen wie `◆ ✔ ✖ ●` sind erlaubt.
+- Keine Kommentare im Code, auch kein JavaDoc. Die API wird in `docs/` beschrieben.
 
 ## Async-Regeln (Paper)
 

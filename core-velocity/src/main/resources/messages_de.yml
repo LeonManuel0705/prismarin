@@ -1,0 +1,24 @@
+prefix: "%brand_prefix%"
+general:
+  players-only: "%brand_prefix%✖ Dieser Befehl kann nur von Spielern verwendet werden.</gray>"
+  no-permission: "%brand_prefix%✖ Dafür fehlt dir die Berechtigung.</gray>"
+hub:
+  already-there: "%brand_prefix%Du bist bereits mit der Lobby verbunden.</gray>"
+  connected: "%brand_prefix%✔ Du wurdest mit der Lobby verbunden.</gray>"
+  unreachable: "%brand_prefix%✖ Die Lobby ist gerade nicht erreichbar. Versuche es gleich erneut.</gray>"
+sendall:
+  usage: "%brand_prefix%Verwendung: <color:#22D3EE>/sendall Server</color></gray>"
+  unknown-server: "%brand_prefix%✖ Der Server <color:#22D3EE>%server%</color> ist nicht registriert.</gray>"
+  success: "%brand_prefix%✔ <color:#22D3EE>%count%</color> Spieler werden zu <color:#22D3EE>%server%</color> geschickt.</gray>"
+maintenance:
+  usage: "%brand_prefix%Verwendung: <color:#22D3EE>/maintenance on|off|status</color></gray>"
+  enabled: "%brand_prefix%✔ Wartungsmodus aktiviert. Neue Verbindungen ohne Bypass werden abgewiesen.</gray>"
+  disabled: "%brand_prefix%✔ Wartungsmodus deaktiviert. Das Netzwerk ist wieder für alle offen.</gray>"
+  already-on: "%brand_prefix%Der Wartungsmodus ist bereits aktiv.</gray>"
+  already-off: "%brand_prefix%Der Wartungsmodus ist bereits deaktiviert.</gray>"
+  status-on: "%brand_prefix%Wartungsmodus: <color:#FBBF24>● aktiv</color></gray>"
+  status-off: "%brand_prefix%Wartungsmodus: <color:#2DD4BF>● inaktiv</color></gray>"
+  kick: "%brand%<newline><newline><color:#FBBF24>◆ Wartungsmodus</color><newline><newline><gray>Wir schrauben gerade am Netzwerk.</gray><newline><gray>Schau in Kürze wieder vorbei.</gray>"
+kick:
+  redirected: "%brand_prefix%Deine Verbindung wurde getrennt. Du bist jetzt in der Lobby.</gray>"
+  redirected-reason: "%brand_prefix%Deine Verbindung wurde getrennt. Du bist jetzt in der Lobby.</gray><newline><dark_gray>Grund:</dark_gray> <gray>%reason%</gray>"

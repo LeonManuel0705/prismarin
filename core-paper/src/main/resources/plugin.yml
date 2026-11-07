@@ -12,6 +12,9 @@ commands:
     description: Shows your own coin balance.
   economy:
     description: Manages player balances.
+  network:
+    description: Opens the live overview of all network servers.
+    aliases: [servers]
 permissions:
   prismarin.command.coins:
     default: true
@@ -20,4 +23,6 @@ permissions:
   prismarin.chat.format:
     default: op
   prismarin.rank.admin:
+    default: op
+  prismarin.admin.network:
     default: op

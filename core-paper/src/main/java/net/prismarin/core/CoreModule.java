@@ -7,7 +7,10 @@ import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.prismarin.api.Prismarin;
+import net.prismarin.api.brand.Branding;
 import net.prismarin.api.economy.EconomyService;
+import net.prismarin.api.event.EventBus;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.messaging.MessageBus;
 import net.prismarin.api.profile.ProfileService;
@@ -17,15 +20,13 @@ import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.rank.DefaultRankFormatProvider;
 import net.prismarin.core.rank.LuckPermsRankFormatProvider;
 import net.prismarin.core.rank.RankFormatProvider;
-import net.prismarin.core.server.YamlServerDirectory;
-import net.prismarin.core.storage.ProfileStorage;
 import net.prismarin.shared.config.ConfigLoader;
 import net.prismarin.shared.config.CoreConfig;
-import net.prismarin.shared.economy.EconomyServiceImpl;
-import net.prismarin.shared.locale.YamlLocaleService;
-import net.prismarin.shared.messaging.MessageBusFactory;
-import net.prismarin.shared.profile.ProfileServiceImpl;
+import net.prismarin.shared.platform.CoreServices;
+import net.prismarin.shared.server.YamlServerDirectory;
+import net.prismarin.shared.status.NetworkStatusService;
 import net.prismarin.shared.storage.ProfileRepository;
+import net.prismarin.shared.text.TextFormatter;
 
 public final class CoreModule extends AbstractModule {
 
@@ -43,7 +44,13 @@ public final class CoreModule extends AbstractModule {
     @Provides
     @Singleton
     CoreConfig config() {
-        return ConfigLoader.load(configPath());
+        return ConfigLoader.load(configPath(), CoreModules.ALL);
+    }
+
+    @Provides
+    @Singleton
+    CoreServices coreServices(CoreConfig config, ExecutorService executor) {
+        return CoreServices.start(config, dataDirectory(), executor);
     }
 
     @Provides
@@ -53,39 +60,43 @@ public final class CoreModule extends AbstractModule {
     }
 
     @Provides
-    @Singleton
-    LocaleService localeService(CoreConfig config) {
-        return new YamlLocaleService(dataDirectory(), config.defaultLocale());
+    Branding branding(CoreConfig config) {
+        return config.branding();
     }
 
     @Provides
-    @Singleton
-    ProfileStorage profileStorage(CoreConfig config) {
-        return ProfileStorage.create(config, dataDirectory());
+    LocaleService localeService(CoreServices services) {
+        return services.locale();
     }
 
     @Provides
-    @Singleton
-    ProfileRepository profileRepository(ProfileStorage storage) {
-        return storage.repository();
+    ProfileRepository profileRepository(CoreServices services) {
+        return services.repository();
     }
 
     @Provides
-    @Singleton
-    ProfileService profileService(ProfileRepository repository, CoreConfig config, ExecutorService executor) {
-        return new ProfileServiceImpl(repository, config.defaultLocale(), executor);
+    ProfileService profileService(CoreServices services) {
+        return services.profiles();
     }
 
     @Provides
-    @Singleton
-    EconomyService economyService(ProfileRepository repository, ExecutorService executor) {
-        return new EconomyServiceImpl(repository, executor);
+    EconomyService economyService(CoreServices services) {
+        return services.economy();
     }
 
     @Provides
-    @Singleton
-    MessageBus messageBus(CoreConfig config) {
-        return MessageBusFactory.create(config);
+    MessageBus messageBus(CoreServices services) {
+        return services.messageBus();
+    }
+
+    @Provides
+    EventBus eventBus(CoreServices services) {
+        return services.events();
+    }
+
+    @Provides
+    TextFormatter textFormatter(CoreServices services) {
+        return services.formatter();
     }
 
     @Provides
@@ -96,8 +107,19 @@ public final class CoreModule extends AbstractModule {
 
     @Provides
     @Singleton
-    MiniMessage miniMessage() {
-        return MiniMessage.miniMessage();
+    NetworkStatusService networkStatus(ServerDirectory directory, MessageBus messageBus, ExecutorService executor) {
+        return new NetworkStatusService(directory, messageBus, executor);
+    }
+
+    @Provides
+    @Singleton
+    Prismarin prismarin(CoreServices services, ServerDirectory directory, NetworkStatusService status) {
+        return services.prismarin(directory, status);
+    }
+
+    @Provides
+    MiniMessage miniMessage(CoreServices services) {
+        return services.formatter().miniMessage();
     }
 
     @Provides

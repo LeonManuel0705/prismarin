@@ -1,4 +1,4 @@
-package net.prismarin.core.server;
+package net.prismarin.shared.server;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -6,16 +6,20 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 
 public final class YamlServerDirectory implements ServerDirectory {
+
+    private static final Set<String> RESERVED_KEYS = Set.of("display-name", "host", "port", "group", "category");
 
     private final List<NetworkServer> servers;
 
@@ -53,20 +57,46 @@ public final class YamlServerDirectory implements ServerDirectory {
         }
     }
 
+    private static String groupOf(ConfigurationNode node) {
+        String group = node.node("group").getString();
+        if (group != null && !group.isBlank()) {
+            return group;
+        }
+        String legacyCategory = node.node("category").getString();
+        if (legacyCategory == null || legacyCategory.isBlank()) {
+            return NetworkServer.GROUP_DEFAULT;
+        }
+        return switch (legacyCategory.toUpperCase(Locale.ROOT)) {
+            case "LOBBY" -> NetworkServer.GROUP_LOBBY;
+            case "BUILD" -> "build";
+            case "GAME" -> "game";
+            default -> legacyCategory;
+        };
+    }
+
     private static List<NetworkServer> load(Path file) throws IOException {
+        if (Files.notExists(file)) {
+            return List.of();
+        }
         ConfigurationNode root = YamlConfigurationLoader.builder().path(file).build().load();
         List<NetworkServer> loaded = new ArrayList<>();
         for (Map.Entry<Object, ? extends ConfigurationNode> entry : root.node("servers").childrenMap().entrySet()) {
             String name = entry.getKey().toString();
             ConfigurationNode node = entry.getValue();
+            Map<String, String> properties = new HashMap<>();
+            node.childrenMap().forEach((key, child) -> {
+                String property = key.toString();
+                if (!RESERVED_KEYS.contains(property) && child.childrenMap().isEmpty() && child.getString() != null) {
+                    properties.put(property, child.getString());
+                }
+            });
             loaded.add(new NetworkServer(
                     name,
                     node.node("display-name").getString(name),
                     node.node("host").getString("127.0.0.1"),
                     node.node("port").getInt(25565),
-                    NetworkServer.Category.valueOf(
-                            node.node("category").getString(NetworkServer.Category.GAME.name())
-                                    .toUpperCase(Locale.ROOT))
+                    groupOf(node),
+                    properties
             ));
         }
         return List.copyOf(loaded);

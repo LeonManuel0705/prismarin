@@ -1,5 +1,6 @@
 package net.prismarin.core.command;
 
+import java.util.List;
 import java.util.Locale;
 import net.prismarin.api.economy.Currency;
 
@@ -24,7 +25,7 @@ public final class EconomyCommandParser {
         throw new AssertionError();
     }
 
-    public static Result parse(String[] args) {
+    public static Result parse(String[] args, List<Currency> currencies) {
         if (args.length != 4) {
             return new Invalid("economy.usage");
         }
@@ -37,11 +38,11 @@ public final class EconomyCommandParser {
         if (action == null) {
             return new Invalid("economy.usage");
         }
-        Currency currency = switch (args[2].toLowerCase(Locale.ROOT)) {
-            case "coins" -> Currency.COINS;
-            case "gems" -> Currency.GEMS;
-            default -> null;
-        };
+        String requested = args[2].toLowerCase(Locale.ROOT);
+        Currency currency = currencies.stream()
+                .filter(candidate -> candidate.id().equals(requested))
+                .findFirst()
+                .orElse(null);
         if (currency == null) {
             return new Invalid("economy.invalid-currency");
         }

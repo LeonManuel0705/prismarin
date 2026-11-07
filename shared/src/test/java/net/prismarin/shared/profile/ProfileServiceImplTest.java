@@ -1,5 +1,8 @@
 package net.prismarin.shared.profile;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.nio.file.Path;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -7,14 +10,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.profile.PlayerProfile;
+import net.prismarin.shared.event.SimpleEventBus;
 import net.prismarin.shared.storage.JsonFileProfileRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ProfileServiceImplTest {
 
@@ -23,6 +24,7 @@ class ProfileServiceImplTest {
 
     private JsonFileProfileRepository repository;
     private ExecutorService executor;
+    private final SimpleEventBus events = new SimpleEventBus();
     private ProfileServiceImpl service;
     private final UUID uuid = UUID.randomUUID();
 
@@ -30,7 +32,7 @@ class ProfileServiceImplTest {
     void setUp() {
         repository = new JsonFileProfileRepository(dataDirectory);
         executor = Executors.newVirtualThreadPerTaskExecutor();
-        service = new ProfileServiceImpl(repository, "de", executor);
+        service = new ProfileServiceImpl(repository, "de", executor, events);
     }
 
     @AfterEach
@@ -91,6 +93,6 @@ class ProfileServiceImplTest {
 
         service.save(profile).join();
 
-        assertEquals(100L, repository.find(uuid).orElseThrow().getCoins());
+        assertEquals(100L, repository.find(uuid).orElseThrow().balance(Currency.COINS));
     }
 }

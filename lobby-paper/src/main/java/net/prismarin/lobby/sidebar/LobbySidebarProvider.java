@@ -8,6 +8,8 @@ import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.brand.Branding;
+import net.prismarin.api.economy.Currency;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
@@ -32,16 +34,18 @@ public final class LobbySidebarProvider implements SidebarProvider {
     private final RankFormatProvider ranks;
     private final MiniMessage miniMessage;
     private final AnimatedTitle title;
+    private final String barColor;
 
     @Inject
     public LobbySidebarProvider(LobbyPlugin plugin, LocaleService locale, ProfileService profiles,
-                                RankFormatProvider ranks, MiniMessage miniMessage) {
+                                RankFormatProvider ranks, MiniMessage miniMessage, Branding branding) {
         this.plugin = plugin;
         this.locale = locale;
         this.profiles = profiles;
         this.ranks = ranks;
         this.miniMessage = miniMessage;
-        this.title = AnimatedTitle.prismarin(miniMessage);
+        this.title = AnimatedTitle.brand(miniMessage, branding);
+        this.barColor = branding.primaryColor();
     }
 
     @Override
@@ -53,12 +57,12 @@ public final class LobbySidebarProvider implements SidebarProvider {
     public List<Component> lines(Player player) {
         Locale playerLocale = PlayerLocales.of(player, profiles);
         Optional<PlayerProfile> profile = profiles.getCached(player.getUniqueId());
-        long coins = profile.map(PlayerProfile::getCoins).orElse(0L);
-        long gems = profile.map(PlayerProfile::getGems).orElse(0L);
+        long coins = profile.map(value -> value.balance(Currency.COINS)).orElse(0L);
+        long gems = profile.map(value -> value.balance(Currency.GEMS)).orElse(0L);
         int level = profile.map(PlayerProfile::getLevel).orElse(0);
         long xp = profile.map(PlayerProfile::getXp).orElse(0L);
         long max = profile.map(PlayerProfile::xpForNextLevel).orElse(BASE_XP_REQUIREMENT);
-        Component bar = miniMessage.deserialize(XpProgressBar.render(xp, max, BAR_SEGMENTS));
+        Component bar = miniMessage.deserialize(XpProgressBar.render(xp, max, BAR_SEGMENTS, barColor));
         return List.of(
                 Component.empty(),
                 locale.render("lobby.sidebar.rank-label", playerLocale),

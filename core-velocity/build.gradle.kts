@@ -23,14 +23,13 @@ dependencies {
 tasks.shadowJar {
     archiveFileName.set("prismarin-velocity.jar")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
-    dependencies {
-        exclude(dependency("org.mongodb:.*:.*"))
-    }
     relocate("org.spongepowered.configurate", "net.prismarin.libs.configurate")
     relocate("io.leangen.geantyref", "net.prismarin.libs.geantyref")
     relocate("net.kyori.option", "net.prismarin.libs.kyori.option")
     relocate("org.yaml.snakeyaml", "net.prismarin.libs.snakeyaml")
     relocate("io.lettuce", "net.prismarin.libs.lettuce")
+    relocate("com.mongodb", "net.prismarin.libs.mongodb")
+    relocate("org.bson", "net.prismarin.libs.bson")
     relocate("io.netty", "net.prismarin.libs.netty")
     relocate("reactor", "net.prismarin.libs.reactor")
     relocate("org.reactivestreams", "net.prismarin.libs.reactivestreams")

@@ -1,8 +1,11 @@
 package net.prismarin.shared.locale;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -11,9 +14,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.prismarin.api.locale.LocaleService;
+import net.prismarin.shared.text.TextFormatter;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 
@@ -21,20 +24,29 @@ public final class YamlLocaleService implements LocaleService {
 
     private static final List<String> BUNDLED_LANGUAGES = List.of("de", "en");
 
-    private final MiniMessage miniMessage = MiniMessage.miniMessage();
+    private final TextFormatter formatter;
     private final Map<String, Map<String, String>> messages = new ConcurrentHashMap<>();
     private final Map<CacheKey, Component> componentCache = new ConcurrentHashMap<>();
     private final String fallbackLanguage;
 
     public YamlLocaleService(Path dataDirectory, String defaultLanguage) {
+        this(dataDirectory, defaultLanguage, TextFormatter.plain());
+    }
+
+    public YamlLocaleService(Path dataDirectory, String defaultLanguage, TextFormatter formatter) {
+        this.formatter = formatter;
         this.fallbackLanguage = defaultLanguage.toLowerCase(Locale.ROOT);
         try {
             Files.createDirectories(dataDirectory);
             for (String language : BUNDLED_LANGUAGES) {
                 Path file = dataDirectory.resolve("messages_" + language + ".yml");
                 seedIfAbsent(file, "messages_" + language + ".yml");
+                Map<String, String> merged = new HashMap<>(bundled("messages_" + language + ".yml"));
                 if (Files.exists(file)) {
-                    messages.put(language, flatten(loadYaml(file)));
+                    merged.putAll(flatten(loadYaml(file)));
+                }
+                if (!merged.isEmpty()) {
+                    messages.put(language, merged);
                 }
             }
         } catch (IOException e) {
@@ -47,10 +59,15 @@ public final class YamlLocaleService implements LocaleService {
         if (resolvers.length == 0) {
             return componentCache.computeIfAbsent(
                     new CacheKey(key, languageOf(locale)),
-                    cacheKey -> miniMessage.deserialize(raw(key, locale))
+                    cacheKey -> formatter.format(raw(key, locale))
             );
         }
-        return miniMessage.deserialize(raw(key, locale), resolvers);
+        return formatter.format(raw(key, locale), resolvers);
+    }
+
+    @Override
+    public Component format(String text, TagResolver... resolvers) {
+        return formatter.format(text, resolvers);
     }
 
     @Override
@@ -88,6 +105,16 @@ public final class YamlLocaleService implements LocaleService {
             if (resource != null) {
                 Files.copy(resource, file);
             }
+        }
+    }
+
+    private static Map<String, String> bundled(String resourceName) throws IOException {
+        try (InputStream resource = YamlLocaleService.class.getClassLoader().getResourceAsStream(resourceName)) {
+            if (resource == null) {
+                return Map.of();
+            }
+            BufferedReader reader = new BufferedReader(new InputStreamReader(resource, StandardCharsets.UTF_8));
+            return flatten(YamlConfigurationLoader.builder().source(() -> reader).build().load());
         }
     }
 

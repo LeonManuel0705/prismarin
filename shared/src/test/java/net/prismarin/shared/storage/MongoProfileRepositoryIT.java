@@ -1,9 +1,14 @@
 package net.prismarin.shared.storage;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import net.prismarin.api.economy.Currency;
@@ -16,10 +21,6 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.MongoDBContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Tag("integration")
 @Testcontainers
@@ -44,7 +45,7 @@ class MongoProfileRepositoryIT {
 
     private PlayerProfile sampleProfile(UUID uuid) {
         return new PlayerProfile(uuid, "Leon", Instant.ofEpochMilli(1000L), Instant.ofEpochMilli(2000L),
-                "de", 100L, 5L, 3, 200L, new HashMap<>());
+                "de", Map.of(Currency.COINS, 100L, Currency.GEMS, 5L), 3, 200L, new HashMap<>());
     }
 
     @Test
@@ -58,8 +59,8 @@ class MongoProfileRepositoryIT {
         PlayerProfile profile = found.get();
         assertEquals("Leon", profile.getName());
         assertEquals(Instant.ofEpochMilli(1000L), profile.getFirstJoin());
-        assertEquals(100L, profile.getCoins());
-        assertEquals(5L, profile.getGems());
+        assertEquals(100L, profile.balance(Currency.COINS));
+        assertEquals(5L, profile.balance(Currency.GEMS));
         assertEquals(3, profile.getLevel());
         assertEquals(200L, profile.getXp());
     }
@@ -71,14 +72,14 @@ class MongoProfileRepositoryIT {
         repository.save(profile);
         repository.incrementCurrency(uuid, Currency.COINS, 400L, true);
 
-        profile.setCoins(999L);
+        profile.balance(Currency.COINS, 999L);
         profile.setName("LeonNeu");
         repository.save(profile);
 
         PlayerProfile stored = repository.find(uuid).orElseThrow();
         assertEquals("LeonNeu", stored.getName());
-        assertEquals(500L, stored.getCoins());
-        assertEquals(5L, stored.getGems());
+        assertEquals(500L, stored.balance(Currency.COINS));
+        assertEquals(5L, stored.balance(Currency.GEMS));
     }
 
     @Test
@@ -104,14 +105,14 @@ class MongoProfileRepositoryIT {
     void incrementCurrencySaturatesInsteadOfOverflowing() {
         UUID uuid = UUID.randomUUID();
         PlayerProfile profile = sampleProfile(uuid);
-        profile.setCoins(Long.MAX_VALUE - 10L);
+        profile.balance(Currency.COINS, Long.MAX_VALUE - 10L);
         repository.save(profile);
 
         EconomyResult result = repository.incrementCurrency(uuid, Currency.COINS, 100L, true);
 
         assertTrue(result.success());
         assertEquals(Long.MAX_VALUE, result.newBalance());
-        assertEquals(Long.MAX_VALUE, repository.find(uuid).orElseThrow().getCoins());
+        assertEquals(Long.MAX_VALUE, repository.find(uuid).orElseThrow().balance(Currency.COINS));
     }
 
     @Test
@@ -131,7 +132,7 @@ class MongoProfileRepositoryIT {
 
         assertTrue(result.success());
         assertEquals(77L, result.newBalance());
-        assertEquals(77L, repository.find(uuid).orElseThrow().getGems());
+        assertEquals(77L, repository.find(uuid).orElseThrow().balance(Currency.GEMS));
     }
 
     @Test

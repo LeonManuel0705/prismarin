@@ -18,6 +18,7 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.core.CoreModules;
 import net.prismarin.core.PrismarinCorePlugin;
 import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.scoreboard.PlayerBoards;
@@ -106,10 +107,14 @@ public final class ConnectionListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         snapshots.refresh(player);
-        String key = player.hasPlayedBefore() ? "join.message" : "join.first-message";
-        event.joinMessage(null);
-        broadcast(key, player.getName(), null);
-        tablist.handleJoin(player);
+        if (config.moduleEnabled(CoreModules.JOIN_MESSAGES)) {
+            String key = player.hasPlayedBefore() ? "join.message" : "join.first-message";
+            event.joinMessage(null);
+            broadcast(key, player.getName(), null);
+        }
+        if (config.moduleEnabled(CoreModules.TABLIST)) {
+            tablist.handleJoin(player);
+        }
     }
 
     @EventHandler
@@ -128,10 +133,14 @@ public final class ConnectionListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        event.quitMessage(null);
-        broadcast("quit.message", player.getName(), player.getUniqueId());
+        if (config.moduleEnabled(CoreModules.JOIN_MESSAGES)) {
+            event.quitMessage(null);
+            broadcast("quit.message", player.getName(), player.getUniqueId());
+        }
         sidebar.handleQuit(player);
-        tablist.handleQuit(player);
+        if (config.moduleEnabled(CoreModules.TABLIST)) {
+            tablist.handleQuit(player);
+        }
         boards.remove(player.getUniqueId());
         snapshots.forget(player.getUniqueId());
         profiles.unload(player.getUniqueId()).whenComplete((unused, error) -> {

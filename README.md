@@ -1,80 +1,110 @@
 # PRISMARIN
 
-A Minecraft server network built as a single Gradle monorepo: one Velocity proxy, several
-Paper backends, and a shared service layer underneath them that owns player profiles,
-currency, localisation and cross server messaging.
+A framework for Minecraft networks on Paper and Velocity. Profiles, currencies, localisation, events, a cross server message bus and a server directory live in one shared layer, and a network plugs its own game servers in behind it, whether that is an existing game plugin or a mode written from scratch.
 
-The point of the architecture is that a game mode should never talk to a database. It asks
-the profile service for a player, the economy service for a balance, or the message bus to
-reach another server, and the implementation behind that interface can be a JSON file on a
-laptop or MongoDB and Redis across a real network without a single line changing in the
-game mode.
+The point of the architecture is that a game mode never talks to a database. It asks the profile service for a player, the economy service for a balance, or the message bus to reach another server. The implementation behind those interfaces can be JSON files on a laptop or MongoDB and Redis across a real network, without a single line changing in the game mode.
+
+## What a network gets
+
+| Area | What it does |
+|:---|:---|
+| Profiles | One profile per player across every server, with locale, level, settings and balances |
+| Economy | Any number of currencies the network defines itself, with atomic transactions on every backend |
+| Branding | Name, colours and chat prefix come from the config, every bundled text uses `%brand%` and `%brand_prefix%` |
+| Text | MiniMessage, `&` colour codes, `&#RRGGBB` and `&x&R&R&G&G&B&B` hex, placeholders written as `%name%` |
+| Servers | A directory with free groups and properties per server, used by the navigator and by plugins |
+| Network overview | `/network` opens a live inventory with status, players, ping, version, TPS, memory and uptime per server |
+| Events | `ProfileLoadedEvent`, `ProfileUnloadedEvent` and `BalanceChangedEvent` on proxy and backends |
+| Modules | Chat, tablist, sidebar, join messages, commands and proxy features can each be switched off |
+| Lobby | An optional ready made lobby with navigator, profile menu, player hider and double jump |
 
 ## Architecture
 
 ```
-        api          pure contracts, zero platform dependencies
+        api          public contracts, zero platform dependencies
          |
-       shared        implementations: storage, message bus, config, locale
+       shared        storage, message bus, config, locale, text, status
         /   \
 core-velocity  core-paper
     proxy         backends
                      |
-                 lobby-paper
+                 lobby-paper   optional
 ```
 
 | Module | Purpose |
 |:---|:---|
-| `:api` | Java interfaces only. Profiles, economy, messaging, locale, server directory, branding. No Bukkit, no Velocity, no driver imports. |
-| `:shared` | The implementations. Configurate based config loading, JSON file and MongoDB profile storage, a local and a Redis backed message bus, YAML locale service. |
-| `:core-paper` | Core plugin for Paper backends. Chat formatting with rank prefixes, tablist, sidebar framework, menu framework, economy commands. |
+| `:api` | The contract for other plugins. `Prismarin`, profiles, economy, events, locale, messaging, server directory and status. |
+| `:shared` | The implementations. Config loading, JSON and MongoDB storage, local and Redis message bus, YAML locales, the text formatter, server list ping and heartbeats. |
+| `:core-paper` | Core plugin for Paper backends. Chat format with rank prefixes, tablist, sidebar and menu frameworks, economy commands, network overview. |
 | `:core-velocity` | Core plugin for the proxy. MOTD, maintenance mode, `/hub`, `/sendall`, lobby fallback when a backend drops a player. |
-| `:lobby-paper` | Lobby gameplay. Spawn handling, void protection, navigator and profile menus, player hider, double jump, animated sidebar, build mode. |
-| `build-logic` | Precompiled convention plugin. Java 21, JUnit 5, and the split between unit and integration test tasks. |
+| `:lobby-paper` | Optional lobby gameplay on top of the core. |
 
-## Storage swapping
+## Using the API
 
-Every server writes a default `config.yml` on first start with `storage.mode` set to
-`LOCAL`, which keeps profiles in JSON files and runs the message bus in process. That makes
-a single server usable with no infrastructure at all. Switching `storage.mode` to `MONGO`
-and enabling Redis turns the same jars into a network where profiles and messages are
-shared across every backend. The game code does not know which mode it is in.
+Add `depend: [PrismarinCore]` to your `plugin.yml`, then:
 
-Economy operations are atomic on both backends. A balance change is a conditional update,
-not a read followed by a write, so two servers deducting coins from the same player at the
-same moment cannot both succeed against a stale value.
+```java
+Prismarin prismarin = PrismarinProvider.get();
+
+Currency coins = prismarin.economy().primaryCurrency();
+prismarin.economy().deposit(player.getUniqueId(), coins, 50);
+
+prismarin.events().subscribe(BalanceChangedEvent.class,
+        event -> getLogger().info(event.uuid() + " now has " + event.newBalance()));
+
+List<NetworkServer> bedwars = prismarin.servers().byGroup("bedwars");
+```
+
+On Paper the same instance is registered in the Bukkit services manager. On Velocity, depend on `prismarin-core`.
+
+## Configuration
+
+Every server writes a `config.yml` on first start and adds missing sections on later starts, so an update never needs a manual merge.
+
+```yaml
+server-id: lobby
+storage:
+  mode: LOCAL
+branding:
+  name: PRISMARIN
+  primary-color: "#22D3EE"
+  accent-color: "#2DD4BF"
+  prefix: "%brand% <dark_gray>|</dark_gray> <gray>"
+economy:
+  currencies: [coins, gems]
+  primary: coins
+modules:
+  chat: true
+  tablist: true
+```
+
+`storage.mode: LOCAL` keeps profiles in JSON files and runs the message bus in process, which makes a single server usable with no infrastructure at all. `MONGO` plus `redis.enabled: true` turns the same jars into a network where profiles, messages and heartbeats are shared across every server.
+
+Servers are listed in `servers.yml` with a group and any extra properties:
+
+```yaml
+servers:
+  bw-1:
+    display-name: "&cBedwars 1"
+    host: 127.0.0.1
+    port: 25570
+    group: bedwars
+    icon: RED_BED
+```
 
 ## Testing
 
-127 tests across 20 test classes. Unit tests run on every build. Integration tests are
-tagged separately and spin up real MongoDB and Redis containers through Testcontainers,
-which means the storage layer is verified against the actual databases rather than against
-a mock that agrees with whatever the code does.
+163 unit tests across 28 test classes run on every build. Two more classes are integration tests, tagged separately, that spin up real MongoDB and Redis containers through Testcontainers.
 
 ```bash
 ./gradlew build             # compile plus unit tests
 ./gradlew integrationTest   # Testcontainers backed integration suite
+./gradlew dist              # collect the plugin jars in dist/
 ```
-
-CI runs both on every push.
-
-## Running a network locally
-
-1. `./gradlew build`
-2. Put `core-velocity` on the Velocity proxy, and `core-paper` plus `lobby-paper` on each
-   Paper backend
-3. Give every server a unique `server-id` in its generated `config.yml`
-4. For a multi server setup, set `storage.mode` to `MONGO` and enable Redis
-
-Locale files for German and English are seeded on first start and use MiniMessage, so
-every player facing string is translatable and none of them are hardcoded in the plugins.
 
 ## Status
 
-Phase zero is complete and deployed: the foundation, the shared services and a fully
-playable lobby. The roadmap in `ROADMAP.md` lays out the path from here through a game
-engine abstraction, four game modes, progression, cosmetics, staff tooling and finally
-horizontal scaling.
+Version 0.2.0 turns the former single network into a framework: configurable branding and currencies, server groups, a public API with events, switchable modules and the network overview. Next on the roadmap are bridges to Vault and PlaceholderAPI, adapters for foreign game plugins, MySQL storage and a cross server admin system. See `ROADMAP.md`.
 
 ## License
 

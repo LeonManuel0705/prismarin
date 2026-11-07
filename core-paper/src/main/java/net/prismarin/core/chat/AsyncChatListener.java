@@ -43,7 +43,7 @@ public final class AsyncChatListener implements Listener {
         Player player = event.getPlayer();
         String plain = plainText.serialize(event.message());
         Component content = snapshots.has(player, CorePermissions.CHAT_FORMAT)
-                ? miniMessage.deserialize(plain)
+                ? locale.format(plain)
                 : Component.text(miniMessage.stripTags(plain));
         event.message(content);
         event.renderer(this::render);

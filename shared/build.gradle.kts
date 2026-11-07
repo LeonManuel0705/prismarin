@@ -19,6 +19,7 @@ dependencies {
     testImplementation(libs.gson)
     testImplementation(libs.adventure.api)
     testImplementation(libs.adventure.minimessage)
+    testImplementation(libs.adventure.plain)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.mongodb)
     testImplementation(libs.testcontainers.redis)

@@ -1,7 +1,5 @@
 package net.prismarin.lobby.util;
 
-import net.prismarin.api.brand.Brand;
-
 public final class XpProgressBar {
 
     private static final String FILLED = "▮";
@@ -24,9 +22,9 @@ public final class XpProgressBar {
         return (int) (xp * segments / required);
     }
 
-    public static String render(long xp, long required, int segments) {
+    public static String render(long xp, long required, int segments, String color) {
         int filled = filledSegments(xp, required, segments);
-        return "<color:" + Brand.PRIMARY + ">" + FILLED.repeat(filled) + "</color><dark_gray>"
+        return "<color:" + color + ">" + FILLED.repeat(filled) + "</color><dark_gray>"
                 + EMPTY.repeat(segments - filled) + "</dark_gray>";
     }
 }

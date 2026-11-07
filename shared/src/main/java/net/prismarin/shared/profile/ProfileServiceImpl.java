@@ -8,8 +8,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import net.prismarin.api.event.EventBus;
 import net.prismarin.api.profile.PlayerProfile;
+import net.prismarin.api.profile.ProfileLoadedEvent;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.api.profile.ProfileUnloadedEvent;
 import net.prismarin.shared.storage.ProfileRepository;
 
 public final class ProfileServiceImpl implements ProfileService {
@@ -17,20 +20,24 @@ public final class ProfileServiceImpl implements ProfileService {
     private final ProfileRepository repository;
     private final String defaultLocale;
     private final ExecutorService executor;
+    private final EventBus events;
     private final ConcurrentHashMap<UUID, PlayerProfile> cache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, CompletableFuture<Void>> chains = new ConcurrentHashMap<>();
 
-    public ProfileServiceImpl(ProfileRepository repository, String defaultLocale, ExecutorService executor) {
+    public ProfileServiceImpl(ProfileRepository repository, String defaultLocale, ExecutorService executor,
+                              EventBus events) {
         this.repository = repository;
         this.defaultLocale = defaultLocale;
         this.executor = executor;
+        this.events = events;
     }
 
     @Override
     public CompletableFuture<PlayerProfile> load(UUID uuid, String name) {
         return ordered(uuid, () -> {
             PlayerProfile profile = repository.find(uuid).orElse(null);
-            if (profile == null) {
+            boolean created = profile == null;
+            if (created) {
                 profile = PlayerProfile.create(uuid, name, defaultLocale);
                 repository.save(profile);
             } else {
@@ -38,6 +45,7 @@ public final class ProfileServiceImpl implements ProfileService {
                 profile.setLastSeen(Instant.now());
             }
             cache.put(uuid, profile);
+            events.publish(new ProfileLoadedEvent(profile, created));
             return profile;
         });
     }
@@ -62,6 +70,7 @@ public final class ProfileServiceImpl implements ProfileService {
             if (profile != null) {
                 profile.setLastSeen(Instant.now());
                 repository.save(profile);
+                events.publish(new ProfileUnloadedEvent(profile));
             }
             return null;
         });

@@ -1,178 +1,99 @@
-# PRISMARIN — Roadmap
+# PRISMARIN Roadmap
 
-Geordnete Phasen vom heutigen Stand bis zum vollen Netzwerk. Jede Phase baut auf den vorherigen auf; Abhängigkeiten stehen explizit dabei. Größenangaben sind grobe Schätzungen in zusammenhängenden Bau-Sessions (S = wenige Abende, M = 1–2 Wochen nebenbei, L = mehrere Wochen, XL = Monatsprojekt).
+PRISMARIN ist ein Framework für Minecraft-Netzwerke auf Paper und Velocity. Ein Netzwerk installiert die Jars, hängt seine eigenen Spielserver dahinter (ein vorhandenes Bedwars-Plugin genauso wie einen selbst geschriebenen Modus) und bekommt Profile, Währungen, Sprachen, Serververwaltung und Admin-Werkzeuge über alle Server hinweg. Eigene Spielmodi baut PRISMARIN nicht mehr; die Lobby bleibt ein optionales Modul.
 
-## Phasenübersicht
+Grundregeln für alles, was hier entsteht:
 
-| Phase | Thema | Hängt ab von | Größe |
-| --- | --- | --- | --- |
-| 0 | Fundament + Lobby | — | erledigt |
-| 1 | Social-Basis | 0 + Redis | M |
-| 2 | Game-Engine | 0 | L |
-| 3 | MLGRush | 2 | M |
-| 4 | Bedwars | 2, 3 | L |
-| 5 | Skywars + Murder Mystery | 2, 4 | L |
-| 6 | Progression | 2–5, 1 | L |
-| 7 | Cosmetics & Identität | 6 | L |
-| 8 | Moderation & Staff-Tools | 1 | M–L |
-| 9 | Web & Discord | 1, 6 | L |
-| 10 | Skalierung & Betrieb | 2, 9 | XL |
+- Kompatibel sein heißt, die Standards zu bedienen, die andere Plugins schon nutzen (Vault, PlaceholderAPI, LuckPerms), statt zu verlangen, dass sie PRISMARIN einbauen.
+- Jedes Modul ist abschaltbar, damit PRISMARIN nie mit TAB, EssentialsX und Co. kämpft.
+- Texte verstehen MiniMessage, `&`-Farbcodes und Hex (`&#RRGGBB`). Platzhalter schreiben wir als `%name%`.
+- Plattformen: Paper (mit Purpur, Pufferfish) und Velocity. Folia und BungeeCord erst, wenn jemand danach fragt.
+- Lizenz MIT.
 
-## Phase 0 — Fundament + Lobby (heute, erledigt)
+## Übersicht
 
-**Ziele:** Tragfähige Basis, auf der jedes weitere Feature nur noch andockt.
+| Stufe | Thema | Stand |
+| --- | --- | --- |
+| 1 | Entkoppeln: Marke, Währungen, Servergruppen, öffentliche API, Events, Module | fertig (0.2.0) |
+| 1b | Netzwerkübersicht `/network` mit Ping und Heartbeat | fertig (0.2.0) |
+| 1c | Ganze Systeme abschaltbar, z. B. das Coin-System | offen, als Nächstes |
+| 2 | Brücken: Vault, PlaceholderAPI, Konflikterkennung | offen |
+| 3 | Spielserver-Adapter: Status fremder Plugins, Connect- und Queue-API | offen |
+| 4 | Speicher: MySQL/MariaDB, SQLite | offen |
+| 5 | Admin-System über alle Server | offen, braucht Redis |
+| 6 | Veröffentlichen: Maven-Paket, Releases, Doku, Beispiel-Plugin | offen |
+| 7 | Baukasten für Spielmodi (ehemals Game-Engine) | offen |
 
-**Gebaut:**
-- Monorepo mit `:api` / `:shared` / `:core-paper` / `:core-velocity` / `:lobby-paper`, Convention-Plugin, CI mit Unit- und Integrationstests (Testcontainers).
-- Profile (JSON lokal / MongoDB), Economy (Coins/Gems, atomar), Locale-System (de/en, MiniMessage), MessageBus (lokal / Redis), Serververzeichnis.
-- Paper-Core: Chat-Format mit Rang-Prefix (LuckPerms optional), Tablist mit animiertem Titel, Sidebar-Framework, Menü-Framework, `/coins`, `/economy`.
-- Velocity-Core: MOTD, Wartungsmodus, `/hub`, `/sendall`, Lobby-Fallback bei Kicks.
-- Lobby: Spawn/Schutz/Void-Teleport, Hotbar-Items, Navigator- und Profil-Menü, Spieler-Verstecker, Double-Jump, animierte Sidebar, Build-Modus, `/setspawn`.
-- Infra-Stack (Docker Compose: MongoDB, Redis, MariaDB, Prometheus, Grafana) als Ziel-Setup; Live-Betrieb heute LOCAL auf Windows.
+## Stufe 1: Entkoppeln (fertig)
 
-## Phase 1 — Social-Basis (Redis-Pflicht)
+- `Branding` statt fester `Brand`-Konstanten, Abschnitt `branding` in der `config.yml`, Tags `%brand%` und `%brand_prefix%`.
+- Währungen frei wählbar (`economy.currencies`, `economy.primary`), Kontostände als Map je Währung. Alte JSON-Profile mit `coins`/`gems` werden beim ersten Lesen übernommen.
+- Server haben eine freie Gruppe und beliebige Eigenschaften (`icon`, `description` usw.) statt der festen Kategorien LOBBY/GAME/BUILD. Alte `category`-Einträge werden umgedeutet.
+- Öffentliche API: `PrismarinProvider.get()`, auf Paper auch im ServicesManager. Gleiche Schnittstelle auf Proxy und Backends.
+- Events: `ProfileLoadedEvent`, `ProfileUnloadedEvent`, `BalanceChangedEvent`.
+- Module abschaltbar: Paper `chat`, `tablist`, `sidebar`, `join-messages`, `economy-commands`, `network-menu`; Velocity `motd`, `maintenance`, `hub-command`, `sendall-command`, `lobby-fallback`.
+- Fehlende Config-Abschnitte werden beim Start ergänzt, fehlende Sprach-Keys kommen aus dem Jar.
 
-**Ziele:** Das Netzwerk fühlt sich wie EIN Server an. Ab hier ist `storage.mode: MONGO` + `redis.enabled: true` auf allen Servern Betriebsvoraussetzung — alle Features dieser Phase sind Cross-Server.
+## Stufe 1b: Netzwerkübersicht (fertig)
 
-**Module (Wunschliste):**
-- Cross-Server-Chat (globale Kanäle, Staff-Chat) über `MessageBus`-Channels.
-- Private Messages (`/msg`, `/r`) mit Offline-/Anderer-Server-Zustellung.
-- Friends (Anfragen, Liste, Online-Status, Join-Benachrichtigung).
-- Party (Einladen, Leader, gemeinsamer Serverwechsel — Grundlage für Team-Spiele in P3/P4).
-- JoinMe (klickbare Einladung in den eigenen Server/Spielmodus).
+- `/network` (Alias `/servers`, Recht `prismarin.admin.network`) öffnet ein Inventar mit allen Servern aus der `servers.yml`: Status, Spieler/Max, Ping, Version, Gruppe; Klick verbindet.
+- Daten kommen aus zwei Quellen: Server-List-Ping (geht auch bei Servern ohne PRISMARIN) und ein Heartbeat alle 5 s über den Message-Bus mit TPS, MSPT, RAM und Laufzeit.
+- Im LOCAL-Modus erreicht der Heartbeat nur den eigenen Server. Für TPS und RAM aller Server braucht es Redis.
 
-**Technische Voraussetzungen:** Redis-Stack aus `infra/` produktiv; neue `:api`-Interfaces (`FriendService`, `PartyService`, ...) mit Mongo-Repositories in `:shared`; Presence-Tracking (wer ist auf welchem Server) als Redis-State; Velocity als Teilnehmer am selben Bus (bereits verdrahtet).
+## Stufe 1c: Ganze Systeme abschaltbar
 
-**Größe:** M — viel Payload-/Channel-Design, wenig UI.
+Bisher lassen sich nur einzelne Bausteine abschalten (Chat, Tablist, Befehle). Künftig soll jedes System als Ganzes aus- und einschaltbar sein, damit ein Netzwerk z. B. sein eigenes Coin-Plugin behält:
 
-## Phase 2 — Game-Engine
+- Economy: ohne Economy keine Währungen, keine Befehle, keine Anzeige in Lobby und Sidebar, kein Vault-Provider, und `EconomyService` meldet sich als nicht verfügbar.
+- Level und XP, Lobby-Hotbar, Navigator, Profilmenü, Netzwerkübersicht, Heartbeat.
+- Abhängige Teile schalten sich mit ab und schreiben das ins Log, statt mit Fehlern zu starten.
+- Für fremde Plugins sichtbar: `Prismarin` sagt, welche Systeme aktiv sind.
 
-**Ziele:** Wiederverwendbarer Spielrahmen, Voraussetzung für ALLE Spiele (P3–P5). Kein Spielmodus schreibt Rundenlogik doppelt.
+## Stufe 2: Brücken
 
-**Module (Wunschliste):**
-- Arena- und GameManager (Zustandsmaschine: Lobby → Countdown → Ingame → Endphase → Reset).
-- Countdown-System mit Titeln/Sounds/BossBar.
-- MapLoader (Map-Templates aus Vorlagenordner, Map-Voting-fähig).
-- World-Reset (Template-Kopie oder Slime-artiges Zurücksetzen nach jeder Runde).
-- Spectator-Modus (Tod → Zuschauer, Teleport-Kompass).
-- Kit-System (Auswahl, Speicherung im Profil).
+- Vault-Economy-Provider auf die Primärwährung, damit jedes Shop- oder Spiel-Plugin netzwerkweite Coins auszahlt.
+- PlaceholderAPI in beide Richtungen: Expansion `%prismarin_balance_coins%`, `%prismarin_server_online_<server>%` usw., und PAPI-Platzhalter in Tablist, Sidebar, Chat und Navigator.
+- Konflikterkennung: TAB, EssentialsX Chat, andere Scoreboard-Plugins gefunden, eigenes Modul aus, ein klarer Log-Eintrag.
 
-**Technische Voraussetzungen:** nur Phase 0; sauberes `:game-engine`-Modul (Paper) nach dem `lobby-paper`-Muster (`compileOnly` auf Core, Child-Injector über `CoreApi`); Stats-Schnittstelle pro Spiel schon mitdenken (P6).
+## Stufe 3: Spielserver-Adapter
 
-**Größe:** L — wichtigste Einzelinvestition der Roadmap.
+- Status eines fremden Spiels ohne Code: in der `servers.yml` einen Platzhalter angeben (z. B. Arena-Status eines Bedwars-Plugins), der Navigator zeigt Wartet/Läuft/Voll.
+- Schnittstelle `GameServerState` für eigene Modi, die ihren Zustand selbst melden.
+- Connect- und Queue-API: Spieler in eine Gruppe schicken, freien Server wählen, Party später mitnehmen.
 
-## Phase 3 — Erstes Spiel: MLGRush
+## Stufe 4: Speicher
 
-**Ziele:** Kleinster sinnvoller Scope, um die Engine unter Realbedingungen zu härten: 1v1, ein Bett, Best-of-Runden.
+- MySQL/MariaDB als dritter Speicher neben JSON und MongoDB, atomare Buchungen per bedingtem `UPDATE`.
+- SQLite für einzelne Server ohne Datenbank.
+- Migration zwischen den Speichern per Befehl.
 
-**Module (Wunschliste):**
-- MLGRush-Modul auf der Game-Engine (1v1-Arenen, Best-of-3/5).
-- ELO-/Ranked-Wertung pro Spieler (Mongo), Anzeige in Sidebar/Tablist.
-- Rematch-Flow und schnelle Requeue.
+## Stufe 5: Admin-System über alle Server
 
-**Technische Voraussetzungen:** Phase 2 komplett; Party (P1) für „gegen Freund spielen"; einfache Queue (1v1-Matcher) — die große Matchmaking-Infrastruktur kommt erst in P10.
+Alles hier läuft netzwerkweit und setzt Redis voraus, sonst bleibt es auf einem Server.
 
-**Größe:** M.
+- Team-Chat (`/sc`) und Teamliste mit Server und Status.
+- Spieler finden und bewegen: `/find`, `/send`, `/goto`, `/sendgroup`.
+- Strafen: Ban, Mute, Kick, Warn mit Dauer, Grund, Historie und Durchsetzung am Proxy beim Login.
+- Reports mit Kategorie, Warteschlange fürs Team und Benachrichtigung.
+- Ankündigungen an alle, eine Gruppe oder einen Server, als Chat, Titel oder Bossbar, auch zeitgesteuert.
+- Wartung pro Server oder Gruppe statt nur für das ganze Netzwerk, Whitelist für Teammitglieder.
+- Befehl auf einer Gruppe ausführen (`/netexec bedwars say ...`), mit Rechteprüfung.
+- Spielerakte `/pinfo`: Konto, Währungen, Strafen, zuletzt gesehen, aktueller Server.
+- Audit-Log: wer hat wann welche Strafe, Buchung oder Wartung ausgelöst.
+- Warnungen bei Ausfall oder niedriger TPS, im Spiel für das Team und als Discord-Webhook.
+- Netzwerkweites Vanish.
 
-## Phase 4 — Bedwars
+## Stufe 6: Veröffentlichen
 
-**Ziele:** Das Flaggschiff-Spiel. Teams, Wirtschaft im Spiel, private Runden.
+- `:api` als Maven-Paket mit Quellen, über JitPack oder GitHub Packages.
+- Release-Jars auf GitHub, Modrinth und Hangar, Versionierung nach SemVer.
+- Doku-Seite: Installation, Config-Referenz, Platzhalter, API-Beispiele.
+- Beispiel-Plugin, das einen eigenen Modus an PRISMARIN anschließt.
 
-**Module (Wunschliste):**
-- Teams (2er/4er, Betten, Team-Chat, Team-Auswahl).
-- Shop (Item-Shop an Villagern/NPCs, Team-Upgrades).
-- Generatoren (Eisen/Gold/Diamant/Smaragd, Stufen, Splitting).
-- Private Games mit Owner-Rechten (Freunde einladen, Regeln togglen, Start erzwingen).
+## Stufe 7: Baukasten für Spielmodi
 
-**Technische Voraussetzungen:** Phase 2 (Engine) und Erfahrungen aus Phase 3; Party-Integration (P1) für Team-Queues; Map-Pool mit Team-Spawn-Metadaten im MapLoader.
+Was früher die Game-Engine für eigene Spiele war, wird ein Werkzeugkasten für andere: Arena-Zustände, Countdown, Map-Vorlagen mit Reset, Zuschauer, Kits, Statistik-Schnittstelle. Optional, ein Netzwerk kann genauso fremde Spiel-Plugins nutzen.
 
-**Größe:** L.
+## Gestrichen
 
-## Phase 5 — Skywars + Murder Mystery
-
-**Ziele:** Portfolio verbreitern, Engine-Generalisierung beweisen (Solo-FFA und Rollen-Spiel).
-
-**Module (Wunschliste):**
-- Skywars (Solo/Team, Insel-Maps, Chest-Loot-Tiers, Events wie Border/Refill).
-- Murder Mystery (Rollen Mörder/Detektiv/Unschuldige, Rollen-Sandboxing, Gold-Spawns).
-
-**Technische Voraussetzungen:** Phase 2 + 4 (Loot-Tabellen, Rollen-System als Engine-Erweiterungen); Spectator und World-Reset müssen bis hier stabil sein.
-
-**Größe:** L (zwei mittlere Spiele).
-
-## Phase 6 — Progression
-
-**Ziele:** Langzeitmotivation. Die Level-Anzeige existiert bereits (Profil hat `level`/`xp`, Sidebar + Menü zeigen sie) — jetzt bekommt sie Substanz.
-
-**Module (Wunschliste):**
-- Achievements (pro Spiel + netzwerkweit, Fortschritt im Profil).
-- Quests (täglich/wöchentlich, XP- und Coin-Belohnungen).
-- Daily Rewards (Streak-System).
-- Season Pass (kostenloser Track; kaufbarer Track erst mit Payment, siehe unten).
-- Leaderboards (pro Spiel und global, Mongo-Aggregation, Anzeige als Hologramm/Menü/Web).
-
-**Technische Voraussetzungen:** Spiele aus P3–P5 liefern Stats-Events; XP-Vergabe zentral über `ProfileService.modify`/eigenen `ProgressionService`; Redis für Live-Leaderboard-Caches (P1).
-
-**Größe:** L — viele kleine Systeme mit gemeinsamem Datenmodell.
-
-## Phase 7 — Cosmetics & Identität
-
-**Ziele:** Ausdruck und (später) Monetarisierungs-Grundlage — alles rein kosmetisch.
-
-**Module (Wunschliste):**
-- Cosmetics (Partikel-Effekte, Trails, Kill-Effekte, Win-Dances).
-- Nick-System (Anzeigename/Skin-Maskierung mit Rechte-Konzept).
-- Crates (Schlüssel als Belohnung, Öffnungs-Animation, Duplikat-Handling).
-- Pets und Gadgets in der Lobby.
-
-**Technische Voraussetzungen:** Progression (P6) als Belohnungsquelle; Inventar-/Besitz-Modell im Profil (`settings` reicht nicht mehr — eigene Collections); Lobby-Hotbar um Cosmetics-Item erweitern.
-
-**Größe:** L — inhaltsgetrieben, gut parallelisierbar.
-
-## Phase 8 — Moderation, Reports & Staff-Tools
-
-**Ziele:** Das Netzwerk sicher betreibbar machen, bevor es öffentlich wächst.
-
-**Module (Wunschliste):**
-- Punishments (Ban/Mute/Kick mit Dauer, Historie, Velocity-Enforcement beim Login).
-- Reports (Ingame-Report mit Kategorie, Staff-Queue, Benachrichtigung über MessageBus).
-- Staff-Tools (Vanish, Teleport, Inspect, Chat-Logs, Freeze).
-- Replay/Spectator-Plus (Runden-Aufzeichnung bzw. erweitertes Nachträglich-Zuschauen für Report-Prüfung).
-
-**Technische Voraussetzungen:** Phase 1 (Cross-Server-Benachrichtigung, Presence); Punishment-Store in Mongo mit Cache am Proxy; LuckPerms-Gruppen für Staff-Ränge.
-
-**Größe:** M–L (Replay ist der L-Anteil und kann nachgezogen werden).
-
-## Phase 9 — Web & Discord
-
-**Ziele:** Das Netzwerk nach außen sichtbar machen.
-
-**Module (Wunschliste):**
-- REST API (Stats, Leaderboards, Spielerprofile, Serverstatus — lesend zuerst).
-- WebSocket (Live-Daten: Online-Zahlen, laufende Runden).
-- Discord-Bot (Verknüpfung Minecraft↔Discord, Report-/Punishment-Benachrichtigungen, Stats-Abfragen).
-- Website (Landing, Stats-Seiten, Regelwerk).
-
-**Technische Voraussetzungen:** Phase 1 (Redis als Datenquelle für Live-Zustand) und Phase 6 (es gibt etwas anzuzeigen); eigenes Deployment außerhalb der Minecraft-Prozesse; Auth-Konzept (API-Tokens, später OAuth für Spieler-Login).
-
-**Größe:** L — separates Tech-Profil (Web statt Paper), gut abkoppelbar.
-
-## Phase 10 — Skalierung & Betrieb
-
-**Ziele:** Vom handverwalteten Windows-Host zum elastischen Netzwerk.
-
-**Module (Wunschliste):**
-- Docker-Deployment der Gameserver (Images für Paper-Backends, dynamisches Hoch-/Runterfahren von Spielservern).
-- Matchmaking/Queue (zentrale Queue am Proxy/eigenem Dienst, Server-Zuteilung, Warteschlangen-UI).
-- Monitoring-Ausbau (Server-Metriken aus den Plugins nach Prometheus, Alerting, Dashboards je Spielmodus).
-- Cloudflare (DNS, Proxy/DDoS-Schutz fürs Web, ggf. Spectrum für Minecraft-Traffic).
-
-**Technische Voraussetzungen:** Spiele + Engine stabil (P2–P5), REST/Status-Daten (P9); `ServerDirectory` von statischer YAML auf dynamische Registrierung (Redis) umstellen; Infra-Stack aus `infra/` wird Produktionsbasis.
-
-**Größe:** XL — eher Betriebs- als Feature-Arbeit, bewusst zuletzt.
-
-## Payments & kaufbare Ränge (ehrliche Einordnung)
-
-- **Was die Mojang/Minecraft-EULA erlaubt:** verkauft werden dürfen kosmetische Vorteile (Cosmetics, Pets, Partikel, Nick-Farben) und Ränge, solange sie keinen spielerischen Vorteil geben — kein Pay-to-win, keine kaufbaren Items/Kits/Boosts, die Runden entscheiden. Zugangs-Vorteile (z. B. volle Lobbys betreten) bewegen sich in einer Grauzone und müssen einzeln geprüft werden.
-- **Was rechtlich dranhängt:** echtes Payment heißt Gewerbeanmeldung, Steuern, Impressum, Widerrufsrecht — und Zahlungsanbieter wie Stripe/PayPal/Tebex setzen Volljährigkeit bzw. eine verantwortliche erwachsene Person voraus. Der Owner ist 16: ein rechtssicherer Shop ist damit **jetzt nicht umsetzbar**, auch nicht „inoffiziell".
-- **Konsequenz für die Roadmap:** Konzept jetzt, Integration später. Phasen 6 und 7 bauen alles so, dass Monetarisierung nur ein Freischalt-Flag ist: Ränge, Cosmetics-Besitz, Season-Pass-Tracks und Crate-Keys existieren als Datenmodell und sind über Progression verdienbar. Wenn die Voraussetzungen erfüllt sind (Volljährigkeit oder Gewerbe über Erziehungsberechtigte), kommt ein Shop (z. B. Tebex) als dünne Schicht obendrauf — ohne Umbau der Spielsysteme, und strikt EULA-konform (nur Kosmetik + faire Ränge).
+MLGRush, Bedwars, Skywars, Murder Mystery, Cosmetics und Season Pass als eigene PRISMARIN-Inhalte. Das sind Dinge, die Netzwerke selbst mitbringen.

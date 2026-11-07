@@ -9,7 +9,7 @@ import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import java.time.Instant;
 import java.util.HashMap;
-import java.util.Locale;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,8 +45,7 @@ public final class MongoProfileRepository implements ProfileRepository {
                         Updates.set("level", profile.getLevel()),
                         Updates.set("xp", profile.getXp()),
                         Updates.set("settings", new Document(new HashMap<>(profile.getSettings()))),
-                        Updates.setOnInsert("coins", profile.getCoins()),
-                        Updates.setOnInsert("gems", profile.getGems())
+                        Updates.setOnInsert("balances", new Document(balanceFields(profile)))
                 ),
                 new UpdateOptions().upsert(true)
         );
@@ -112,13 +111,32 @@ public final class MongoProfileRepository implements ProfileRepository {
         return Filters.eq("_id", uuid.toString());
     }
 
-    private static long balanceOf(Document document, String field) {
-        Long value = document.getLong(field);
-        return value == null ? 0L : value;
+    private static String fieldFor(Currency currency) {
+        return "balances." + currency.id();
     }
 
-    private static String fieldFor(Currency currency) {
-        return currency.name().toLowerCase(Locale.ROOT);
+    private static long balanceOf(Document document, String field) {
+        Object value = document.getEmbedded(List.of(field.split("\\.")), Object.class);
+        return value instanceof Number number ? number.longValue() : 0L;
+    }
+
+    private static Map<String, Object> balanceFields(PlayerProfile profile) {
+        Map<String, Object> fields = new HashMap<>();
+        profile.balances().forEach((currency, value) -> fields.put(currency.id(), value));
+        return fields;
+    }
+
+    private static Map<Currency, Long> readBalances(Document document) {
+        Map<Currency, Long> balances = new HashMap<>();
+        Document stored = document.get("balances", Document.class);
+        if (stored != null) {
+            stored.forEach((id, value) -> {
+                if (value instanceof Number number) {
+                    balances.put(Currency.of(id), number.longValue());
+                }
+            });
+        }
+        return balances;
     }
 
     private static PlayerProfile toProfile(Document document) {
@@ -133,8 +151,7 @@ public final class MongoProfileRepository implements ProfileRepository {
                 Instant.ofEpochMilli(document.getLong("firstJoin")),
                 Instant.ofEpochMilli(document.getLong("lastSeen")),
                 document.getString("locale"),
-                balanceOf(document, "coins"),
-                balanceOf(document, "gems"),
+                readBalances(document),
                 document.getInteger("level"),
                 document.getLong("xp"),
                 settings

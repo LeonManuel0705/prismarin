@@ -1,6 +1,8 @@
 package net.prismarin.velocity.motd;
 
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.prismarin.api.brand.Branding;
+import net.prismarin.shared.locale.BrandingTags;
 import net.prismarin.velocity.config.ProxyConfig;
 import net.prismarin.velocity.config.ProxyConfigCodec;
 import org.junit.jupiter.api.Test;
@@ -24,10 +26,11 @@ class MotdBuilderTest {
     }
 
     @Test
-    void rendersDefaultConfigWithConcreteServerList() {
+    void rendersDefaultConfigWithBrandTag() {
+        MotdBuilder branded = new MotdBuilder(BrandingTags.formatter(Branding.DEFAULT));
         String plain = PlainTextComponentSerializer.plainText()
-                .serialize(builder.description(ProxyConfigCodec.defaults()));
-        assertEquals("PRISMARIN\nLobby · Creative · Minigame — 1.8 bis 1.21", plain);
+                .serialize(branded.description(ProxyConfigCodec.defaults()));
+        assertEquals("PRISMARIN\nLobby, Spiele und mehr", plain);
     }
 
     private String plain(ProxyConfig config) {

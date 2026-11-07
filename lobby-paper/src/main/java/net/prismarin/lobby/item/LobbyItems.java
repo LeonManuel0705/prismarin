@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.economy.Currency;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
@@ -57,8 +58,8 @@ public final class LobbyItems {
 
     public ItemStack profileHead(Player player, Locale playerLocale) {
         Optional<PlayerProfile> profile = profiles.getCached(player.getUniqueId());
-        long coins = profile.map(PlayerProfile::getCoins).orElse(0L);
-        long gems = profile.map(PlayerProfile::getGems).orElse(0L);
+        long coins = profile.map(value -> value.balance(Currency.COINS)).orElse(0L);
+        long gems = profile.map(value -> value.balance(Currency.GEMS)).orElse(0L);
         int level = profile.map(PlayerProfile::getLevel).orElse(0);
         return tag(ItemBuilder.of(Material.PLAYER_HEAD)
                 .skullOwner(player)

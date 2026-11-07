@@ -63,5 +63,10 @@ class ProxyMessagesTest {
             lastLocale = locale;
             return key;
         }
+
+        @Override
+        public Component format(String text, TagResolver... resolvers) {
+            return Component.text(text);
+        }
     }
 }

@@ -1,11 +1,11 @@
 package net.prismarin.api.profile;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import java.util.UUID;
 import net.prismarin.api.economy.Currency;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class PlayerProfileTest {
 
@@ -60,7 +60,7 @@ class PlayerProfileTest {
         profile.balance(Currency.GEMS, 7L);
         assertEquals(120L, profile.balance(Currency.COINS));
         assertEquals(7L, profile.balance(Currency.GEMS));
-        assertEquals(120L, profile.getCoins());
-        assertEquals(7L, profile.getGems());
+        assertEquals(120L, profile.balance(Currency.COINS));
+        assertEquals(7L, profile.balance(Currency.GEMS));
     }
 }
