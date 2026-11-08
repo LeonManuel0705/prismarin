@@ -28,7 +28,7 @@ import net.prismarin.core.gui.MenuService;
 import net.prismarin.lobby.LobbyPlugin;
 import net.prismarin.lobby.item.LobbyItems;
 import net.prismarin.lobby.player.PlayerHiderService;
-import net.prismarin.lobby.player.PlayerLocales;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.lobby.server.ServerConnector;
 import net.prismarin.lobby.util.CurrencyDisplay;
 import net.prismarin.lobby.util.XpProgressBar;

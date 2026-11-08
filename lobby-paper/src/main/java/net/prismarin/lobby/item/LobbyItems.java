@@ -18,7 +18,7 @@ import net.prismarin.lobby.LobbyPlugin;
 import net.prismarin.lobby.config.LobbySettings;
 import net.prismarin.lobby.util.CurrencyDisplay;
 import net.prismarin.shared.config.CoreConfig;
-import net.prismarin.lobby.player.PlayerLocales;
+import net.prismarin.core.locale.PlayerLocales;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;

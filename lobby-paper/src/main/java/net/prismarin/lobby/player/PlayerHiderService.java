@@ -12,6 +12,7 @@ import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.lobby.LobbyPlugin;
 import net.prismarin.lobby.item.LobbyItems;
 import net.prismarin.lobby.util.CooldownTracker;

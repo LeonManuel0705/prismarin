@@ -12,7 +12,7 @@ import net.prismarin.api.profile.ProfileService;
 import net.prismarin.lobby.LobbyPlugin;
 import net.prismarin.lobby.config.LocationsFile;
 import net.prismarin.lobby.config.SpawnPoint;
-import net.prismarin.lobby.player.PlayerLocales;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.Location;
 import org.bukkit.command.Command;

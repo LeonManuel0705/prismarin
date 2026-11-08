@@ -20,6 +20,7 @@ import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.CoreModules;
 import net.prismarin.core.PrismarinCorePlugin;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.scoreboard.PlayerBoards;
 import net.prismarin.core.scoreboard.SidebarManager;
@@ -157,7 +158,7 @@ public final class ConnectionListener implements Listener {
             if (viewer.getUniqueId().equals(excluded)) {
                 continue;
             }
-            viewer.sendMessage(locale.render(key, viewer.locale(), name));
+            viewer.sendMessage(locale.render(key, PlayerLocales.of(viewer, profiles), name));
         }
         plugin.getServer().getConsoleSender().sendMessage(
                 locale.render(key, Locale.forLanguageTag(config.defaultLocale()), name));

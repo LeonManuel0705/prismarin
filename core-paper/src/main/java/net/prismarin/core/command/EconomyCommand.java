@@ -13,7 +13,9 @@ import net.prismarin.api.economy.Currency;
 import net.prismarin.api.economy.EconomyResult;
 import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.locale.LocaleService;
+import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.PrismarinCorePlugin;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.core.permission.CorePermissions;
 import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.Bukkit;
@@ -31,15 +33,18 @@ public final class EconomyCommand implements TabExecutor {
     private final LocaleService locale;
     private final CoreConfig config;
     private final ExecutorService executor;
+    private final ProfileService profiles;
 
     @Inject
     public EconomyCommand(PrismarinCorePlugin plugin, EconomyService economy,
-                          LocaleService locale, CoreConfig config, ExecutorService executor) {
+                          LocaleService locale, CoreConfig config, ExecutorService executor,
+                          ProfileService profiles) {
         this.plugin = plugin;
         this.economy = economy;
         this.locale = locale;
         this.config = config;
         this.executor = executor;
+        this.profiles = profiles;
     }
 
     @Override
@@ -127,9 +132,10 @@ public final class EconomyCommand implements TabExecutor {
                     Placeholder.unparsed("balance", String.valueOf(result.newBalance()))));
             Player target = Bukkit.getPlayer(targetId);
             if (target != null) {
-                target.sendMessage(locale.render(targetKey, target.locale(),
+                Locale targetLocale = PlayerLocales.of(target, profiles);
+                target.sendMessage(locale.render(targetKey, targetLocale,
                         Placeholder.unparsed("amount", String.valueOf(parsed.amount())),
-                        currencyResolver(parsed.currency(), target.locale()),
+                        currencyResolver(parsed.currency(), targetLocale),
                         Placeholder.unparsed("balance", String.valueOf(result.newBalance()))));
             }
         });
@@ -174,7 +180,7 @@ public final class EconomyCommand implements TabExecutor {
 
     private Locale localeOf(CommandSender sender) {
         return sender instanceof Player player
-                ? player.locale()
+                ? PlayerLocales.of(player, profiles)
                 : Locale.forLanguageTag(config.defaultLocale());
     }
 

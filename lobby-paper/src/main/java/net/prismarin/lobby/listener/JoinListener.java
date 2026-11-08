@@ -16,7 +16,7 @@ import net.prismarin.lobby.config.LobbySettings;
 import net.prismarin.lobby.item.LobbyItems;
 import net.prismarin.lobby.player.BuildModeService;
 import net.prismarin.lobby.player.PlayerHiderService;
-import net.prismarin.lobby.player.PlayerLocales;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.lobby.world.LobbyWorlds;
 import org.bukkit.GameMode;
 import org.bukkit.attribute.Attribute;

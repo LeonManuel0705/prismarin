@@ -7,7 +7,9 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.prismarin.api.brand.Branding;
 import net.prismarin.api.locale.LocaleService;
+import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.PrismarinCorePlugin;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.rank.RankFormatProvider;
 import net.prismarin.core.scoreboard.AnimatedTitle;
@@ -27,18 +29,20 @@ public final class TablistManager {
     private final RankFormatProvider ranks;
     private final LocaleService locale;
     private final PermissionSnapshots snapshots;
+    private final ProfileService profiles;
     private final AnimatedTitle title;
     private BukkitTask task;
 
     @Inject
     public TablistManager(PrismarinCorePlugin plugin, PlayerBoards boards, RankFormatProvider ranks,
                           LocaleService locale, PermissionSnapshots snapshots, MiniMessage miniMessage,
-                          Branding branding) {
+                          Branding branding, ProfileService profiles) {
         this.plugin = plugin;
         this.boards = boards;
         this.ranks = ranks;
         this.locale = locale;
         this.snapshots = snapshots;
+        this.profiles = profiles;
         this.title = AnimatedTitle.brand(miniMessage, branding);
     }
 
@@ -73,10 +77,10 @@ public final class TablistManager {
         for (Player viewer : plugin.getServer().getOnlinePlayers()) {
             snapshots.refresh(viewer);
             viewer.sendPlayerListHeaderAndFooter(
-                    locale.render("tablist.header", viewer.locale(),
+                    locale.render("tablist.header", PlayerLocales.of(viewer, profiles),
                             Placeholder.component("title", frame),
                             Placeholder.unparsed("online", online)),
-                    locale.render("tablist.footer", viewer.locale(),
+                    locale.render("tablist.footer", PlayerLocales.of(viewer, profiles),
                             Placeholder.unparsed("online", online)));
             syncTeams(boards.board(viewer));
         }

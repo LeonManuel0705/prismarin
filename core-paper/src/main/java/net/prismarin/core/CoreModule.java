@@ -131,8 +131,8 @@ public final class CoreModule extends AbstractModule {
     @Provides
     @Singleton
     RankFormatProvider rankFormatProvider(LocaleService localeService, MiniMessage miniMessage,
-                                          PermissionSnapshots snapshots) {
-        DefaultRankFormatProvider fallback = new DefaultRankFormatProvider(localeService, snapshots);
+                                          PermissionSnapshots snapshots, ProfileService profiles) {
+        DefaultRankFormatProvider fallback = new DefaultRankFormatProvider(localeService, snapshots, profiles);
         if (plugin.getServer().getPluginManager().getPlugin("LuckPerms") != null) {
             return new LuckPermsRankFormatProvider(miniMessage, fallback);
         }

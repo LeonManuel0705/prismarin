@@ -10,6 +10,8 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.prismarin.api.locale.LocaleService;
+import net.prismarin.api.profile.ProfileService;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.core.permission.CorePermissions;
 import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.rank.RankFormatProvider;
@@ -26,16 +28,19 @@ public final class AsyncChatListener implements Listener {
     private final MiniMessage miniMessage;
     private final CoreConfig config;
     private final PermissionSnapshots snapshots;
+    private final ProfileService profiles;
     private final PlainTextComponentSerializer plainText = PlainTextComponentSerializer.plainText();
 
     @Inject
     public AsyncChatListener(RankFormatProvider ranks, LocaleService locale, MiniMessage miniMessage,
-                             CoreConfig config, PermissionSnapshots snapshots) {
+                             CoreConfig config, PermissionSnapshots snapshots,
+                             ProfileService profiles) {
         this.ranks = ranks;
         this.locale = locale;
         this.miniMessage = miniMessage;
         this.config = config;
         this.snapshots = snapshots;
+        this.profiles = profiles;
     }
 
     @EventHandler
@@ -51,7 +56,7 @@ public final class AsyncChatListener implements Listener {
 
     private Component render(Player source, Component sourceDisplayName, Component message, Audience viewer) {
         Locale viewerLocale = viewer instanceof Player player
-                ? player.locale()
+                ? PlayerLocales.of(player, profiles)
                 : Locale.forLanguageTag(config.defaultLocale());
         return locale.render("chat.format", viewerLocale,
                 Placeholder.component("prefix", ranks.prefix(source)),

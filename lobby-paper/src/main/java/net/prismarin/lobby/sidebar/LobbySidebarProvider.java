@@ -19,7 +19,7 @@ import net.prismarin.core.rank.RankFormatProvider;
 import net.prismarin.core.scoreboard.AnimatedTitle;
 import net.prismarin.core.scoreboard.SidebarProvider;
 import net.prismarin.lobby.LobbyPlugin;
-import net.prismarin.lobby.player.PlayerLocales;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.lobby.util.CurrencyDisplay;
 import net.prismarin.lobby.util.XpProgressBar;
 import net.prismarin.shared.config.CoreConfig;

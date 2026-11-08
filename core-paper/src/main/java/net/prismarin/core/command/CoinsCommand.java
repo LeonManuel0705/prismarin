@@ -9,6 +9,7 @@ import net.prismarin.api.economy.Currency;
 import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.core.permission.CorePermissions;
 import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.command.Command;
@@ -40,15 +41,15 @@ public final class CoinsCommand implements TabExecutor {
             return true;
         }
         if (!player.hasPermission(CorePermissions.COMMAND_COINS)) {
-            player.sendMessage(locale.render("general.no-permission", player.locale()));
+            player.sendMessage(locale.render("general.no-permission", PlayerLocales.of(player, profiles)));
             return true;
         }
         Currency currency = economy.primaryCurrency();
         profiles.getCached(player.getUniqueId()).ifPresentOrElse(
-                profile -> player.sendMessage(locale.render("economy.balance", player.locale(),
+                profile -> player.sendMessage(locale.render("economy.balance", PlayerLocales.of(player, profiles),
                         Placeholder.unparsed("amount", String.valueOf(profile.balance(currency))),
-                        Placeholder.component("currency", CurrencyNames.render(locale, currency, player.locale())))),
-                () -> player.sendMessage(locale.render("general.profile-not-loaded", player.locale())));
+                        Placeholder.component("currency", CurrencyNames.render(locale, currency, PlayerLocales.of(player, profiles))))),
+                () -> player.sendMessage(locale.render("general.profile-not-loaded", PlayerLocales.of(player, profiles))));
         return true;
     }
 

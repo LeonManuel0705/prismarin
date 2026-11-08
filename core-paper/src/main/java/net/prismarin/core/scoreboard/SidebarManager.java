@@ -9,7 +9,9 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import net.prismarin.api.locale.LocaleService;
+import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.PrismarinCorePlugin;
+import net.prismarin.core.locale.PlayerLocales;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.Criteria;
@@ -28,15 +30,18 @@ public final class SidebarManager {
     private final PrismarinCorePlugin plugin;
     private final PlayerBoards boards;
     private final LocaleService locale;
+    private final ProfileService profiles;
     private final Map<UUID, Integer> lineCounts = new ConcurrentHashMap<>();
     private volatile SidebarProvider provider;
     private BukkitTask task;
 
     @Inject
-    public SidebarManager(PrismarinCorePlugin plugin, PlayerBoards boards, LocaleService locale) {
+    public SidebarManager(PrismarinCorePlugin plugin, PlayerBoards boards, LocaleService locale,
+                          ProfileService profiles) {
         this.plugin = plugin;
         this.boards = boards;
         this.locale = locale;
+        this.profiles = profiles;
     }
 
     public void start() {
@@ -77,7 +82,7 @@ public final class SidebarManager {
         Scoreboard board = boards.board(player);
         Component title = provider.title(player);
         if (title == null) {
-            title = locale.render("sidebar.title", player.locale());
+            title = locale.render("sidebar.title", PlayerLocales.of(player, profiles));
         }
         Objective objective = board.getObjective(OBJECTIVE_NAME);
         if (objective == null) {

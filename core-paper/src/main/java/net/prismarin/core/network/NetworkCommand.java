@@ -5,6 +5,8 @@ import com.google.inject.Singleton;
 import java.util.List;
 import java.util.Locale;
 import net.prismarin.api.locale.LocaleService;
+import net.prismarin.api.profile.ProfileService;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.core.permission.CorePermissions;
 import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.command.Command;
@@ -18,12 +20,14 @@ public final class NetworkCommand implements TabExecutor {
     private final NetworkMenu menu;
     private final LocaleService locale;
     private final CoreConfig config;
+    private final ProfileService profiles;
 
     @Inject
-    public NetworkCommand(NetworkMenu menu, LocaleService locale, CoreConfig config) {
+    public NetworkCommand(NetworkMenu menu, LocaleService locale, CoreConfig config, ProfileService profiles) {
         this.menu = menu;
         this.locale = locale;
         this.config = config;
+        this.profiles = profiles;
     }
 
     @Override
@@ -33,7 +37,7 @@ public final class NetworkCommand implements TabExecutor {
             return true;
         }
         if (!player.hasPermission(CorePermissions.ADMIN_NETWORK)) {
-            player.sendMessage(locale.render("general.no-permission", player.locale()));
+            player.sendMessage(locale.render("general.no-permission", PlayerLocales.of(player, profiles)));
             return true;
         }
         menu.open(player);

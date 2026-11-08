@@ -17,6 +17,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.prismarin.api.locale.LocaleService;
+import net.prismarin.api.profile.ProfileService;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.api.server.ServerStatus;
@@ -25,6 +26,7 @@ import net.prismarin.core.gui.ItemBuilder;
 import net.prismarin.core.gui.Menu;
 import net.prismarin.core.gui.MenuButton;
 import net.prismarin.core.gui.MenuService;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.status.NetworkStatusService;
 import org.bukkit.Material;
@@ -45,16 +47,19 @@ public final class NetworkMenu {
     private final ServerDirectory directory;
     private final NetworkStatusService status;
     private final CoreConfig config;
+    private final ProfileService profiles;
 
     @Inject
     public NetworkMenu(PrismarinCorePlugin plugin, MenuService menus, LocaleService locale,
-                       ServerDirectory directory, NetworkStatusService status, CoreConfig config) {
+                       ServerDirectory directory, NetworkStatusService status, CoreConfig config,
+                       ProfileService profiles) {
         this.plugin = plugin;
         this.menus = menus;
         this.locale = locale;
         this.directory = directory;
         this.status = status;
         this.config = config;
+        this.profiles = profiles;
     }
 
     public void open(Player player) {
@@ -67,7 +72,7 @@ public final class NetworkMenu {
     }
 
     private Menu build(Player player, List<ServerStatus> statuses) {
-        Locale target = player.locale();
+        Locale target = PlayerLocales.of(player, profiles);
         List<NetworkServer> servers = directory.servers().stream().limit(MAX_SERVER_SLOTS).toList();
         Map<String, ServerStatus> byName = statuses.stream()
                 .collect(Collectors.toMap(entry -> entry.name().toLowerCase(Locale.ROOT), Function.identity(),
