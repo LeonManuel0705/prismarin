@@ -6,7 +6,8 @@ public record EconomyResult(boolean success, long newBalance, FailureReason fail
         NONE,
         INSUFFICIENT_FUNDS,
         PROFILE_NOT_LOADED,
-        UNKNOWN_CURRENCY
+        UNKNOWN_CURRENCY,
+        SYSTEM_DISABLED
     }
 
     public static EconomyResult success(long newBalance) {

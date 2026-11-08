@@ -16,7 +16,7 @@ Grundregeln für alles, was hier entsteht:
 | --- | --- | --- |
 | 1 | Entkoppeln: Marke, Währungen, Servergruppen, öffentliche API, Events, Module | fertig (0.2.0) |
 | 1b | Netzwerkübersicht `/network` mit Ping und Heartbeat | fertig (0.2.0) |
-| 1c | Ganze Systeme abschaltbar, z. B. das Coin-System | offen, als Nächstes |
+| 1c | Ganze Systeme abschaltbar, z. B. das Coin-System | fertig (0.2.0) |
 | 2 | Brücken: Vault, PlaceholderAPI, Konflikterkennung | offen |
 | 3 | Spielserver-Adapter: Status fremder Plugins, Connect- und Queue-API | offen |
 | 4 | Speicher: MySQL/MariaDB, SQLite | offen |
@@ -40,14 +40,16 @@ Grundregeln für alles, was hier entsteht:
 - Daten kommen aus zwei Quellen: Server-List-Ping (geht auch bei Servern ohne PRISMARIN) und ein Heartbeat alle 5 s über den Message-Bus mit TPS, MSPT, RAM und Laufzeit.
 - Im LOCAL-Modus erreicht der Heartbeat nur den eigenen Server. Für TPS und RAM aller Server braucht es Redis.
 
-## Stufe 1c: Ganze Systeme abschaltbar
+## Stufe 1c: Ganze Systeme abschaltbar (fertig)
 
-Bisher lassen sich nur einzelne Bausteine abschalten (Chat, Tablist, Befehle). Künftig soll jedes System als Ganzes aus- und einschaltbar sein, damit ein Netzwerk z. B. sein eigenes Coin-Plugin behält:
-
-- Economy: ohne Economy keine Währungen, keine Befehle, keine Anzeige in Lobby und Sidebar, kein Vault-Provider, und `EconomyService` meldet sich als nicht verfügbar.
-- Level und XP, Lobby-Hotbar, Navigator, Profilmenü, Netzwerkübersicht, Heartbeat.
-- Abhängige Teile schalten sich mit ab und schreiben das ins Log, statt mit Fehlern zu starten.
-- Für fremde Plugins sichtbar: `Prismarin` sagt, welche Systeme aktiv sind.
+- Neuer Abschnitt `systems` in der `config.yml`: `economy`, `levels`, `network-status`. Module (`modules`) schalten einzelne Anzeigen und Befehle, Systeme ganze Funktionen.
+- `economy: false`: keine Währungen, kein `/coins` und `/economy`, keine Coin-Anzeigen in Lobby und Sidebar. `EconomyService.enabled()` meldet `false`, Buchungen scheitern mit `SYSTEM_DISABLED`.
+- `levels: false`: keine Level- und XP-Anzeigen.
+- `network-status: false`: kein Heartbeat, kein regelmäßiger Ping, kein `/network`.
+- Abhängige Module gehen mit aus und das Log nennt den Grund.
+- Fremde Plugins fragen `Prismarin.systemEnabled("economy")` oder `enabledSystems()`.
+- Lobby mit eigener `config.yml` unter `features`: `navigator`, `profile-menu`, `player-hider`, `double-jump`, `protection`, `sidebar`, `join-title`.
+- Die Lobby zeigt die konfigurierten Währungen (bis zu drei) statt fest Coins und Gems. Eigene Texte pro Währung über `lobby.sidebar.<id>`, sonst ein allgemeiner Text.
 
 ## Stufe 2: Brücken
 

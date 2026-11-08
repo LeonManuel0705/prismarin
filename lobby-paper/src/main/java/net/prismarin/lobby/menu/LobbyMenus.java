@@ -2,6 +2,7 @@ package net.prismarin.lobby.menu;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -11,6 +12,7 @@ import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.PrismarinSystems;
 import net.prismarin.api.brand.Branding;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.locale.LocaleService;
@@ -28,6 +30,7 @@ import net.prismarin.lobby.item.LobbyItems;
 import net.prismarin.lobby.player.PlayerHiderService;
 import net.prismarin.lobby.player.PlayerLocales;
 import net.prismarin.lobby.server.ServerConnector;
+import net.prismarin.lobby.util.CurrencyDisplay;
 import net.prismarin.lobby.util.XpProgressBar;
 import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.Material;
@@ -40,10 +43,7 @@ public final class LobbyMenus {
     private static final int MENU_ROWS = 3;
     private static final int SERVER_ROW = 1;
     private static final int PROFILE_HEAD_SLOT = 4;
-    private static final int PROFILE_COINS_SLOT = 10;
-    private static final int PROFILE_GEMS_SLOT = 12;
-    private static final int PROFILE_LEVEL_SLOT = 14;
-    private static final int PROFILE_LOCALE_SLOT = 16;
+    private static final int PROFILE_ROW = 1;
     private static final int BACK_SLOT = 18;
     private static final int CLOSE_SLOT = 26;
     private static final int LEVEL_BAR_SEGMENTS = 10;
@@ -60,12 +60,13 @@ public final class LobbyMenus {
     private final ServerConnector connector;
     private final CoreConfig config;
     private final Branding branding;
+    private final CurrencyDisplay currencies;
 
     @Inject
     public LobbyMenus(LobbyPlugin plugin, MenuService menuService, LocaleService locale, ProfileService profiles,
                       ServerDirectory directory, MiniMessage miniMessage, LobbyItems items,
                       PlayerHiderService hider, ServerConnector connector, CoreConfig config,
-                      Branding branding) {
+                      Branding branding, CurrencyDisplay currencies) {
         this.plugin = plugin;
         this.menuService = menuService;
         this.locale = locale;
@@ -77,6 +78,7 @@ public final class LobbyMenus {
         this.connector = connector;
         this.config = config;
         this.branding = branding;
+        this.currencies = currencies;
     }
 
     public void openNavigator(Player player) {
@@ -105,10 +107,18 @@ public final class LobbyMenus {
         Menu menu = new Menu(locale.render("lobby.profile.title", playerLocale), MENU_ROWS);
         fill(menu);
         menu.button(PROFILE_HEAD_SLOT, new MenuButton(items.profileHead(player, playerLocale), DECORATION));
-        menu.button(PROFILE_COINS_SLOT, new MenuButton(coinsIcon(playerLocale, profile), DECORATION));
-        menu.button(PROFILE_GEMS_SLOT, new MenuButton(gemsIcon(playerLocale, profile), DECORATION));
-        menu.button(PROFILE_LEVEL_SLOT, new MenuButton(levelIcon(playerLocale, profile), DECORATION));
-        menu.button(PROFILE_LOCALE_SLOT, localeButton(playerLocale, profile));
+        List<MenuButton> entries = new ArrayList<>();
+        for (Currency currency : currencies.shown()) {
+            entries.add(new MenuButton(currencyIcon(playerLocale, profile, currency), DECORATION));
+        }
+        if (config.systemEnabled(PrismarinSystems.LEVELS)) {
+            entries.add(new MenuButton(levelIcon(playerLocale, profile), DECORATION));
+        }
+        entries.add(localeButton(playerLocale, profile));
+        List<Integer> slots = MenuLayout.centeredRowSlots(PROFILE_ROW, entries.size());
+        for (int i = 0; i < entries.size(); i++) {
+            menu.button(slots.get(i), entries.get(i));
+        }
         menu.button(BACK_SLOT, new MenuButton(
                 ItemBuilder.of(Material.ARROW).name(locale.render("menu.back", playerLocale)).build(),
                 context -> openNavigator(context.player())));
@@ -158,19 +168,13 @@ public final class LobbyMenus {
         plugin.getServer().getScheduler().runTask(plugin, close);
     }
 
-    private ItemStack coinsIcon(Locale playerLocale, PlayerProfile profile) {
-        return ItemBuilder.of(Material.GOLD_INGOT)
-                .name(locale.render("lobby.profile.coins.name", playerLocale))
-                .lore(locale.render("lobby.profile.coins.lore", playerLocale,
-                        Placeholder.unparsed("coins", String.valueOf(profile.balance(Currency.COINS)))))
-                .build();
-    }
-
-    private ItemStack gemsIcon(Locale playerLocale, PlayerProfile profile) {
-        return ItemBuilder.of(Material.EMERALD)
-                .name(locale.render("lobby.profile.gems.name", playerLocale))
-                .lore(locale.render("lobby.profile.gems.lore", playerLocale,
-                        Placeholder.unparsed("gems", String.valueOf(profile.balance(Currency.GEMS)))))
+    private ItemStack currencyIcon(Locale playerLocale, PlayerProfile profile, Currency currency) {
+        long amount = profile.balance(currency);
+        Material material = currency.equals(Currency.COINS) ? Material.GOLD_INGOT
+                : currency.equals(Currency.GEMS) ? Material.EMERALD : Material.SUNFLOWER;
+        return ItemBuilder.of(material)
+                .name(currencies.render("lobby.profile", currency, amount, playerLocale, "name"))
+                .lore(currencies.render("lobby.profile", currency, amount, playerLocale, "lore"))
                 .build();
     }
 

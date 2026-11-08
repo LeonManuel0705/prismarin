@@ -86,8 +86,9 @@ public final class PrismarinVelocityPlugin {
 
         NetworkStatusService networkStatus = new NetworkStatusService(directory, services.messageBus(), executor);
         PrismarinProvider.register(services.prismarin(directory, networkStatus));
-        logger.info("PRISMARIN proxy core enabled as '{}' with {} and modules {}",
+        logger.info("PRISMARIN proxy core enabled as '{}' with {}, systems {} and modules {}",
                 coreConfig.serverId(), services.messageBus().getClass().getSimpleName(),
+                services.enabledSystems().stream().sorted().toList(),
                 ProxyModules.ALL.stream().filter(coreConfig::moduleEnabled).toList());
     }
 

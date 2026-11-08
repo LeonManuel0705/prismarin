@@ -56,6 +56,7 @@ lobby:
       lore:
         coins: "<gray>Coins:</gray> <color:#FBBF24>◆ %coins%</color>"
         gems: "<gray>Gems:</gray> <color:#2DD4BF>%gems%</color>"
+        currency: "<gray>%currency%:</gray> <white>%amount%</white>"
         level: "<gray>Level:</gray> <color:#22D3EE>%level%</color>"
     hider:
       visible: "<color:#2DD4BF>● Spieler sichtbar</color> <dark_gray>› Rechtsklick</dark_gray>"
@@ -80,6 +81,9 @@ lobby:
     gems:
       name: "<color:#2DD4BF>◆ Gems</color>"
       lore: "<gray>Kontostand:</gray> <color:#2DD4BF>%gems%</color>"
+    currency:
+      name: "<white>◆</white> %currency%"
+      lore: "<gray>Kontostand:</gray> <white>%amount%</white>"
     level:
       name: "<color:#22D3EE>◆ Level %level%</color>"
       lore: "%bar% <gray>%xp%/%max% XP</gray>"
@@ -103,6 +107,7 @@ lobby:
     rank: " %rank%"
     coins: "<color:#FBBF24>◆</color> <gray>Coins:</gray> <color:#FBBF24>%coins%</color>"
     gems: "<color:#2DD4BF>◆</color> <gray>Gems:</gray> <color:#2DD4BF>%gems%</color>"
+    currency: "<white>◆</white> <gray>%currency%:</gray> <white>%amount%</white>"
     level: "<gray>Level</gray> <color:#22D3EE>%level%</color>"
     progress: " %bar% <dark_gray>%xp%/%max%</dark_gray>"
     online: "<gray>Online:</gray> <color:#22D3EE>%online%</color>"

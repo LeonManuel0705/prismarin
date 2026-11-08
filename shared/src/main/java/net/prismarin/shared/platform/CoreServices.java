@@ -1,8 +1,11 @@
 package net.prismarin.shared.platform;
 
 import java.nio.file.Path;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 import net.prismarin.api.Prismarin;
+import net.prismarin.api.PrismarinSystems;
 import net.prismarin.api.economy.BalanceChangedEvent;
 import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.event.EventBus;
@@ -12,6 +15,7 @@ import net.prismarin.api.profile.ProfileService;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.api.server.ServerStatusService;
 import net.prismarin.shared.config.CoreConfig;
+import net.prismarin.shared.economy.DisabledEconomyService;
 import net.prismarin.shared.economy.EconomyServiceImpl;
 import net.prismarin.shared.event.SimpleEventBus;
 import net.prismarin.shared.locale.BrandingTags;
@@ -41,8 +45,9 @@ public final class CoreServices implements AutoCloseable {
         this.locale = new YamlLocaleService(dataDirectory, config.defaultLocale(), formatter);
         ProfileRepository repository = storage.repository();
         this.profiles = new ProfileServiceImpl(repository, config.defaultLocale(), executor, events);
-        this.economy = new EconomyServiceImpl(repository, executor, config.currencies(), config.primaryCurrency(),
-                events);
+        this.economy = config.systemEnabled(PrismarinSystems.ECONOMY)
+                ? new EconomyServiceImpl(repository, executor, config.currencies(), config.primaryCurrency(), events)
+                : new DisabledEconomyService();
         this.messageBus = MessageBusFactory.create(config);
         events.subscribe(BalanceChangedEvent.class, event -> profiles.getCached(event.uuid())
                 .ifPresent(profile -> profile.balance(event.currency(), event.newBalance())));
@@ -54,7 +59,11 @@ public final class CoreServices implements AutoCloseable {
 
     public Prismarin prismarin(ServerDirectory servers, ServerStatusService serverStatus) {
         return new SimplePrismarin(config.serverId(), config.branding(), profiles, economy, locale, messageBus,
-                servers, serverStatus, events);
+                servers, serverStatus, events, enabledSystems());
+    }
+
+    public Set<String> enabledSystems() {
+        return PrismarinSystems.ALL.stream().filter(config::systemEnabled).collect(Collectors.toUnmodifiableSet());
     }
 
     public CoreConfig config() {

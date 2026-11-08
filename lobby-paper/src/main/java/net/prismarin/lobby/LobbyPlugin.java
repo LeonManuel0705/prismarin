@@ -5,6 +5,7 @@ import net.prismarin.core.CoreApi;
 import net.prismarin.core.scoreboard.SidebarManager;
 import net.prismarin.lobby.command.LobbyBuildCommand;
 import net.prismarin.lobby.command.SetSpawnCommand;
+import net.prismarin.lobby.config.LobbySettings;
 import net.prismarin.lobby.listener.DoubleJumpListener;
 import net.prismarin.lobby.listener.HotbarListener;
 import net.prismarin.lobby.listener.JoinListener;
@@ -30,19 +31,29 @@ public final class LobbyPlugin extends JavaPlugin {
         getServer().getMessenger().registerOutgoingPluginChannel(this, ServerConnector.CHANNEL);
         injector.getInstance(LobbyWorlds.class).lockWeather();
 
+        LobbySettings settings = injector.getInstance(LobbySettings.class);
         PluginManager pluginManager = getServer().getPluginManager();
         pluginManager.registerEvents(injector.getInstance(JoinListener.class), this);
         pluginManager.registerEvents(injector.getInstance(HotbarListener.class), this);
-        pluginManager.registerEvents(injector.getInstance(ProtectionListener.class), this);
-        pluginManager.registerEvents(injector.getInstance(DoubleJumpListener.class), this);
-        pluginManager.registerEvents(injector.getInstance(PlayerHiderService.class), this);
+        if (settings.enabled(LobbySettings.PROTECTION)) {
+            pluginManager.registerEvents(injector.getInstance(ProtectionListener.class), this);
+        }
+        if (settings.enabled(LobbySettings.DOUBLE_JUMP)) {
+            pluginManager.registerEvents(injector.getInstance(DoubleJumpListener.class), this);
+        }
+        if (settings.enabled(LobbySettings.PLAYER_HIDER)) {
+            pluginManager.registerEvents(injector.getInstance(PlayerHiderService.class), this);
+        }
 
         registerCommand("lobbybuild", injector.getInstance(LobbyBuildCommand.class));
         registerCommand("setspawn", injector.getInstance(SetSpawnCommand.class));
 
-        sidebarManager = injector.getInstance(SidebarManager.class);
-        sidebarProvider = injector.getInstance(LobbySidebarProvider.class);
-        sidebarManager.provider(sidebarProvider);
+        if (settings.enabled(LobbySettings.SIDEBAR)) {
+            sidebarManager = injector.getInstance(SidebarManager.class);
+            sidebarProvider = injector.getInstance(LobbySidebarProvider.class);
+            sidebarManager.provider(sidebarProvider);
+        }
+        getLogger().info("Lobby features " + LobbySettings.ALL.stream().filter(settings::enabled).toList());
     }
 
     @Override

@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import net.prismarin.api.Prismarin;
 import net.prismarin.api.PrismarinProvider;
+import net.prismarin.api.PrismarinSystems;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.chat.AsyncChatListener;
 import net.prismarin.core.command.CoinsCommand;
@@ -59,7 +60,9 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         pluginManager.registerEvents(injector.getInstance(ConnectionListener.class), this);
         pluginManager.registerEvents(injector.getInstance(MenuService.class), this);
 
-        if (config.moduleEnabled(CoreModules.ECONOMY_COMMANDS)) {
+        boolean economy = config.systemEnabled(PrismarinSystems.ECONOMY);
+        boolean networkStatus = config.systemEnabled(PrismarinSystems.NETWORK_STATUS);
+        if (economy && config.moduleEnabled(CoreModules.ECONOMY_COMMANDS)) {
             registerCommand("coins", injector.getInstance(CoinsCommand.class));
             registerCommand("economy", injector.getInstance(EconomyCommand.class));
         } else {
@@ -68,16 +71,18 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         }
 
         getServer().getMessenger().registerOutgoingPluginChannel(this, NetworkMenu.CHANNEL);
-        if (config.moduleEnabled(CoreModules.NETWORK_MENU)) {
+        if (networkStatus && config.moduleEnabled(CoreModules.NETWORK_MENU)) {
             registerCommand("network", injector.getInstance(NetworkCommand.class));
         } else {
             removeCommand("network");
         }
-        NetworkStatusService networkStatus = injector.getInstance(NetworkStatusService.class);
-        heartbeatTask = getServer().getScheduler()
-                .runTaskTimer(this, injector.getInstance(HeartbeatTask.class), 20L, HEARTBEAT_INTERVAL_TICKS);
-        statusTask = getServer().getScheduler()
-                .runTaskTimerAsynchronously(this, () -> networkStatus.refresh(), 40L, STATUS_INTERVAL_TICKS);
+        if (networkStatus) {
+            NetworkStatusService status = injector.getInstance(NetworkStatusService.class);
+            heartbeatTask = getServer().getScheduler()
+                    .runTaskTimer(this, injector.getInstance(HeartbeatTask.class), 20L, HEARTBEAT_INTERVAL_TICKS);
+            statusTask = getServer().getScheduler()
+                    .runTaskTimerAsynchronously(this, () -> status.refresh(), 40L, STATUS_INTERVAL_TICKS);
+        }
 
         if (config.moduleEnabled(CoreModules.SIDEBAR)) {
             sidebarManager = injector.getInstance(SidebarManager.class);
@@ -93,7 +98,14 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         CoreApi.register(injector);
         PrismarinProvider.register(prismarin);
         getServer().getServicesManager().register(Prismarin.class, prismarin, this, ServicePriority.Normal);
-        getLogger().info("Enabled as '" + config.serverId() + "' with modules " + enabledModules(config));
+        getLogger().info("Enabled as '" + config.serverId() + "' with systems " + prismarin.enabledSystems().stream()
+                .sorted().toList() + " and modules " + enabledModules(config));
+        if (!economy && config.moduleEnabled(CoreModules.ECONOMY_COMMANDS)) {
+            getLogger().info("Module economy-commands is off because the economy system is disabled");
+        }
+        if (!networkStatus && config.moduleEnabled(CoreModules.NETWORK_MENU)) {
+            getLogger().info("Module network-menu is off because the network-status system is disabled");
+        }
     }
 
     @Override

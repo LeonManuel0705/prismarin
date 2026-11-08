@@ -2,16 +2,22 @@ package net.prismarin.lobby.item;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.PrismarinSystems;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.gui.ItemBuilder;
 import net.prismarin.lobby.LobbyPlugin;
+import net.prismarin.lobby.config.LobbySettings;
+import net.prismarin.lobby.util.CurrencyDisplay;
+import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.lobby.player.PlayerLocales;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -32,21 +38,34 @@ public final class LobbyItems {
 
     private final LocaleService locale;
     private final ProfileService profiles;
+    private final LobbySettings settings;
+    private final CurrencyDisplay currencies;
+    private final CoreConfig config;
     private final NamespacedKey key;
 
     @Inject
-    public LobbyItems(LobbyPlugin plugin, LocaleService locale, ProfileService profiles) {
+    public LobbyItems(LobbyPlugin plugin, LocaleService locale, ProfileService profiles, LobbySettings settings,
+                      CurrencyDisplay currencies, CoreConfig config) {
         this.locale = locale;
         this.profiles = profiles;
+        this.settings = settings;
+        this.currencies = currencies;
+        this.config = config;
         this.key = new NamespacedKey(plugin, "lobby-item");
     }
 
     public void give(Player player, boolean playersHidden) {
         Locale playerLocale = PlayerLocales.of(player, profiles);
         PlayerInventory inventory = player.getInventory();
-        inventory.setItem(NAVIGATOR_SLOT, navigator(playerLocale));
-        inventory.setItem(PROFILE_SLOT, profileHead(player, playerLocale));
-        inventory.setItem(HIDER_SLOT, hiderItem(playerLocale, playersHidden));
+        if (settings.enabled(LobbySettings.NAVIGATOR)) {
+            inventory.setItem(NAVIGATOR_SLOT, navigator(playerLocale));
+        }
+        if (settings.enabled(LobbySettings.PROFILE_MENU)) {
+            inventory.setItem(PROFILE_SLOT, profileHead(player, playerLocale));
+        }
+        if (settings.enabled(LobbySettings.PLAYER_HIDER)) {
+            inventory.setItem(HIDER_SLOT, hiderItem(playerLocale, playersHidden));
+        }
     }
 
     public ItemStack navigator(Locale playerLocale) {
@@ -58,20 +77,21 @@ public final class LobbyItems {
 
     public ItemStack profileHead(Player player, Locale playerLocale) {
         Optional<PlayerProfile> profile = profiles.getCached(player.getUniqueId());
-        long coins = profile.map(value -> value.balance(Currency.COINS)).orElse(0L);
-        long gems = profile.map(value -> value.balance(Currency.GEMS)).orElse(0L);
-        int level = profile.map(PlayerProfile::getLevel).orElse(0);
+        List<Component> lore = new ArrayList<>();
+        for (Currency currency : currencies.shown()) {
+            long amount = profile.map(value -> value.balance(currency)).orElse(0L);
+            lore.add(currencies.render("lobby.item.profile.lore", currency, amount, playerLocale));
+        }
+        if (config.systemEnabled(PrismarinSystems.LEVELS)) {
+            int level = profile.map(PlayerProfile::getLevel).orElse(0);
+            lore.add(locale.render("lobby.item.profile.lore.level", playerLocale,
+                    Placeholder.unparsed("level", String.valueOf(level))));
+        }
         return tag(ItemBuilder.of(Material.PLAYER_HEAD)
                 .skullOwner(player)
                 .name(locale.render("lobby.item.profile.name", playerLocale,
                         Placeholder.unparsed("player", player.getName())))
-                .lore(List.of(
-                        locale.render("lobby.item.profile.lore.coins", playerLocale,
-                                Placeholder.unparsed("coins", String.valueOf(coins))),
-                        locale.render("lobby.item.profile.lore.gems", playerLocale,
-                                Placeholder.unparsed("gems", String.valueOf(gems))),
-                        locale.render("lobby.item.profile.lore.level", playerLocale,
-                                Placeholder.unparsed("level", String.valueOf(level)))))
+                .lore(lore)
                 .build(), PROFILE_ID);
     }
 

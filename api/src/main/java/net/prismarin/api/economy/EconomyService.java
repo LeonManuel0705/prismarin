@@ -7,6 +7,10 @@ import java.util.concurrent.CompletableFuture;
 
 public interface EconomyService {
 
+    default boolean enabled() {
+        return true;
+    }
+
     List<Currency> currencies();
 
     Currency primaryCurrency();

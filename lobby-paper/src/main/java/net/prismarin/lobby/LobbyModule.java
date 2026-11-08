@@ -5,6 +5,7 @@ import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import net.prismarin.lobby.command.LobbyBuildCommand;
 import net.prismarin.lobby.command.SetSpawnCommand;
+import net.prismarin.lobby.config.LobbySettings;
 import net.prismarin.lobby.config.LocationsFile;
 import net.prismarin.lobby.item.LobbyItems;
 import net.prismarin.lobby.listener.DoubleJumpListener;
@@ -42,6 +43,12 @@ public final class LobbyModule extends AbstractModule {
         bind(DoubleJumpListener.class);
         bind(LobbyBuildCommand.class);
         bind(SetSpawnCommand.class);
+    }
+
+    @Provides
+    @Singleton
+    LobbySettings lobbySettings() {
+        return LobbySettings.load(plugin.getDataFolder().toPath().resolve("config.yml"));
     }
 
     @Provides

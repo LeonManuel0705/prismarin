@@ -1,5 +1,6 @@
 package net.prismarin.api;
 
+import java.util.Set;
 import net.prismarin.api.brand.Branding;
 import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.event.EventBus;
@@ -28,4 +29,10 @@ public interface Prismarin {
     ServerStatusService serverStatus();
 
     EventBus events();
+
+    Set<String> enabledSystems();
+
+    default boolean systemEnabled(String system) {
+        return enabledSystems().contains(system);
+    }
 }

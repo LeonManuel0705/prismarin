@@ -82,4 +82,15 @@ class ConfigLoaderTest {
                 () -> ConfigLoader.load(file, List.of()));
         assertTrue(error.getMessage().startsWith("Invalid config.yml"));
     }
+
+    @Test
+    void systemsDefaultToEnabledAndCanBeSwitchedOff() throws IOException {
+        Path file = directory.resolve("config.yml");
+        Files.writeString(file, "systems:\n  economy: false\n");
+        CoreConfig config = ConfigLoader.load(file, List.of());
+        assertFalse(config.systemEnabled("economy"));
+        assertTrue(config.systemEnabled("levels"));
+        assertTrue(config.systemEnabled("network-status"));
+        assertTrue(Files.readString(file).contains("network-status: true"));
+    }
 }

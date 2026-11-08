@@ -2,12 +2,14 @@ package net.prismarin.lobby.sidebar;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.PrismarinSystems;
 import net.prismarin.api.brand.Branding;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.locale.LocaleService;
@@ -18,7 +20,9 @@ import net.prismarin.core.scoreboard.AnimatedTitle;
 import net.prismarin.core.scoreboard.SidebarProvider;
 import net.prismarin.lobby.LobbyPlugin;
 import net.prismarin.lobby.player.PlayerLocales;
+import net.prismarin.lobby.util.CurrencyDisplay;
 import net.prismarin.lobby.util.XpProgressBar;
+import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.entity.Player;
 
 @Singleton
@@ -35,10 +39,13 @@ public final class LobbySidebarProvider implements SidebarProvider {
     private final MiniMessage miniMessage;
     private final AnimatedTitle title;
     private final String barColor;
+    private final CurrencyDisplay currencies;
+    private final boolean levels;
 
     @Inject
     public LobbySidebarProvider(LobbyPlugin plugin, LocaleService locale, ProfileService profiles,
-                                RankFormatProvider ranks, MiniMessage miniMessage, Branding branding) {
+                                RankFormatProvider ranks, MiniMessage miniMessage, Branding branding,
+                                CurrencyDisplay currencies, CoreConfig config) {
         this.plugin = plugin;
         this.locale = locale;
         this.profiles = profiles;
@@ -46,6 +53,8 @@ public final class LobbySidebarProvider implements SidebarProvider {
         this.miniMessage = miniMessage;
         this.title = AnimatedTitle.brand(miniMessage, branding);
         this.barColor = branding.primaryColor();
+        this.currencies = currencies;
+        this.levels = config.systemEnabled(PrismarinSystems.LEVELS);
     }
 
     @Override
@@ -57,33 +66,37 @@ public final class LobbySidebarProvider implements SidebarProvider {
     public List<Component> lines(Player player) {
         Locale playerLocale = PlayerLocales.of(player, profiles);
         Optional<PlayerProfile> profile = profiles.getCached(player.getUniqueId());
-        long coins = profile.map(value -> value.balance(Currency.COINS)).orElse(0L);
-        long gems = profile.map(value -> value.balance(Currency.GEMS)).orElse(0L);
-        int level = profile.map(PlayerProfile::getLevel).orElse(0);
-        long xp = profile.map(PlayerProfile::getXp).orElse(0L);
-        long max = profile.map(PlayerProfile::xpForNextLevel).orElse(BASE_XP_REQUIREMENT);
-        Component bar = miniMessage.deserialize(XpProgressBar.render(xp, max, BAR_SEGMENTS, barColor));
-        return List.of(
-                Component.empty(),
-                locale.render("lobby.sidebar.rank-label", playerLocale),
-                locale.render("lobby.sidebar.rank", playerLocale,
-                        Placeholder.component("rank", ranks.prefix(player))),
-                Component.empty(),
-                locale.render("lobby.sidebar.coins", playerLocale,
-                        Placeholder.unparsed("coins", String.valueOf(coins))),
-                locale.render("lobby.sidebar.gems", playerLocale,
-                        Placeholder.unparsed("gems", String.valueOf(gems))),
-                Component.empty(),
-                locale.render("lobby.sidebar.level", playerLocale,
-                        Placeholder.unparsed("level", String.valueOf(level))),
-                locale.render("lobby.sidebar.progress", playerLocale,
-                        Placeholder.component("bar", bar),
-                        Placeholder.unparsed("xp", String.valueOf(xp)),
-                        Placeholder.unparsed("max", String.valueOf(max))),
-                Component.empty(),
-                locale.render("lobby.sidebar.online", playerLocale,
-                        Placeholder.unparsed("online", String.valueOf(plugin.getServer().getOnlinePlayers().size()))),
-                Component.empty(),
-                locale.render("lobby.sidebar.footer", playerLocale));
+        List<Component> lines = new ArrayList<>();
+        lines.add(Component.empty());
+        lines.add(locale.render("lobby.sidebar.rank-label", playerLocale));
+        lines.add(locale.render("lobby.sidebar.rank", playerLocale,
+                Placeholder.component("rank", ranks.prefix(player))));
+        List<Currency> shown = currencies.shown();
+        if (!shown.isEmpty()) {
+            lines.add(Component.empty());
+            for (Currency currency : shown) {
+                long amount = profile.map(value -> value.balance(currency)).orElse(0L);
+                lines.add(currencies.render("lobby.sidebar", currency, amount, playerLocale));
+            }
+        }
+        if (levels) {
+            int level = profile.map(PlayerProfile::getLevel).orElse(0);
+            long xp = profile.map(PlayerProfile::getXp).orElse(0L);
+            long max = profile.map(PlayerProfile::xpForNextLevel).orElse(BASE_XP_REQUIREMENT);
+            Component bar = miniMessage.deserialize(XpProgressBar.render(xp, max, BAR_SEGMENTS, barColor));
+            lines.add(Component.empty());
+            lines.add(locale.render("lobby.sidebar.level", playerLocale,
+                    Placeholder.unparsed("level", String.valueOf(level))));
+            lines.add(locale.render("lobby.sidebar.progress", playerLocale,
+                    Placeholder.component("bar", bar),
+                    Placeholder.unparsed("xp", String.valueOf(xp)),
+                    Placeholder.unparsed("max", String.valueOf(max))));
+        }
+        lines.add(Component.empty());
+        lines.add(locale.render("lobby.sidebar.online", playerLocale,
+                Placeholder.unparsed("online", String.valueOf(plugin.getServer().getOnlinePlayers().size()))));
+        lines.add(Component.empty());
+        lines.add(locale.render("lobby.sidebar.footer", playerLocale));
+        return lines;
     }
 }

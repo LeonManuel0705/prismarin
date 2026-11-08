@@ -8,11 +8,12 @@ import net.prismarin.api.economy.Currency;
 public record CoreConfig(String serverId, StorageMode storageMode, String mongoUri, String mongoDatabase,
                          boolean redisEnabled, String redisHost, int redisPort, String redisPassword,
                          String defaultLocale, Branding branding, List<Currency> currencies,
-                         Currency primaryCurrency, Map<String, Boolean> modules) {
+                         Currency primaryCurrency, Map<String, Boolean> modules, Map<String, Boolean> systems) {
 
     public CoreConfig {
         currencies = List.copyOf(currencies);
         modules = Map.copyOf(modules);
+        systems = Map.copyOf(systems);
         if (currencies.isEmpty()) {
             throw new IllegalArgumentException("economy.currencies must declare at least one currency");
         }
@@ -24,6 +25,10 @@ public record CoreConfig(String serverId, StorageMode storageMode, String mongoU
 
     public boolean moduleEnabled(String module) {
         return modules.getOrDefault(module, true);
+    }
+
+    public boolean systemEnabled(String system) {
+        return systems.getOrDefault(system, true);
     }
 
     public enum StorageMode {

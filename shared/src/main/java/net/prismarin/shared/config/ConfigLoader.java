@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import net.prismarin.api.PrismarinSystems;
 import net.prismarin.api.brand.Branding;
 import net.prismarin.api.economy.Currency;
 import org.spongepowered.configurate.CommentedConfigurationNode;
@@ -69,6 +70,8 @@ public final class ConfigLoader {
                 ? Currency.COINS.id() : currencies.getFirst().id()));
         Map<String, Boolean> modules = new LinkedHashMap<>();
         root.node("modules").childrenMap().forEach((key, node) -> modules.put(key.toString(), node.getBoolean(true)));
+        Map<String, Boolean> systems = new LinkedHashMap<>();
+        root.node("systems").childrenMap().forEach((key, node) -> systems.put(key.toString(), node.getBoolean(true)));
         return new CoreConfig(
                 root.node("server-id").getString(DEFAULT_SERVER_ID),
                 CoreConfig.StorageMode.valueOf(
@@ -84,7 +87,8 @@ public final class ConfigLoader {
                 branding,
                 currencies,
                 primary,
-                modules
+                modules,
+                systems
         );
     }
 
@@ -110,6 +114,9 @@ public final class ConfigLoader {
             changed = true;
         }
         changed |= setIfAbsent(root.node("economy", "primary"), DEFAULT_CURRENCIES.getFirst());
+        for (String system : PrismarinSystems.ALL) {
+            changed |= setIfAbsent(root.node("systems", system), true);
+        }
         for (String module : modules) {
             changed |= setIfAbsent(root.node("modules", module), true);
         }

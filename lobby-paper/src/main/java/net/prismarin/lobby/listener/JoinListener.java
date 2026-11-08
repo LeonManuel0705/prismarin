@@ -12,6 +12,7 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.title.Title;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.lobby.config.LobbySettings;
 import net.prismarin.lobby.item.LobbyItems;
 import net.prismarin.lobby.player.BuildModeService;
 import net.prismarin.lobby.player.PlayerHiderService;
@@ -39,16 +40,18 @@ public final class JoinListener implements Listener {
     private final ProfileService profiles;
     private final BuildModeService buildMode;
     private final PlayerHiderService hider;
+    private final LobbySettings settings;
 
     @Inject
     public JoinListener(LobbyWorlds worlds, LobbyItems items, LocaleService locale, ProfileService profiles,
-                        BuildModeService buildMode, PlayerHiderService hider) {
+                        BuildModeService buildMode, PlayerHiderService hider, LobbySettings settings) {
         this.worlds = worlds;
         this.items = items;
         this.locale = locale;
         this.profiles = profiles;
         this.buildMode = buildMode;
         this.hider = hider;
+        this.settings = settings;
     }
 
     @EventHandler
@@ -63,11 +66,13 @@ public final class JoinListener implements Listener {
             player.setGameMode(GameMode.ADVENTURE);
         }
         restore(player);
-        if (player.getGameMode() != GameMode.CREATIVE) {
+        if (settings.enabled(LobbySettings.DOUBLE_JUMP) && player.getGameMode() != GameMode.CREATIVE) {
             player.setAllowFlight(true);
         }
         items.give(player, hider.hiding(player));
-        welcome(player, first);
+        if (settings.enabled(LobbySettings.JOIN_TITLE)) {
+            welcome(player, first);
+        }
     }
 
     @EventHandler

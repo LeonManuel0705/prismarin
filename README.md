@@ -15,7 +15,7 @@ The point of the architecture is that a game mode never talks to a database. It 
 | Servers | A directory with free groups and properties per server, used by the navigator and by plugins |
 | Network overview | `/network` opens a live inventory with status, players, ping, version, TPS, memory and uptime per server |
 | Events | `ProfileLoadedEvent`, `ProfileUnloadedEvent` and `BalanceChangedEvent` on proxy and backends |
-| Modules | Chat, tablist, sidebar, join messages, commands and proxy features can each be switched off |
+| Systems and modules | Whole systems (economy, levels, network status) and single features (chat, tablist, sidebar, join messages, commands, proxy features, lobby parts) can each be switched off |
 | Lobby | An optional ready made lobby with navigator, profile menu, player hider and double jump |
 
 ## Architecture
@@ -73,10 +73,16 @@ branding:
 economy:
   currencies: [coins, gems]
   primary: coins
+systems:
+  economy: true
+  levels: true
+  network-status: true
 modules:
   chat: true
   tablist: true
 ```
+
+A network that keeps its own coin plugin sets `systems.economy: false`. Commands, displays and transactions disappear, and `prismarin.systemEnabled("economy")` tells other plugins about it.
 
 `storage.mode: LOCAL` keeps profiles in JSON files and runs the message bus in process, which makes a single server usable with no infrastructure at all. `MONGO` plus `redis.enabled: true` turns the same jars into a network where profiles, messages and heartbeats are shared across every server.
 
@@ -94,7 +100,7 @@ servers:
 
 ## Testing
 
-163 unit tests across 28 test classes run on every build. Two more classes are integration tests, tagged separately, that spin up real MongoDB and Redis containers through Testcontainers.
+168 unit tests across 30 test classes run on every build. Two more classes are integration tests, tagged separately, that spin up real MongoDB and Redis containers through Testcontainers.
 
 ```bash
 ./gradlew build             # compile plus unit tests

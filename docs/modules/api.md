@@ -22,14 +22,16 @@ Auf Paper liegt die Instanz zusätzlich im ServicesManager (`Bukkit.getServicesM
 
 ```
 net.prismarin.api
-├── Prismarin                serverId, branding, profiles, economy, locale, messageBus, servers, serverStatus, events
+├── Prismarin                serverId, branding, profiles, economy, locale, messageBus, servers, serverStatus, events,
+│                            enabledSystems(), systemEnabled(name)
+├── PrismarinSystems         ECONOMY, LEVELS, NETWORK_STATUS
 ├── PrismarinProvider        get(), isAvailable(); register/unregister nur durch die Core-Plugins
 ├── brand
 │   └── Branding             Record (name, primaryColor, accentColor, prefix), DEFAULT, gradient(), title()
 ├── economy
 │   ├── Currency             Record (id), COINS und GEMS als Standard, of(id), messageKey()
-│   ├── EconomyResult        Record (success, newBalance, failureReason), UNKNOWN_CURRENCY für nicht deklarierte Währungen
-│   ├── EconomyService       currencies(), primaryCurrency(), currency(id), balance/deposit/withdraw/set atomar
+│   ├── EconomyResult        Record (success, newBalance, failureReason), UNKNOWN_CURRENCY, SYSTEM_DISABLED
+│   ├── EconomyService       enabled(), currencies(), primaryCurrency(), currency(id), balance/deposit/withdraw/set atomar
 │   └── BalanceChangedEvent  nach jeder erfolgreichen Transaktion (DEPOSIT, WITHDRAW, SET)
 ├── event
 │   ├── EventBus             subscribe(type, handler) -> Subscription, publish(event)
@@ -51,6 +53,10 @@ net.prismarin.api
     ├── ServerStatus         online, players, maxPlayers, latencyMillis, version, prismarin, tps, mspt, RAM, uptime
     └── ServerStatusService  statuses(), status(name), refresh()
 ```
+
+## Abgeschaltete Systeme
+
+Ist `economy` aus, liefert `economy()` eine Attrappe: `enabled()` ist `false`, `currencies()` leer, `primaryCurrency()` wirft `IllegalStateException`, Buchungen scheitern mit `SYSTEM_DISABLED`. Plugins prüfen vorher `systemEnabled(PrismarinSystems.ECONOMY)`.
 
 ## Events
 
