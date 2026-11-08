@@ -8,9 +8,9 @@ version = "0.2.0"
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
-    maven("https://jitpack.io") {
+    maven("https://repo.codemc.io/repository/creatorfromhell/") {
         content {
-            includeGroup("com.github.MilkBowl")
+            includeGroup("net.milkbowl.vault")
         }
     }
     maven("https://repo.extendedclip.com/releases/") {

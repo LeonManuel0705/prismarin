@@ -1,38 +1,27 @@
 package net.prismarin.core.bridge;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.milkbowl.vault.economy.Economy;
 import net.milkbowl.vault.economy.EconomyResponse;
-import net.prismarin.api.Prismarin;
-import net.prismarin.api.PrismarinProvider;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.economy.EconomyResult;
-import net.prismarin.api.economy.EconomyService;
-import net.prismarin.core.command.CurrencyNames;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.plugin.Plugin;
 
 public final class VaultEconomy implements Economy {
 
-    private static final long TIMEOUT_SECONDS = 3L;
-
-    private final Plugin plugin;
+    private final VaultSupport support;
 
     public VaultEconomy(Plugin plugin) {
-        this.plugin = plugin;
+        this.support = new VaultSupport(plugin);
     }
 
     @Override
     public boolean isEnabled() {
-        return economy().isPresent();
+        return support.economy().isPresent();
     }
 
     @Override
@@ -73,8 +62,7 @@ public final class VaultEconomy implements Economy {
 
     @Override
     public boolean hasAccount(OfflinePlayer player) {
-        return economy().isPresent() && (player.isOnline() || player.hasPlayedBefore()
-                || PrismarinProvider.get().profiles().getCached(player.getUniqueId()).isPresent());
+        return support.hasAccount(player.getUniqueId());
     }
 
     @Override
@@ -94,15 +82,8 @@ public final class VaultEconomy implements Economy {
 
     @Override
     public double getBalance(OfflinePlayer player) {
-        Optional<EconomyService> economy = economy();
-        if (economy.isEmpty()) {
-            return 0D;
-        }
-        Currency currency = economy.get().primaryCurrency();
-        UUID uuid = player.getUniqueId();
-        return PrismarinProvider.get().profiles().getCached(uuid)
-                .map(profile -> (double) profile.balance(currency))
-                .orElseGet(() -> await(economy.get().balance(uuid, currency)).map(Long::doubleValue).orElse(0D));
+        return support.currency(null).map(currency -> (double) support.balance(player.getUniqueId(), currency))
+                .orElse(0D);
     }
 
     @Override
@@ -242,19 +223,7 @@ public final class VaultEconomy implements Economy {
 
     @Override
     public boolean createPlayerAccount(OfflinePlayer player) {
-        if (economy().isEmpty() || player.getName() == null) {
-            return false;
-        }
-        Prismarin prismarin = PrismarinProvider.get();
-        UUID uuid = player.getUniqueId();
-        if (prismarin.profiles().getCached(uuid).isPresent()) {
-            return true;
-        }
-        CompletableFuture<Void> created = prismarin.profiles().load(uuid, player.getName())
-                .thenCompose(profile -> player.isOnline()
-                        ? CompletableFuture.completedFuture(null)
-                        : prismarin.profiles().unload(uuid));
-        return await(created.thenApply(unused -> Boolean.TRUE)).orElse(false);
+        return support.createAccount(player.getUniqueId(), player.getName());
     }
 
     @Override
@@ -268,8 +237,8 @@ public final class VaultEconomy implements Economy {
     }
 
     private EconomyResponse transact(OfflinePlayer player, double amount, boolean deposit) {
-        Optional<EconomyService> economy = economy();
-        if (economy.isEmpty()) {
+        Optional<Currency> currency = support.currency(null);
+        if (currency.isEmpty()) {
             return new EconomyResponse(amount, 0D, EconomyResponse.ResponseType.FAILURE, "economy is disabled");
         }
         long units = VaultAmounts.toUnits(amount);
@@ -277,46 +246,24 @@ public final class VaultEconomy implements Economy {
             return new EconomyResponse(amount, getBalance(player), EconomyResponse.ResponseType.FAILURE,
                     "amount must be a whole number of at least 1");
         }
-        Currency currency = economy.get().primaryCurrency();
-        CompletableFuture<EconomyResult> pending = deposit
-                ? economy.get().deposit(player.getUniqueId(), currency, units)
-                : economy.get().withdraw(player.getUniqueId(), currency, units);
-        return await(pending)
-                .map(result -> new EconomyResponse(units, result.newBalance(),
-                        result.success() ? EconomyResponse.ResponseType.SUCCESS : EconomyResponse.ResponseType.FAILURE,
-                        result.success() ? "" : result.failureReason().name().toLowerCase(Locale.ROOT)))
+        UUID uuid = player.getUniqueId();
+        Optional<EconomyResult> result = deposit
+                ? support.deposit(uuid, currency.get(), units)
+                : support.withdraw(uuid, currency.get(), units);
+        return result
+                .map(done -> new EconomyResponse(units, done.newBalance(),
+                        done.success() ? EconomyResponse.ResponseType.SUCCESS : EconomyResponse.ResponseType.FAILURE,
+                        VaultSupport.failureMessage(done)))
                 .orElseGet(() -> new EconomyResponse(units, 0D, EconomyResponse.ResponseType.FAILURE,
                         "transaction timed out"));
     }
 
-    private Optional<EconomyService> economy() {
-        if (!PrismarinProvider.isAvailable()) {
-            return Optional.empty();
-        }
-        EconomyService economy = PrismarinProvider.get().economy();
-        return economy.enabled() ? Optional.of(economy) : Optional.empty();
-    }
-
     private String currencyName() {
-        return economy().map(economy -> PlainTextComponentSerializer.plainText().serialize(
-                CurrencyNames.render(PrismarinProvider.get().locale(), economy.primaryCurrency(), Locale.ROOT)))
-                .orElse("");
+        return support.currency(null).map(support::currencyName).orElse("");
     }
 
     private Optional<OfflinePlayer> player(String name) {
         return Optional.ofNullable(name).map(Bukkit::getOfflinePlayerIfCached);
-    }
-
-    private <T> Optional<T> await(CompletableFuture<T> future) {
-        try {
-            return Optional.ofNullable(future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS));
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return Optional.empty();
-        } catch (Exception e) {
-            plugin.getLogger().log(Level.WARNING, "Vault economy call failed", e);
-            return Optional.empty();
-        }
     }
 
     private static EconomyResponse unknownPlayer(double amount) {

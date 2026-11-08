@@ -20,4 +20,13 @@ class VaultAmountsTest {
         assertEquals(-1L, VaultAmounts.toUnits(Double.POSITIVE_INFINITY));
         assertEquals(Long.MAX_VALUE, VaultAmounts.toUnits(1e30));
     }
+
+    @Test
+    void bigDecimalAmountsRoundHalfUp() {
+        assertEquals(3L, VaultAmounts.toUnits(new java.math.BigDecimal("2.5")));
+        assertEquals(2L, VaultAmounts.toUnits(new java.math.BigDecimal("2.49")));
+        assertEquals(-1L, VaultAmounts.toUnits(new java.math.BigDecimal("-1")));
+        assertEquals(-1L, VaultAmounts.toUnits((java.math.BigDecimal) null));
+        assertEquals(Long.MAX_VALUE, VaultAmounts.toUnits(new java.math.BigDecimal("1e40")));
+    }
 }

@@ -17,7 +17,7 @@ Grundregeln für alles, was hier entsteht:
 | 1 | Entkoppeln: Marke, Währungen, Servergruppen, öffentliche API, Events, Module | fertig (0.2.0) |
 | 1b | Netzwerkübersicht `/network` mit Ping und Heartbeat | fertig (0.2.0) |
 | 1c | Ganze Systeme abschaltbar, z. B. das Coin-System | fertig (0.2.0) |
-| 2 | Brücken: Vault, PlaceholderAPI, Konflikterkennung | fertig (0.2.0), live mit Vault/PAPI noch ungetestet |
+| 2 | Brücken: Vault, PlaceholderAPI, Konflikterkennung | fertig (0.2.0) |
 | 3 | Spielserver-Adapter: Status fremder Plugins, Connect- und Queue-API | offen |
 | 4 | Speicher: MySQL/MariaDB, SQLite | offen |
 | 5 | Admin-System über alle Server | offen, braucht Redis |
@@ -53,12 +53,14 @@ Grundregeln für alles, was hier entsteht:
 
 ## Stufe 2: Brücken (fertig)
 
-- Vault: Prismarin meldet sich beim Laden (`onLoad`) mit hoher Priorität als Economy-Anbieter für die Primärwährung, damit auch Plugins, die vor Prismarin starten, es finden. Beträge werden auf ganze Einheiten gerundet, Banken gibt es nicht. Schalter `modules.vault`, aus bei `systems.economy: false`.
+- Vault: PRISMARIN meldet sich beim Laden (`onLoad`) mit hoher Priorität als Economy-Anbieter für die Primärwährung, damit auch Plugins, die vor Prismarin starten, es finden. Beträge werden auf ganze Einheiten gerundet, Banken gibt es nicht. Schalter `modules.vault`, aus bei `systems.economy: false`.
 - PlaceholderAPI-Erweiterung `%prismarin_…%`: `balance`, `balance_<währung>`, `level`, `xp`, `xp_required`, `locale`, `brand`, `server`, `network_online`, `network_servers_online`, `server_online_<server>`, `server_max_<server>`, `server_status_<server>`, `server_ping_<server>`, `group_online_<gruppe>`.
 - Umgekehrt lösen Tablist, Sidebar, Lobby-Sidebar und Chat-Format fremde PAPI-Platzhalter auf. Eigene Platzhalter wie `%player%` werden vorher ersetzt und gehen nie an PAPI.
 - Konflikterkennung: TAB schaltet die Tablist ab, FeatherBoard/AnimatedScoreboard/SimpleScore die Sidebar, EssentialsChat/ChatControl/VentureChat/LPC/DeluxeChat/CarbonChat/ChatManager das Chat-Format. Abschalten mit `compatibility.auto-detect: false`.
 - Sprache einheitlich: selbst gewählte Sprache aus dem Profil, sonst die des Clients.
-- Offen: Live-Test mit echtem Vault und PlaceholderAPI auf dem Testserver.
+- Live geprüft (08.11.2026) mit VaultUnlocked 2.20.3 und PlaceholderAPI 2.12.3: Vault meldet „Economy Legacy: PRISMARIN“, `%vaultunlocked_eco_balance%` liefert denselben Stand wie `%prismarin_balance%`, alle `%prismarin_…%`-Platzhalter lösen auf, PAPI-Platzhalter im eigenen Chat-Format auch.
+- Zusätzlich die neue VaultUnlocked-API (`net.milkbowl.vault2`, „Economy Modern“) mit allen konfigurierten Währungen, `set`, `canWithdraw` und `canDeposit`. Wird nur registriert, wenn VaultUnlocked installiert ist; mit dem klassischen Vault bleibt es bei der alten API.
+- Live mit einem Test-Plugin geprüft, das wie ein Shop über Vault bucht: Einzahlen, Abbuchen, zu wenig Guthaben, Bruchteile, unbekannte Währung, Setzen, über beide Schnittstellen. Danach stimmten die Stände in PRISMARIN.
 
 ## Stufe 3: Spielserver-Adapter
 

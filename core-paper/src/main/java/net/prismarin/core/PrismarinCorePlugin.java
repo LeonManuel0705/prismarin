@@ -54,8 +54,10 @@ public final class PrismarinCorePlugin extends JavaPlugin {
     public void onLoad() {
         CoreConfig config = ConfigLoader.load(getDataFolder().toPath().resolve("config.yml"), CoreModules.ALL);
         if (ModuleState.compute(config, name -> false).enabled(CoreModules.VAULT) && VaultBridge.available(this)) {
-            VaultBridge.register(this);
-            getLogger().info("Registered as Vault economy provider");
+            boolean modern = VaultBridge.register(this);
+            getLogger().info(modern
+                    ? "Registered as Vault economy provider for the legacy and the VaultUnlocked API"
+                    : "Registered as Vault economy provider");
         }
     }
 

@@ -21,7 +21,7 @@ dependencies {
 
     compileOnly(libs.paper.api)
     compileOnly(libs.luckperms.api)
-    compileOnly(libs.vault.api) {
+    compileOnly(libs.vaultunlocked.api) {
         isTransitive = false
     }
     compileOnly(libs.placeholderapi) {
