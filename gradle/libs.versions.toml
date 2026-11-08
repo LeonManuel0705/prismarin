@@ -2,6 +2,8 @@
 paper = "1.21.11-R0.1-SNAPSHOT"
 velocity = "3.4.0-SNAPSHOT"
 luckperms = "5.4"
+vault = "1.7.1"
+placeholderapi = "2.12.3"
 configurate = "4.2.0"
 lettuce = "6.5.5.RELEASE"
 mongodb = "5.2.1"
@@ -18,6 +20,8 @@ testcontainers-redis = "3.0.1"
 paper-api = { module = "io.papermc.paper:paper-api", version.ref = "paper" }
 velocity-api = { module = "com.velocitypowered:velocity-api", version.ref = "velocity" }
 luckperms-api = { module = "net.luckperms:api", version.ref = "luckperms" }
+vault-api = { module = "com.github.MilkBowl:VaultAPI", version.ref = "vault" }
+placeholderapi = { module = "me.clip:placeholderapi", version.ref = "placeholderapi" }
 configurate-yaml = { module = "org.spongepowered:configurate-yaml", version.ref = "configurate" }
 lettuce-core = { module = "io.lettuce:lettuce-core", version.ref = "lettuce" }
 mongodb-driver-sync = { module = "org.mongodb:mongodb-driver-sync", version.ref = "mongodb" }

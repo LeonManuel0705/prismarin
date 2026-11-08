@@ -4,6 +4,8 @@ main: net.prismarin.core.PrismarinCorePlugin
 api-version: "1.21"
 softdepend:
   - LuckPerms
+  - Vault
+  - PlaceholderAPI
 libraries:
   - org.mongodb:mongodb-driver-sync:5.2.1
   - io.lettuce:lettuce-core:6.5.5.RELEASE

@@ -19,6 +19,7 @@ import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.CoreModules;
+import net.prismarin.core.ModuleState;
 import net.prismarin.core.PrismarinCorePlugin;
 import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.core.permission.PermissionSnapshots;
@@ -48,11 +49,12 @@ public final class ConnectionListener implements Listener {
     private final TablistManager tablist;
     private final PlayerBoards boards;
     private final PermissionSnapshots snapshots;
+    private final ModuleState modules;
 
     @Inject
     public ConnectionListener(PrismarinCorePlugin plugin, ProfileService profiles, LocaleService locale,
                               CoreConfig config, SidebarManager sidebar, TablistManager tablist,
-                              PlayerBoards boards, PermissionSnapshots snapshots) {
+                              PlayerBoards boards, PermissionSnapshots snapshots, ModuleState modules) {
         this.plugin = plugin;
         this.profiles = profiles;
         this.locale = locale;
@@ -61,6 +63,7 @@ public final class ConnectionListener implements Listener {
         this.tablist = tablist;
         this.boards = boards;
         this.snapshots = snapshots;
+        this.modules = modules;
     }
 
     @EventHandler
@@ -108,12 +111,12 @@ public final class ConnectionListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         snapshots.refresh(player);
-        if (config.moduleEnabled(CoreModules.JOIN_MESSAGES)) {
+        if (modules.enabled(CoreModules.JOIN_MESSAGES)) {
             String key = player.hasPlayedBefore() ? "join.message" : "join.first-message";
             event.joinMessage(null);
             broadcast(key, player.getName(), null);
         }
-        if (config.moduleEnabled(CoreModules.TABLIST)) {
+        if (modules.enabled(CoreModules.TABLIST)) {
             tablist.handleJoin(player);
         }
     }
@@ -134,12 +137,12 @@ public final class ConnectionListener implements Listener {
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
-        if (config.moduleEnabled(CoreModules.JOIN_MESSAGES)) {
+        if (modules.enabled(CoreModules.JOIN_MESSAGES)) {
             event.quitMessage(null);
             broadcast("quit.message", player.getName(), player.getUniqueId());
         }
         sidebar.handleQuit(player);
-        if (config.moduleEnabled(CoreModules.TABLIST)) {
+        if (modules.enabled(CoreModules.TABLIST)) {
             tablist.handleQuit(player);
         }
         boards.remove(player.getUniqueId());

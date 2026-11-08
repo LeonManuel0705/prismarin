@@ -10,9 +10,11 @@ public final class CoreModules {
     public static final String JOIN_MESSAGES = "join-messages";
     public static final String ECONOMY_COMMANDS = "economy-commands";
     public static final String NETWORK_MENU = "network-menu";
+    public static final String VAULT = "vault";
+    public static final String PLACEHOLDER_API = "placeholderapi";
 
     public static final List<String> ALL = List.of(CHAT, TABLIST, SIDEBAR, JOIN_MESSAGES, ECONOMY_COMMANDS,
-            NETWORK_MENU);
+            NETWORK_MENU, VAULT, PLACEHOLDER_API);
 
     private CoreModules() {
         throw new AssertionError();

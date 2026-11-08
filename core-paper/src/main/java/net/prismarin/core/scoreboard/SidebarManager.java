@@ -82,7 +82,7 @@ public final class SidebarManager {
         Scoreboard board = boards.board(player);
         Component title = provider.title(player);
         if (title == null) {
-            title = locale.render("sidebar.title", PlayerLocales.of(player, profiles));
+            title = locale.render("sidebar.title", PlayerLocales.of(player, profiles), player.getUniqueId());
         }
         Objective objective = board.getObjective(OBJECTIVE_NAME);
         if (objective == null) {

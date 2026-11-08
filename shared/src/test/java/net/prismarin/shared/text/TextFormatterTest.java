@@ -67,4 +67,23 @@ class TextFormatterTest {
         TagResolver known = Placeholder.unparsed("coins", "5");
         assertEquals("<coins> %gems%", TextFormatter.percentToTags("%coins% %gems%", known));
     }
+
+    @Test
+    void externalPlaceholdersAreExpandedForViewerOnly() {
+        TextFormatter local = BrandingTags.formatter(Branding.DEFAULT);
+        local.expander((viewer, text) -> text.replace("%vault_rank%", "&6VIP"));
+        java.util.UUID viewer = java.util.UUID.randomUUID();
+        assertEquals("VIP Leon", plain(local.format(viewer, "%vault_rank% %player%",
+                Placeholder.unparsed("player", "Leon"))));
+        assertEquals("%vault_rank% Leon", plain(local.format("%vault_rank% %player%",
+                Placeholder.unparsed("player", "Leon"))));
+    }
+
+    @Test
+    void ownPlaceholdersAreNotHandedToTheExpander() {
+        TextFormatter local = BrandingTags.formatter(Branding.DEFAULT);
+        local.expander((viewer, text) -> text.contains("%player%") ? "leaked" : text);
+        assertEquals("Leon", plain(local.format(java.util.UUID.randomUUID(), "%player%",
+                Placeholder.unparsed("player", "Leon"))));
+    }
 }

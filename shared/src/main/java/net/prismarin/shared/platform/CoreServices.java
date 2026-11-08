@@ -6,7 +6,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import net.prismarin.api.Prismarin;
 import net.prismarin.api.PrismarinSystems;
-import net.prismarin.api.economy.BalanceChangedEvent;
 import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.event.EventBus;
 import net.prismarin.api.locale.LocaleService;
@@ -49,8 +48,6 @@ public final class CoreServices implements AutoCloseable {
                 ? new EconomyServiceImpl(repository, executor, config.currencies(), config.primaryCurrency(), events)
                 : new DisabledEconomyService();
         this.messageBus = MessageBusFactory.create(config);
-        events.subscribe(BalanceChangedEvent.class, event -> profiles.getCached(event.uuid())
-                .ifPresent(profile -> profile.balance(event.currency(), event.newBalance())));
     }
 
     public static CoreServices start(CoreConfig config, Path dataDirectory, ExecutorService executor) {

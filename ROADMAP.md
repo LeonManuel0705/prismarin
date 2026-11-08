@@ -17,7 +17,7 @@ Grundregeln für alles, was hier entsteht:
 | 1 | Entkoppeln: Marke, Währungen, Servergruppen, öffentliche API, Events, Module | fertig (0.2.0) |
 | 1b | Netzwerkübersicht `/network` mit Ping und Heartbeat | fertig (0.2.0) |
 | 1c | Ganze Systeme abschaltbar, z. B. das Coin-System | fertig (0.2.0) |
-| 2 | Brücken: Vault, PlaceholderAPI, Konflikterkennung | offen |
+| 2 | Brücken: Vault, PlaceholderAPI, Konflikterkennung | fertig (0.2.0), live mit Vault/PAPI noch ungetestet |
 | 3 | Spielserver-Adapter: Status fremder Plugins, Connect- und Queue-API | offen |
 | 4 | Speicher: MySQL/MariaDB, SQLite | offen |
 | 5 | Admin-System über alle Server | offen, braucht Redis |
@@ -51,11 +51,14 @@ Grundregeln für alles, was hier entsteht:
 - Lobby mit eigener `config.yml` unter `features`: `navigator`, `profile-menu`, `player-hider`, `double-jump`, `protection`, `sidebar`, `join-title`.
 - Die Lobby zeigt die konfigurierten Währungen (bis zu drei) statt fest Coins und Gems. Eigene Texte pro Währung über `lobby.sidebar.<id>`, sonst ein allgemeiner Text.
 
-## Stufe 2: Brücken
+## Stufe 2: Brücken (fertig)
 
-- Vault-Economy-Provider auf die Primärwährung, damit jedes Shop- oder Spiel-Plugin netzwerkweite Coins auszahlt.
-- PlaceholderAPI in beide Richtungen: Expansion `%prismarin_balance_coins%`, `%prismarin_server_online_<server>%` usw., und PAPI-Platzhalter in Tablist, Sidebar, Chat und Navigator.
-- Konflikterkennung: TAB, EssentialsX Chat, andere Scoreboard-Plugins gefunden, eigenes Modul aus, ein klarer Log-Eintrag.
+- Vault: Prismarin meldet sich beim Laden (`onLoad`) mit hoher Priorität als Economy-Anbieter für die Primärwährung, damit auch Plugins, die vor Prismarin starten, es finden. Beträge werden auf ganze Einheiten gerundet, Banken gibt es nicht. Schalter `modules.vault`, aus bei `systems.economy: false`.
+- PlaceholderAPI-Erweiterung `%prismarin_…%`: `balance`, `balance_<währung>`, `level`, `xp`, `xp_required`, `locale`, `brand`, `server`, `network_online`, `network_servers_online`, `server_online_<server>`, `server_max_<server>`, `server_status_<server>`, `server_ping_<server>`, `group_online_<gruppe>`.
+- Umgekehrt lösen Tablist, Sidebar, Lobby-Sidebar und Chat-Format fremde PAPI-Platzhalter auf. Eigene Platzhalter wie `%player%` werden vorher ersetzt und gehen nie an PAPI.
+- Konflikterkennung: TAB schaltet die Tablist ab, FeatherBoard/AnimatedScoreboard/SimpleScore die Sidebar, EssentialsChat/ChatControl/VentureChat/LPC/DeluxeChat/CarbonChat/ChatManager das Chat-Format. Abschalten mit `compatibility.auto-detect: false`.
+- Sprache einheitlich: selbst gewählte Sprache aus dem Profil, sonst die des Clients.
+- Offen: Live-Test mit echtem Vault und PlaceholderAPI auf dem Testserver.
 
 ## Stufe 3: Spielserver-Adapter
 

@@ -8,7 +8,8 @@ import net.prismarin.api.economy.Currency;
 public record CoreConfig(String serverId, StorageMode storageMode, String mongoUri, String mongoDatabase,
                          boolean redisEnabled, String redisHost, int redisPort, String redisPassword,
                          String defaultLocale, Branding branding, List<Currency> currencies,
-                         Currency primaryCurrency, Map<String, Boolean> modules, Map<String, Boolean> systems) {
+                         Currency primaryCurrency, Map<String, Boolean> modules, Map<String, Boolean> systems,
+                         boolean autoDetectConflicts) {
 
     public CoreConfig {
         currencies = List.copyOf(currencies);

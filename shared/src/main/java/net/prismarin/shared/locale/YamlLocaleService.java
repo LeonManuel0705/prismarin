@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -68,6 +69,16 @@ public final class YamlLocaleService implements LocaleService {
     @Override
     public Component format(String text, TagResolver... resolvers) {
         return formatter.format(text, resolvers);
+    }
+
+    @Override
+    public Component render(String key, Locale locale, UUID viewer, TagResolver... resolvers) {
+        return formatter.format(viewer, raw(key, locale), resolvers);
+    }
+
+    @Override
+    public Component format(UUID viewer, String text, TagResolver... resolvers) {
+        return formatter.format(viewer, text, resolvers);
     }
 
     @Override

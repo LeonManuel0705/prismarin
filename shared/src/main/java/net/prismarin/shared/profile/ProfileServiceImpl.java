@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import net.prismarin.api.economy.BalanceChangedEvent;
 import net.prismarin.api.event.EventBus;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileLoadedEvent;
@@ -30,6 +31,8 @@ public final class ProfileServiceImpl implements ProfileService {
         this.defaultLocale = defaultLocale;
         this.executor = executor;
         this.events = events;
+        events.subscribe(BalanceChangedEvent.class, event -> getCached(event.uuid())
+                .ifPresent(profile -> profile.balance(event.currency(), event.newBalance())));
     }
 
     @Override

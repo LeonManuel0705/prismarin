@@ -21,6 +21,12 @@ dependencies {
 
     compileOnly(libs.paper.api)
     compileOnly(libs.luckperms.api)
+    compileOnly(libs.vault.api) {
+        isTransitive = false
+    }
+    compileOnly(libs.placeholderapi) {
+        isTransitive = false
+    }
     compileOnly(libs.guice)
 
     testImplementation(libs.junit.jupiter)
@@ -30,6 +36,7 @@ dependencies {
     testImplementation(libs.adventure.api)
     testImplementation(libs.adventure.minimessage)
     testImplementation(libs.adventure.plain)
+    testImplementation(libs.gson)
 }
 
 tasks.processResources {

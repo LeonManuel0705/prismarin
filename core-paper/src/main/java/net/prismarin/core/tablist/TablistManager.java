@@ -77,10 +77,10 @@ public final class TablistManager {
         for (Player viewer : plugin.getServer().getOnlinePlayers()) {
             snapshots.refresh(viewer);
             viewer.sendPlayerListHeaderAndFooter(
-                    locale.render("tablist.header", PlayerLocales.of(viewer, profiles),
+                    locale.render("tablist.header", PlayerLocales.of(viewer, profiles), viewer.getUniqueId(),
                             Placeholder.component("title", frame),
                             Placeholder.unparsed("online", online)),
-                    locale.render("tablist.footer", PlayerLocales.of(viewer, profiles),
+                    locale.render("tablist.footer", PlayerLocales.of(viewer, profiles), viewer.getUniqueId(),
                             Placeholder.unparsed("online", online)));
             syncTeams(boards.board(viewer));
         }

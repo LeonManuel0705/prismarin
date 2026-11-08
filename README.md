@@ -15,6 +15,9 @@ The point of the architecture is that a game mode never talks to a database. It 
 | Servers | A directory with free groups and properties per server, used by the navigator and by plugins |
 | Network overview | `/network` opens a live inventory with status, players, ping, version, TPS, memory and uptime per server |
 | Events | `ProfileLoadedEvent`, `ProfileUnloadedEvent` and `BalanceChangedEvent` on proxy and backends |
+| Vault | Registers as the Vault economy, so every shop or game plugin pays out network currency |
+| PlaceholderAPI | `%prismarin_balance%`, `%prismarin_group_online_bedwars%` and more for other plugins, and PlaceholderAPI placeholders inside PRISMARIN's own tablist, sidebar and chat |
+| Compatibility | Switches its own tablist, sidebar or chat format off when TAB, a scoreboard plugin or a chat plugin is installed |
 | Systems and modules | Whole systems (economy, levels, network status) and single features (chat, tablist, sidebar, join messages, commands, proxy features, lobby parts) can each be switched off |
 | Lobby | An optional ready made lobby with navigator, profile menu, player hider and double jump |
 
@@ -100,7 +103,7 @@ servers:
 
 ## Testing
 
-168 unit tests across 30 test classes run on every build. Two more classes are integration tests, tagged separately, that spin up real MongoDB and Redis containers through Testcontainers.
+181 unit tests across 33 test classes run on every build. Two more classes are integration tests, tagged separately, that spin up real MongoDB and Redis containers through Testcontainers.
 
 ```bash
 ./gradlew build             # compile plus unit tests
@@ -110,7 +113,7 @@ servers:
 
 ## Status
 
-Version 0.2.0 turns the former single network into a framework: configurable branding and currencies, server groups, a public API with events, switchable modules and the network overview. Next on the roadmap are bridges to Vault and PlaceholderAPI, adapters for foreign game plugins, MySQL storage and a cross server admin system. See `ROADMAP.md`.
+Version 0.2.0 turns the former single network into a framework: configurable branding and currencies, server groups, a public API with events, switchable systems and modules, the network overview and bridges to Vault and PlaceholderAPI. Next on the roadmap are adapters for foreign game plugins, MySQL storage and a cross server admin system. See `ROADMAP.md`.
 
 ## License
 

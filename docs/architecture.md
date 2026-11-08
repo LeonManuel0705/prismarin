@@ -131,4 +131,4 @@ sequenceDiagram
     PS->>VT: setLastSeen + upsert + Cache-Eviction
 ```
 
-Schreibzugriffe für Offline-Spieler laufen über `ProfileService.modify` (Cache-Hit oder Storage-Fallback, danach Upsert). Economy-Transaktionen umgehen den Profil-Cache und arbeiten atomar auf dem Repository (`incrementCurrency` mit `INSUFFICIENT_FUNDS`/`PROFILE_NOT_LOADED`-Semantik); `CoreServices` hört auf `BalanceChangedEvent` und schreibt den neuen Stand in den Profil-Cache, egal welches Plugin gebucht hat.
+Schreibzugriffe für Offline-Spieler laufen über `ProfileService.modify` (Cache-Hit oder Storage-Fallback, danach Upsert). Economy-Transaktionen umgehen den Profil-Cache und arbeiten atomar auf dem Repository (`incrementCurrency` mit `INSUFFICIENT_FUNDS`/`PROFILE_NOT_LOADED`-Semantik); `ProfileServiceImpl` hört auf `BalanceChangedEvent` und schreibt den neuen Stand in den Profil-Cache, egal welches Plugin gebucht hat.

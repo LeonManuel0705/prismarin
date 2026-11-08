@@ -88,7 +88,8 @@ public final class ConfigLoader {
                 currencies,
                 primary,
                 modules,
-                systems
+                systems,
+                root.node("compatibility", "auto-detect").getBoolean(true)
         );
     }
 
@@ -114,6 +115,7 @@ public final class ConfigLoader {
             changed = true;
         }
         changed |= setIfAbsent(root.node("economy", "primary"), DEFAULT_CURRENCIES.getFirst());
+        changed |= setIfAbsent(root.node("compatibility", "auto-detect"), true);
         for (String system : PrismarinSystems.ALL) {
             changed |= setIfAbsent(root.node("systems", system), true);
         }

@@ -11,6 +11,8 @@ import net.prismarin.api.Prismarin;
 import net.prismarin.api.PrismarinProvider;
 import net.prismarin.api.PrismarinSystems;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.core.bridge.PlaceholderBridge;
+import net.prismarin.core.bridge.VaultBridge;
 import net.prismarin.core.chat.AsyncChatListener;
 import net.prismarin.core.command.CoinsCommand;
 import net.prismarin.core.command.EconomyCommand;
@@ -22,6 +24,7 @@ import net.prismarin.core.profile.ConnectionListener;
 import net.prismarin.core.scoreboard.SidebarManager;
 import net.prismarin.core.tablist.TablistManager;
 import net.prismarin.core.task.PeriodicSaveTask;
+import net.prismarin.shared.config.ConfigLoader;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.platform.CoreServices;
 import net.prismarin.shared.status.NetworkStatusService;
@@ -45,24 +48,33 @@ public final class PrismarinCorePlugin extends JavaPlugin {
     private BukkitTask saveTask;
     private BukkitTask heartbeatTask;
     private BukkitTask statusTask;
+    private PlaceholderBridge placeholderBridge;
+
+    @Override
+    public void onLoad() {
+        CoreConfig config = ConfigLoader.load(getDataFolder().toPath().resolve("config.yml"), CoreModules.ALL);
+        if (ModuleState.compute(config, name -> false).enabled(CoreModules.VAULT) && VaultBridge.available(this)) {
+            VaultBridge.register(this);
+            getLogger().info("Registered as Vault economy provider");
+        }
+    }
 
     @Override
     public void onEnable() {
         injector = Guice.createInjector(new CoreModule(this));
         CoreConfig config = injector.getInstance(CoreConfig.class);
-        injector.getInstance(CoreServices.class);
+        CoreServices services = injector.getInstance(CoreServices.class);
+        ModuleState modules = injector.getInstance(ModuleState.class);
         Prismarin prismarin = injector.getInstance(Prismarin.class);
 
         PluginManager pluginManager = getServer().getPluginManager();
-        if (config.moduleEnabled(CoreModules.CHAT)) {
+        if (modules.enabled(CoreModules.CHAT)) {
             pluginManager.registerEvents(injector.getInstance(AsyncChatListener.class), this);
         }
         pluginManager.registerEvents(injector.getInstance(ConnectionListener.class), this);
         pluginManager.registerEvents(injector.getInstance(MenuService.class), this);
 
-        boolean economy = config.systemEnabled(PrismarinSystems.ECONOMY);
-        boolean networkStatus = config.systemEnabled(PrismarinSystems.NETWORK_STATUS);
-        if (economy && config.moduleEnabled(CoreModules.ECONOMY_COMMANDS)) {
+        if (modules.enabled(CoreModules.ECONOMY_COMMANDS)) {
             registerCommand("coins", injector.getInstance(CoinsCommand.class));
             registerCommand("economy", injector.getInstance(EconomyCommand.class));
         } else {
@@ -71,12 +83,12 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         }
 
         getServer().getMessenger().registerOutgoingPluginChannel(this, NetworkMenu.CHANNEL);
-        if (networkStatus && config.moduleEnabled(CoreModules.NETWORK_MENU)) {
+        if (modules.enabled(CoreModules.NETWORK_MENU)) {
             registerCommand("network", injector.getInstance(NetworkCommand.class));
         } else {
             removeCommand("network");
         }
-        if (networkStatus) {
+        if (config.systemEnabled(PrismarinSystems.NETWORK_STATUS)) {
             NetworkStatusService status = injector.getInstance(NetworkStatusService.class);
             heartbeatTask = getServer().getScheduler()
                     .runTaskTimer(this, injector.getInstance(HeartbeatTask.class), 20L, HEARTBEAT_INTERVAL_TICKS);
@@ -84,11 +96,11 @@ public final class PrismarinCorePlugin extends JavaPlugin {
                     .runTaskTimerAsynchronously(this, () -> status.refresh(), 40L, STATUS_INTERVAL_TICKS);
         }
 
-        if (config.moduleEnabled(CoreModules.SIDEBAR)) {
+        if (modules.enabled(CoreModules.SIDEBAR)) {
             sidebarManager = injector.getInstance(SidebarManager.class);
             sidebarManager.start();
         }
-        if (config.moduleEnabled(CoreModules.TABLIST)) {
+        if (modules.enabled(CoreModules.TABLIST)) {
             tablistManager = injector.getInstance(TablistManager.class);
             tablistManager.start();
         }
@@ -98,18 +110,25 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         CoreApi.register(injector);
         PrismarinProvider.register(prismarin);
         getServer().getServicesManager().register(Prismarin.class, prismarin, this, ServicePriority.Normal);
+        if (modules.enabled(CoreModules.PLACEHOLDER_API) && pluginManager.getPlugin("PlaceholderAPI") != null) {
+            placeholderBridge = PlaceholderBridge.enable(prismarin, services.formatter(), getPluginMeta().getVersion());
+            getLogger().info("Registered PlaceholderAPI expansion %prismarin_...%");
+        }
         getLogger().info("Enabled as '" + config.serverId() + "' with systems " + prismarin.enabledSystems().stream()
-                .sorted().toList() + " and modules " + enabledModules(config));
-        if (!economy && config.moduleEnabled(CoreModules.ECONOMY_COMMANDS)) {
-            getLogger().info("Module economy-commands is off because the economy system is disabled");
-        }
-        if (!networkStatus && config.moduleEnabled(CoreModules.NETWORK_MENU)) {
-            getLogger().info("Module network-menu is off because the network-status system is disabled");
-        }
+                .sorted().toList() + " and modules " + modules.enabledModules());
+        modules.disabledReasons().forEach((module, reason) -> {
+            if (config.moduleEnabled(module)) {
+                getLogger().info("Module " + module + " is off because " + reason);
+            }
+        });
     }
 
     @Override
     public void onDisable() {
+        if (placeholderBridge != null) {
+            placeholderBridge.disable();
+            placeholderBridge = null;
+        }
         getServer().getServicesManager().unregisterAll(this);
         PrismarinProvider.unregister();
         CoreApi.unregister();
@@ -177,10 +196,6 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         }
         command.unregister(getServer().getCommandMap());
         getServer().getCommandMap().getKnownCommands().values().removeIf(known -> known == command);
-    }
-
-    private static String enabledModules(CoreConfig config) {
-        return CoreModules.ALL.stream().filter(config::moduleEnabled).toList().toString();
     }
 
     private void registerCommand(String name, TabExecutor executor) {

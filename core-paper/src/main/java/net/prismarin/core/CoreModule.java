@@ -55,6 +55,12 @@ public final class CoreModule extends AbstractModule {
 
     @Provides
     @Singleton
+    ModuleState moduleState(CoreConfig config) {
+        return ModuleState.compute(config, name -> plugin.getServer().getPluginManager().getPlugin(name) != null);
+    }
+
+    @Provides
+    @Singleton
     MenuSettings menuSettings(CoreConfig config) {
         return MenuSettings.load(configPath());
     }

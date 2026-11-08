@@ -8,6 +8,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import net.prismarin.api.economy.BalanceChangedEvent;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.shared.event.SimpleEventBus;
@@ -94,5 +95,12 @@ class ProfileServiceImplTest {
         service.save(profile).join();
 
         assertEquals(100L, repository.find(uuid).orElseThrow().balance(Currency.COINS));
+    }
+
+    @Test
+    void balanceEventsUpdateTheCachedProfile() {
+        service.load(uuid, "Leon").join();
+        events.publish(new BalanceChangedEvent(uuid, Currency.COINS, BalanceChangedEvent.Type.DEPOSIT, 5L, 55L));
+        assertEquals(55L, service.getCached(uuid).orElseThrow().balance(Currency.COINS));
     }
 }

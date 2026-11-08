@@ -68,8 +68,8 @@ public final class LobbySidebarProvider implements SidebarProvider {
         Optional<PlayerProfile> profile = profiles.getCached(player.getUniqueId());
         List<Component> lines = new ArrayList<>();
         lines.add(Component.empty());
-        lines.add(locale.render("lobby.sidebar.rank-label", playerLocale));
-        lines.add(locale.render("lobby.sidebar.rank", playerLocale,
+        lines.add(locale.render("lobby.sidebar.rank-label", playerLocale, player.getUniqueId()));
+        lines.add(locale.render("lobby.sidebar.rank", playerLocale, player.getUniqueId(),
                 Placeholder.component("rank", ranks.prefix(player))));
         List<Currency> shown = currencies.shown();
         if (!shown.isEmpty()) {
@@ -85,18 +85,18 @@ public final class LobbySidebarProvider implements SidebarProvider {
             long max = profile.map(PlayerProfile::xpForNextLevel).orElse(BASE_XP_REQUIREMENT);
             Component bar = miniMessage.deserialize(XpProgressBar.render(xp, max, BAR_SEGMENTS, barColor));
             lines.add(Component.empty());
-            lines.add(locale.render("lobby.sidebar.level", playerLocale,
+            lines.add(locale.render("lobby.sidebar.level", playerLocale, player.getUniqueId(),
                     Placeholder.unparsed("level", String.valueOf(level))));
-            lines.add(locale.render("lobby.sidebar.progress", playerLocale,
+            lines.add(locale.render("lobby.sidebar.progress", playerLocale, player.getUniqueId(),
                     Placeholder.component("bar", bar),
                     Placeholder.unparsed("xp", String.valueOf(xp)),
                     Placeholder.unparsed("max", String.valueOf(max))));
         }
         lines.add(Component.empty());
-        lines.add(locale.render("lobby.sidebar.online", playerLocale,
+        lines.add(locale.render("lobby.sidebar.online", playerLocale, player.getUniqueId(),
                 Placeholder.unparsed("online", String.valueOf(plugin.getServer().getOnlinePlayers().size()))));
         lines.add(Component.empty());
-        lines.add(locale.render("lobby.sidebar.footer", playerLocale));
+        lines.add(locale.render("lobby.sidebar.footer", playerLocale, player.getUniqueId()));
         return lines;
     }
 }

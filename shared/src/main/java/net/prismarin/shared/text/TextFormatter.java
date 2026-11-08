@@ -1,5 +1,6 @@
 package net.prismarin.shared.text;
 
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.kyori.adventure.text.Component;
@@ -12,6 +13,7 @@ public final class TextFormatter {
 
     private final MiniMessage miniMessage;
     private final TagResolver globalPlaceholders;
+    private volatile PlaceholderExpander expander = PlaceholderExpander.NONE;
 
     public TextFormatter(TagResolver globalPlaceholders) {
         this.globalPlaceholders = globalPlaceholders;
@@ -25,12 +27,22 @@ public final class TextFormatter {
     }
 
     public Component format(String text, TagResolver... resolvers) {
-        TagResolver placeholders = TagResolver.resolver(globalPlaceholders, TagResolver.resolver(resolvers));
-        return miniMessage.deserialize(prepare(text, placeholders), resolvers);
+        return format(null, text, resolvers);
     }
 
-    public String prepare(String text, TagResolver placeholders) {
-        return percentToTags(LegacyColors.toMiniMessage(text), placeholders);
+    public Component format(UUID viewer, String text, TagResolver... resolvers) {
+        TagResolver placeholders = TagResolver.resolver(globalPlaceholders, TagResolver.resolver(resolvers));
+        return miniMessage.deserialize(prepare(text, placeholders, viewer), resolvers);
+    }
+
+    public String prepare(String text, TagResolver placeholders, UUID viewer) {
+        String known = percentToTags(text, placeholders);
+        String expanded = viewer != null && known.indexOf('%') >= 0 ? expander.expand(viewer, known) : known;
+        return LegacyColors.toMiniMessage(expanded);
+    }
+
+    public void expander(PlaceholderExpander expander) {
+        this.expander = expander == null ? PlaceholderExpander.NONE : expander;
     }
 
     public MiniMessage miniMessage() {

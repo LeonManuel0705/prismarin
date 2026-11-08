@@ -8,6 +8,16 @@ version = "0.2.0"
 repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
+    maven("https://jitpack.io") {
+        content {
+            includeGroup("com.github.MilkBowl")
+        }
+    }
+    maven("https://repo.extendedclip.com/releases/") {
+        content {
+            includeGroup("me.clip")
+        }
+    }
 }
 
 tasks.withType<JavaCompile>().configureEach {

@@ -58,7 +58,7 @@ public final class AsyncChatListener implements Listener {
         Locale viewerLocale = viewer instanceof Player player
                 ? PlayerLocales.of(player, profiles)
                 : Locale.forLanguageTag(config.defaultLocale());
-        return locale.render("chat.format", viewerLocale,
+        return locale.render("chat.format", viewerLocale, source.getUniqueId(),
                 Placeholder.component("prefix", ranks.prefix(source)),
                 Placeholder.component("name", Component.text(source.getName(), ranks.nameColor(source))),
                 Placeholder.component("message", message));
