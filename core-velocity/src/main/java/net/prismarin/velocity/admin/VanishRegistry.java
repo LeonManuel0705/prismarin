@@ -6,22 +6,34 @@ import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.event.proxy.ProxyPingEvent;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.ServerPing;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.BiConsumer;
 
 public final class VanishRegistry {
 
     public static final String SEE_PERMISSION = "prismarin.vanish.see";
 
     private final Map<UUID, Integer> vanished = new ConcurrentHashMap<>();
+    private final List<BiConsumer<UUID, Boolean>> listeners = new CopyOnWriteArrayList<>();
 
     public void update(UUID player, boolean state, int level) {
+        boolean changed;
         if (state) {
-            vanished.put(player, Math.max(1, level));
+            changed = vanished.put(player, Math.max(1, level)) == null;
         } else {
-            vanished.remove(player);
+            changed = vanished.remove(player) != null;
         }
+        if (changed) {
+            listeners.forEach(listener -> listener.accept(player, state));
+        }
+    }
+
+    public void onChange(BiConsumer<UUID, Boolean> listener) {
+        listeners.add(listener);
     }
 
     public boolean vanished(UUID player) {

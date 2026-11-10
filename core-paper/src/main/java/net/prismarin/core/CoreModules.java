@@ -16,9 +16,14 @@ public final class CoreModules {
     public static final String NETEXEC = "netexec";
     public static final String VAULT = "vault";
     public static final String PLACEHOLDER_API = "placeholderapi";
+    public static final String LEVEL_COMMANDS = "level-commands";
+    public static final String RANK_COMMANDS = "rank-commands";
+    public static final String NICK = "nick";
+    public static final String ESSENTIALS = "essentials";
 
     public static final List<String> ALL = List.of(CHAT, TABLIST, SIDEBAR, JOIN_MESSAGES, ECONOMY_COMMANDS,
-            NETWORK_MENU, PLAY_COMMAND, VANISH, MUTE_ENFORCEMENT, NETEXEC, VAULT, PLACEHOLDER_API);
+            NETWORK_MENU, PLAY_COMMAND, VANISH, MUTE_ENFORCEMENT, NETEXEC, VAULT, PLACEHOLDER_API, LEVEL_COMMANDS,
+            RANK_COMMANDS, NICK, ESSENTIALS);
 
     private CoreModules() {
         throw new AssertionError();

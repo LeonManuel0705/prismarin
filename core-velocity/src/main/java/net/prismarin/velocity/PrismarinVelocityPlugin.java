@@ -15,6 +15,7 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -23,9 +24,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import net.prismarin.api.PrismarinProvider;
-import net.prismarin.api.moderation.PunishmentType;
 import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
+import net.prismarin.shared.config.ConfigComments;
 import net.prismarin.shared.config.ConfigLoader;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.platform.CoreServices;
@@ -36,13 +37,17 @@ import net.prismarin.shared.status.SimpleGameStateService;
 import net.prismarin.velocity.admin.AdminContext;
 import net.prismarin.velocity.admin.AdminSettings;
 import net.prismarin.velocity.admin.AlertMonitor;
+import net.prismarin.velocity.admin.ChatHistory;
 import net.prismarin.velocity.admin.InfoCommands;
 import net.prismarin.velocity.admin.ModerationChannel;
-import net.prismarin.velocity.admin.ModerationCommands;
 import net.prismarin.velocity.admin.ModerationListener;
 import net.prismarin.velocity.admin.OperatorRegistry;
 import net.prismarin.velocity.admin.ProxyInfoCommand;
+import net.prismarin.velocity.admin.PunishmentCommands;
+import net.prismarin.velocity.admin.PunishmentFlow;
+import net.prismarin.velocity.admin.PunishmentSettings;
 import net.prismarin.velocity.admin.ReportCommands;
+import net.prismarin.velocity.admin.ReportFlow;
 import net.prismarin.velocity.admin.ServerMaintenance;
 import net.prismarin.velocity.admin.StaffCommands;
 import net.prismarin.velocity.admin.VanishRegistry;
@@ -53,10 +58,13 @@ import net.prismarin.velocity.config.ProxyConfigStore;
 import net.prismarin.velocity.listener.LobbyRedirectListener;
 import net.prismarin.velocity.listener.MaintenanceLoginListener;
 import net.prismarin.velocity.listener.PingListener;
+import net.prismarin.velocity.locale.PlayerLocaleRegistry;
 import net.prismarin.velocity.locale.ProxyMessages;
 import net.prismarin.velocity.motd.MotdBuilder;
+import net.prismarin.velocity.server.LobbyBalancer;
 import net.prismarin.velocity.server.ProxyConnectorTransport;
 import net.prismarin.velocity.server.ProxyServerDirectory;
+import net.prismarin.velocity.social.SocialModule;
 import org.slf4j.Logger;
 
 @Plugin(id = "prismarin-core", name = "PrismarinCore", version = "0.4.0", authors = {"Leon"})
@@ -81,27 +89,32 @@ public final class PrismarinVelocityPlugin {
         executor = Executors.newVirtualThreadPerTaskExecutor();
         CoreConfig coreConfig = loadCoreConfig();
         services = CoreServices.start(coreConfig, dataDirectory, executor);
-        ProxyMessages messages = new ProxyMessages(services.locale(), Locale.forLanguageTag(coreConfig.defaultLocale()));
+        PlayerLocaleRegistry playerLocales = new PlayerLocaleRegistry();
+        proxy.getEventManager().register(this, playerLocales);
+        ProxyMessages messages = new ProxyMessages(services.locale(), Locale.forLanguageTag(coreConfig.defaultLocale()),
+                playerLocales);
         ProxyConfigStore configStore = new ProxyConfigStore(dataDirectory.resolve("proxy.yml"), executor, logger);
         VanishRegistry vanish = new VanishRegistry();
-        ModerationChannel moderationChannel = new ModerationChannel(vanish);
+        ModerationChannel moderationChannel = new ModerationChannel(vanish, playerLocales);
         proxy.getChannelRegistrar().register(ModerationChannel.ID);
         proxy.getEventManager().register(this, vanish);
         proxy.getEventManager().register(this, moderationChannel);
         ServerDirectory directory = new ProxyServerDirectory(proxy,
                 new YamlServerDirectory(dataDirectory.resolve("servers.yml")), configStore.config().lobbyServer());
+        LobbyBalancer lobbies = new LobbyBalancer(proxy, directory, configStore,
+                coreConfig.moduleEnabled(ProxyModules.LOBBY_BALANCING));
 
         if (coreConfig.moduleEnabled(ProxyModules.MOTD)) {
             proxy.getEventManager().register(this, new PingListener(configStore, new MotdBuilder(services.formatter())));
         }
         if (coreConfig.moduleEnabled(ProxyModules.LOBBY_FALLBACK)) {
-            proxy.getEventManager().register(this, new LobbyRedirectListener(proxy, configStore, messages));
+            proxy.getEventManager().register(this, new LobbyRedirectListener(lobbies, messages));
         }
 
         CommandManager commands = proxy.getCommandManager();
         if (coreConfig.moduleEnabled(ProxyModules.HUB_COMMAND)) {
             commands.register(commands.metaBuilder("hub").aliases("lobby").plugin(this).build(),
-                    new HubCommand(proxy, configStore, messages));
+                    new HubCommand(lobbies, messages));
         }
         if (coreConfig.moduleEnabled(ProxyModules.SENDALL_COMMAND)) {
             commands.register(commands.metaBuilder("sendall").plugin(this).build(),
@@ -119,11 +132,14 @@ public final class PrismarinVelocityPlugin {
         }
 
         NetworkStatusService networkStatus = new NetworkStatusService(directory, services.messageBus(), executor);
+        lobbies.start(this, networkStatus, serverMaintenance);
         NetworkConnector connector = new SelectingConnector(directory, networkStatus, new ProxyConnectorTransport(proxy));
         PrismarinProvider.register(services.prismarin(directory, networkStatus, new SimpleGameStateService(),
                 connector));
-        registerAdmin(coreConfig, new AdminContext(proxy, services, messages, vanish, moderationChannel, connector,
-                directory, networkStatus, AdminSettings.load(dataDirectory.resolve("admin.yml"))));
+        AdminContext admin = new AdminContext(proxy, services, messages, vanish, moderationChannel, connector,
+                directory, networkStatus, AdminSettings.load(dataDirectory.resolve("admin.yml")));
+        registerAdmin(coreConfig, admin);
+        SocialModule.register(this, logger, coreConfig, admin, executor, dataDirectory);
         logger.info("PRISMARIN proxy core enabled as '{}' with {}, systems {} and modules {}",
                 coreConfig.serverId(), services.messageBus().getClass().getSimpleName(),
                 services.enabledSystems().stream().sorted().toList(),
@@ -142,24 +158,27 @@ public final class PrismarinVelocityPlugin {
         available.put(ProxyModules.PLAYER_INFO, Map.entry(List.of("pinfo", "playerinfo"), InfoCommands.playerInfo(context)));
         available.put(ProxyModules.AUDIT, Map.entry(List.of("audit"), InfoCommands.audit(context)));
         available.put(ProxyModules.NETEXEC, Map.entry(List.of("netexec"), InfoCommands.netExec(context)));
-        available.put(ProxyModules.REPORTS, Map.entry(List.of("report"), ReportCommands.report(context)));
         available.forEach((module, entry) -> {
             if (config.moduleEnabled(module)) {
                 register(commands, entry.getKey(), entry.getValue());
             }
         });
         if (config.moduleEnabled(ProxyModules.REPORTS)) {
-            register(commands, List.of("reports"), ReportCommands.reports(context));
+            ChatHistory chatHistory = null;
+            if (context.settings().chatEvidence().enabled()) {
+                chatHistory = new ChatHistory(Clock.systemUTC(), context.settings().chatEvidence().windowMillis());
+                proxy.getEventManager().register(this, chatHistory);
+            }
+            ReportFlow reportFlow = new ReportFlow(context, chatHistory);
+            proxy.getEventManager().register(this, reportFlow);
+            register(commands, List.of("report"), ReportCommands.report(context, reportFlow));
+            register(commands, List.of("reports"), ReportCommands.reports(context, reportFlow));
         }
         if (config.moduleEnabled(ProxyModules.PUNISHMENTS)) {
-            proxy.getEventManager().register(this, new ModerationListener(context));
-            for (PunishmentType type : PunishmentType.values()) {
-                register(commands, List.of(type.name().toLowerCase(Locale.ROOT)),
-                        ModerationCommands.punish(context, type));
-            }
-            register(commands, List.of("unban"), ModerationCommands.revoke(context, PunishmentType.BAN));
-            register(commands, List.of("unmute"), ModerationCommands.revoke(context, PunishmentType.MUTE));
-            register(commands, List.of("history"), ModerationCommands.history(context));
+            PunishmentFlow punishments = new PunishmentFlow(context,
+                    PunishmentSettings.load(dataDirectory.resolve(PunishmentSettings.FILE_NAME)));
+            proxy.getEventManager().register(this, new ModerationListener(context, punishments));
+            PunishmentCommands.all(context, punishments).forEach((names, command) -> register(commands, names, command));
         } else {
             proxy.getEventManager().register(this, new Object() {
                 @Subscribe
@@ -209,7 +228,9 @@ public final class PrismarinVelocityPlugin {
     private CoreConfig loadCoreConfig() {
         Path file = dataDirectory.resolve("config.yml");
         seedResource(file, "config.yml");
-        return ConfigLoader.load(file, ProxyModules.ALL);
+        CoreConfig config = ConfigLoader.load(file, ProxyModules.ALL);
+        ConfigComments.apply(file, Map.of());
+        return config;
     }
 
     private void seedResource(Path file, String resourceName) {

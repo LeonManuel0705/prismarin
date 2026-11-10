@@ -13,6 +13,7 @@ import java.util.concurrent.Executor;
 import net.prismarin.api.event.EventBus;
 import net.prismarin.api.moderation.Punishment;
 import net.prismarin.api.moderation.PunishmentIssuedEvent;
+import net.prismarin.api.moderation.PunishmentRequest;
 import net.prismarin.api.moderation.PunishmentRevokedEvent;
 import net.prismarin.api.moderation.PunishmentService;
 import net.prismarin.api.moderation.PunishmentType;
@@ -22,6 +23,7 @@ public final class DocumentPunishmentService implements PunishmentService {
 
     static final String COLLECTION = "punishments";
     private static final String ID_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
+    private static final String ADDRESS_FIELD = "addressHash";
 
     private final DocumentStore documents;
     private final Executor executor;
@@ -40,16 +42,24 @@ public final class DocumentPunishmentService implements PunishmentService {
     @Override
     public CompletableFuture<Punishment> punish(UUID target, String targetName, PunishmentType type, String reason,
                                                 String actor, Duration duration) {
+        return punish(PunishmentRequest.of(target, targetName, type, reason, actor, duration));
+    }
+
+    @Override
+    public CompletableFuture<Punishment> punish(PunishmentRequest request) {
         return CompletableFuture.supplyAsync(() -> {
             long now = clock.millis();
+            PunishmentType type = request.type();
+            String id = newId();
             if (type.lasting()) {
-                load(target).stream()
+                load(request.target()).stream()
                         .filter(existing -> existing.type() == type && existing.inForce(now))
-                        .forEach(existing -> store(existing.revoke(actor, now)));
+                        .forEach(existing -> store(existing.replace(request.actor(), now, id)));
             }
-            long expires = type.lasting() && duration != null ? now + duration.toMillis() : 0L;
-            Punishment punishment = new Punishment(newId(), target, targetName, type, reason, actor, now, expires,
-                    type.lasting(), "", 0L);
+            long expires = type.lasting() && request.duration() != null ? now + request.duration().toMillis() : 0L;
+            Punishment punishment = new Punishment(id, request.target(), request.targetName(), type, request.reason(),
+                    request.actor(), now, expires, type.lasting(), "", 0L, request.template(), request.note(),
+                    type == PunishmentType.BAN ? request.addressHash() : "", "", "");
             store(punishment);
             events.publish(new PunishmentIssuedEvent(punishment));
             return punishment;
@@ -67,6 +77,21 @@ public final class DocumentPunishmentService implements PunishmentService {
     }
 
     @Override
+    public CompletableFuture<Optional<Punishment>> activeForAddress(String addressHash) {
+        if (addressHash == null || addressHash.isEmpty()) {
+            return CompletableFuture.completedFuture(Optional.empty());
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            long now = clock.millis();
+            return documents.findBy(COLLECTION, ADDRESS_FIELD, addressHash).stream()
+                    .map(json -> gson.fromJson(json, Punishment.class))
+                    .filter(punishment -> punishment.type() == PunishmentType.BAN && punishment.inForce(now)
+                            && addressHash.equals(punishment.addressHash()))
+                    .max(Comparator.comparingLong(Punishment::createdAt));
+        }, executor);
+    }
+
+    @Override
     public CompletableFuture<List<Punishment>> history(UUID target) {
         return CompletableFuture.supplyAsync(() -> load(target).stream()
                 .sorted(Comparator.comparingLong(Punishment::createdAt).reversed())
@@ -75,12 +100,18 @@ public final class DocumentPunishmentService implements PunishmentService {
 
     @Override
     public CompletableFuture<Optional<Punishment>> revoke(UUID target, PunishmentType type, String actor) {
+        return revoke(target, type, actor, "");
+    }
+
+    @Override
+    public CompletableFuture<Optional<Punishment>> revoke(UUID target, PunishmentType type, String actor,
+                                                          String reason) {
         return CompletableFuture.supplyAsync(() -> {
             long now = clock.millis();
             Optional<Punishment> revoked = Optional.empty();
             for (Punishment punishment : load(target)) {
                 if (punishment.type() == type && punishment.inForce(now)) {
-                    Punishment updated = punishment.revoke(actor, now);
+                    Punishment updated = punishment.revoke(actor, now, reason);
                     store(updated);
                     revoked = Optional.of(updated);
                 }

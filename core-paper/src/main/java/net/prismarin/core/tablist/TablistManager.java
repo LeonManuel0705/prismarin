@@ -15,6 +15,7 @@ import net.prismarin.core.rank.RankFormatProvider;
 import net.prismarin.core.scoreboard.AnimatedTitle;
 import net.prismarin.core.scoreboard.PlayerBoards;
 import net.prismarin.core.vanish.VanishService;
+import net.prismarin.shared.text.PrefixStyle;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.Scoreboard;
@@ -74,6 +75,16 @@ public final class TablistManager {
         }
     }
 
+    public void handleRename(Player player, String previousName) {
+        for (Player viewer : plugin.getServer().getOnlinePlayers()) {
+            Scoreboard board = boards.board(viewer);
+            if (!previousName.equals(player.getName())) {
+                removeEntry(board, previousName);
+            }
+            syncTeams(board);
+        }
+    }
+
     public void refreshAll() {
         Component frame = title.next();
         for (Player viewer : plugin.getServer().getOnlinePlayers()) {
@@ -103,7 +114,8 @@ public final class TablistManager {
             if (team == null) {
                 team = board.registerNewTeam(key);
             }
-            team.prefix(ranks.prefix(target).append(Component.space()));
+            Component prefix = ranks.prefix(target);
+            team.prefix(PrefixStyle.visible(prefix) ? prefix.append(Component.space()) : Component.empty());
             team.color(ranks.nameColor(target));
             if (!team.hasEntry(target.getName())) {
                 team.addEntry(target.getName());

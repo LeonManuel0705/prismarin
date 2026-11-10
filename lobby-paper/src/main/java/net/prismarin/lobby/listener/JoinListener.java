@@ -12,18 +12,18 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.title.Title;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
-import net.prismarin.lobby.config.LobbySettings;
-import net.prismarin.lobby.item.LobbyItems;
-import net.prismarin.lobby.player.BuildModeService;
-import net.prismarin.lobby.player.PlayerHiderService;
 import net.prismarin.core.locale.PlayerLocales;
+import net.prismarin.core.network.ArrivalTracker;
+import net.prismarin.lobby.config.LobbySettings;
+import net.prismarin.lobby.network.LobbyDirectory;
+import net.prismarin.lobby.player.BuildModeService;
+import net.prismarin.lobby.player.LobbyPlayerSetup;
+import net.prismarin.lobby.player.PlayerHiderService;
 import net.prismarin.lobby.world.LobbyWorlds;
-import org.bukkit.GameMode;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
@@ -35,18 +35,23 @@ public final class JoinListener implements Listener {
     private static final Duration TITLE_FADE_OUT = Duration.ofMillis(600);
 
     private final LobbyWorlds worlds;
-    private final LobbyItems items;
+    private final LobbyDirectory lobbies;
+    private final LobbyPlayerSetup setup;
     private final LocaleService locale;
     private final ProfileService profiles;
     private final BuildModeService buildMode;
     private final PlayerHiderService hider;
     private final LobbySettings settings;
+    private final ArrivalTracker arrivals;
 
     @Inject
-    public JoinListener(LobbyWorlds worlds, LobbyItems items, LocaleService locale, ProfileService profiles,
-                        BuildModeService buildMode, PlayerHiderService hider, LobbySettings settings) {
+    public JoinListener(LobbyWorlds worlds, LobbyDirectory lobbies, LobbyPlayerSetup setup, LocaleService locale,
+                        ProfileService profiles, BuildModeService buildMode, PlayerHiderService hider,
+                        LobbySettings settings, ArrivalTracker arrivals) {
+        this.arrivals = arrivals;
         this.worlds = worlds;
-        this.items = items;
+        this.lobbies = lobbies;
+        this.setup = setup;
         this.locale = locale;
         this.profiles = profiles;
         this.buildMode = buildMode;
@@ -58,20 +63,33 @@ public final class JoinListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
         boolean first = !player.hasPlayedBefore();
-        worlds.teleportToSpawn(player);
-        if (worlds.isLobbyWorld(player.getWorld())) {
-            player.getInventory().clear();
+        boolean startedInLobby = worlds.isLobbyWorld(player.getWorld());
+        if (settings.enabled(LobbySettings.SPAWN_ON_JOIN)) {
+            lobbies.joinSpawn(player).ifPresent(player::teleport);
         }
-        if (!buildMode.active(player)) {
-            player.setGameMode(GameMode.ADVENTURE);
+        if (!worlds.isLobbyWorld(player.getWorld())) {
+            setup.removeItems(player);
+            return;
         }
-        restore(player);
-        if (settings.enabled(LobbySettings.DOUBLE_JUMP) && player.getGameMode() != GameMode.CREATIVE) {
-            player.setAllowFlight(true);
-        }
-        items.give(player, hider.hiding(player));
+        setup.enter(player, startedInLobby);
         if (settings.enabled(LobbySettings.JOIN_TITLE)) {
-            welcome(player, first);
+            arrivals.whenKnown(player, previous -> {
+                if (previous.isEmpty()) {
+                    welcome(player, first);
+                }
+            });
+        }
+    }
+
+    @EventHandler
+    public void onWorldChange(PlayerChangedWorldEvent event) {
+        Player player = event.getPlayer();
+        boolean wasLobby = worlds.isLobbyWorld(event.getFrom());
+        boolean isLobby = worlds.isLobbyWorld(player.getWorld());
+        if (isLobby && !wasLobby) {
+            setup.enter(player, false);
+        } else if (wasLobby && !isLobby) {
+            setup.leave(player);
         }
     }
 
@@ -79,14 +97,6 @@ public final class JoinListener implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         hider.clear(event.getPlayer());
         buildMode.clear(event.getPlayer().getUniqueId());
-    }
-
-    private void restore(Player player) {
-        AttributeInstance maxHealth = player.getAttribute(Attribute.MAX_HEALTH);
-        player.setHealth(maxHealth != null ? maxHealth.getValue() : 20.0);
-        player.setFoodLevel(20);
-        player.setSaturation(20.0f);
-        player.setFireTicks(0);
     }
 
     private void welcome(Player player, boolean first) {

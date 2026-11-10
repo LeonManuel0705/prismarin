@@ -34,4 +34,28 @@ public final class MenuLayout {
         }
         return List.copyOf(slots);
     }
+
+    public static int rowsFor(int count, int perRow) {
+        if (perRow < 1 || perRow > COLUMNS) {
+            throw new IllegalArgumentException("perRow must be between 1 and " + COLUMNS);
+        }
+        return count <= 0 ? 1 : (count + perRow - 1) / perRow;
+    }
+
+    public static List<Integer> centeredSlots(int firstRow, int count, int perRow) {
+        if (count < 1) {
+            return List.of();
+        }
+        int rows = rowsFor(count, perRow);
+        if (firstRow < 0 || firstRow + rows - 1 > MAX_ROW) {
+            throw new IllegalArgumentException(count + " entries do not fit below row " + firstRow);
+        }
+        int base = count / rows;
+        int extra = count % rows;
+        List<Integer> slots = new ArrayList<>(count);
+        for (int row = 0; row < rows; row++) {
+            slots.addAll(centeredRowSlots(firstRow + row, base + (row < extra ? 1 : 0)));
+        }
+        return List.copyOf(slots);
+    }
 }

@@ -36,7 +36,8 @@ public final class MuteListener implements Listener {
         event.setCancelled(true);
         String remaining = mute.until() <= 0L ? "∞" : Durations.format(mute.until() - System.currentTimeMillis());
         event.getPlayer().sendMessage(locale.render("moderation.muted", PlayerLocales.of(event.getPlayer(), profiles),
-                Placeholder.unparsed("reason", mute.reason()), Placeholder.unparsed("remaining", remaining)));
+                Placeholder.unparsed("reason", mute.reason()), Placeholder.unparsed("remaining", remaining),
+                Placeholder.unparsed("id", mute.id()), Placeholder.unparsed("appeal", mute.appeal())));
     }
 
     @EventHandler

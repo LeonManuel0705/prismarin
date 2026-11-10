@@ -1,3 +1,11 @@
+# Every server of your network. Each backend reads this file to build the navigator,
+# /network, /play and the server selection of the proxy. Keep it the same on every server.
+#
+# display-name  text shown in menus, accepts &a colour codes, &#RRGGBB hex and MiniMessage
+# host, port    address the server list ping uses to check the server
+# group         servers with the same group are offered together, /play <group> picks the best free one
+# icon          item shown in menus, any material name
+# Any further key, for example description or permission, is a property plugins can read.
 servers:
   lobby:
     display-name: "<gradient:#22D3EE:#2DD4BF>Lobby</gradient>"
@@ -17,3 +25,10 @@ servers:
     port: 25568
     group: game
     icon: ENDER_PEARL
+
+# Optional groups with their own name and icon in the navigator.
+# groups:
+#   bedwars:
+#     display-name: "&cBedwars"
+#     icon: RED_BED
+#     description: "&7Defend your bed"

@@ -8,6 +8,9 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import net.prismarin.shared.config.YamlComments;
 import org.spongepowered.configurate.CommentedConfigurationNode;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.yaml.NodeStyle;
@@ -16,6 +19,18 @@ import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 public final class ProxyConfigCodec {
 
     private static final String RESOURCE_NAME = "proxy.yml";
+
+    private static final List<String> HEADER = List.of(
+            "Proxy settings of PRISMARIN. /maintenance on|off writes this file, so keep your own notes elsewhere.",
+            "",
+            YamlComments.TEXT_HELP.get(0), YamlComments.TEXT_HELP.get(1), YamlComments.TEXT_HELP.get(2));
+
+    private static final Map<String, List<String>> COMMENTS = Map.of(
+            "motd", List.of("Two lines in the server list."),
+            "maintenance", List.of("While enabled only players with prismarin.maintenance.bypass can join."),
+            "maintenance.version-name", List.of("Text shown instead of the player count in the server list."),
+            "max-players", List.of("Player limit shown in the server list."),
+            "lobby-server", List.of("Fallback lobby when no lobby of the lobby group in servers.yml is free."));
 
     private ProxyConfigCodec() {
         throw new AssertionError();
@@ -42,6 +57,7 @@ public final class ProxyConfigCodec {
                 return defaults;
             }
             ConfigurationNode root = loaderFor(file).load();
+            YamlComments.apply(file, HEADER, COMMENTS);
             return fromNode(root, defaults);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -65,6 +81,7 @@ public final class ProxyConfigCodec {
             root.node("max-players").set(config.maxPlayers());
             root.node("lobby-server").set(config.lobbyServer());
             loader.save(root);
+            YamlComments.apply(file, HEADER, COMMENTS);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

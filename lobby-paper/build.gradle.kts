@@ -17,6 +17,7 @@ dependencies {
     testImplementation(libs.mockito.junit.jupiter)
     testImplementation(libs.configurate.yaml)
     testImplementation(project(":api"))
+    testImplementation(project(":shared"))
 }
 
 tasks.processResources {

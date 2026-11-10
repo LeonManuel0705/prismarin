@@ -1,6 +1,7 @@
 package net.prismarin.core;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Provider;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import java.nio.file.Path;
@@ -13,6 +14,7 @@ import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.event.EventBus;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.messaging.MessageBus;
+import net.prismarin.api.nick.NickService;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
@@ -20,6 +22,12 @@ import net.prismarin.core.config.GameStateSettings;
 import net.prismarin.core.config.MenuSettings;
 import net.prismarin.core.config.VanishSettings;
 import net.prismarin.core.network.PaperConnectorTransport;
+import net.prismarin.core.nick.FakeRankFormat;
+import net.prismarin.core.nick.NickManager;
+import net.prismarin.core.nick.NickRankFormatProvider;
+import net.prismarin.core.nick.NickRegistry;
+import net.prismarin.core.nick.NickSettings;
+import net.prismarin.core.nick.NickStore;
 import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.rank.DefaultRankFormatProvider;
 import net.prismarin.core.rank.LuckPermsRankFormatProvider;
@@ -45,6 +53,7 @@ public final class CoreModule extends AbstractModule {
     @Override
     protected void configure() {
         bind(PrismarinCorePlugin.class).toInstance(plugin);
+        bind(NickService.class).to(NickManager.class);
     }
 
     @Provides
@@ -137,6 +146,18 @@ public final class CoreModule extends AbstractModule {
 
     @Provides
     @Singleton
+    NickSettings nickSettings() {
+        return NickSettings.load(dataDirectory().resolve(NickSettings.FILE_NAME));
+    }
+
+    @Provides
+    @Singleton
+    NickStore nickStore(CoreServices services) {
+        return new NickStore(services.documents());
+    }
+
+    @Provides
+    @Singleton
     SimpleGameStateService gameStateService() {
         return new SimpleGameStateService();
     }
@@ -167,13 +188,15 @@ public final class CoreModule extends AbstractModule {
 
     @Provides
     @Singleton
-    RankFormatProvider rankFormatProvider(LocaleService localeService, MiniMessage miniMessage,
-                                          PermissionSnapshots snapshots, ProfileService profiles) {
+    RankFormatProvider rankFormatProvider(LocaleService localeService, CoreServices services,
+                                          PermissionSnapshots snapshots, ProfileService profiles,
+                                          ModuleState modules, NickRegistry nicks,
+                                          Provider<FakeRankFormat> fakeRank) {
         DefaultRankFormatProvider fallback = new DefaultRankFormatProvider(localeService, snapshots, profiles);
-        if (plugin.getServer().getPluginManager().getPlugin("LuckPerms") != null) {
-            return new LuckPermsRankFormatProvider(miniMessage, fallback);
-        }
-        return fallback;
+        RankFormatProvider real = plugin.getServer().getPluginManager().getPlugin("LuckPerms") != null
+                ? new LuckPermsRankFormatProvider(services.formatter(), fallback)
+                : fallback;
+        return modules.enabled(CoreModules.NICK) ? new NickRankFormatProvider(real, nicks, fakeRank) : real;
     }
 
     private Path dataDirectory() {

@@ -90,3 +90,43 @@ Velocity kennt keine `plugin.yml`-Permission-Defaults; Vergabe über LuckPerms (
 - Neue Proxy-Commands/-Listener werden in `onProxyInitialize` registriert und bekommen `ProxyConfigStore`/`ProxyMessages` per Konstruktor.
 - `ProxyConfig` wächst als Record plus `ProxyConfigCodec`-Key — `withX`-Kopiermethoden für weitere Laufzeit-Schalter ergänzen.
 - Der bereits verdrahtete `MessageBus` ist der Ankerpunkt für Phase 1 (Cross-Server-Chat, Party-Moves, JoinMe): Proxy publiziert/abonniert dieselben Channels wie die Paper-Server.
+
+## Strafen
+
+`PunishmentFlow` bündelt alles: Ziel auflösen (echter Name, Nick über `NickDirectory`, Offline-Profil), Vorlage und Eskalation, Speichern über `PunishmentService`, Durchsetzen (Trennen, Mute an den Spielserver, Hinweis), Audit-Log, Team-Meldung mit Klick auf `/check` und die optionale öffentliche Meldung. Jede Strafe geht über `PunishmentService.punish`, das `PunishmentIssuedEvent` veröffentlicht; darüber schließt `ReportFlow` offene Reports. Alles läuft im Proxy, Redis ist nicht nötig.
+
+| Befehl | Wirkung | Recht |
+| --- | --- | --- |
+| `/ban <spieler> <grund\|vorlage>` | dauerhaft; `/ban <spieler> 7d <grund>` bleibt als Tempban möglich | `prismarin.staff.ban` |
+| `/tempban <spieler> <dauer> <grund>` | befristet | `prismarin.staff.tempban` oder `.ban` |
+| `/ipban <spieler> [dauer] <grund>` | sperrt die Verbindung eines Online-Spielers, nur mit `ip-bans.enabled` | `prismarin.staff.ipban` |
+| `/mute`, `/tempmute` | wie `/ban` und `/tempban` | `prismarin.staff.mute`, `prismarin.staff.tempmute` |
+| `/kick <spieler> [grund\|vorlage]` | nur online und sichtbar | `prismarin.staff.kick` |
+| `/warn <spieler> <grund\|vorlage>` | Verwarnung | `prismarin.staff.warn` |
+| `/punish <spieler> [vorlage] [notiz]` | ohne Vorlage Menü auf dem Spielserver, sonst nächste Stufe | `prismarin.staff.punish` |
+| `/unban`, `/unmute <spieler> [grund]` | hebt auf, der Grund landet in der Akte | `prismarin.staff.unban` oder `.ban`, `prismarin.staff.unmute` oder `.mute` |
+| `/history <spieler> [seite]` | Akte mit Status (aktiv, abgelaufen, aufgehoben, ersetzt) | `prismarin.staff.history` |
+| `/check <spieler>` | aktive Strafen, Zähler, Verstöße pro Vorlage mit nächster Stufe, offene Reports | `prismarin.staff.check` oder `.history` |
+
+Ein Grund, der mit einer Vorlagen-ID beginnt, wendet die Vorlage an; der Rest wird zur Notiz. Wer nur `prismarin.staff.punish` hat, kann ausschließlich Vorlagen nutzen. Weitere Rechte: `prismarin.punish.exempt` (von Spielern nicht bestrafbar), `prismarin.punish.ipban.bypass` (Login trotz IP-Ban der eigenen Adresse), pro Vorlage optional ein eigenes Recht. Eine kürzere Strafe ersetzt keine längere derselben Art, dafür zuerst aufheben.
+
+`punishments.yml` (Kommentare über `YamlComments`):
+
+| Key | Default | Bedeutung |
+| --- | --- | --- |
+| `appeal-url` | leer | `%appeal%`, `%appeal_line%` erscheint nur, wenn gesetzt |
+| `time-zone` | leer (Zeitzone des Rechners) | für `%expires%` und `%date%` |
+| `show-actor-to-player` | `false` | `%actor%` in Bildschirmen zeigt sonst „Team“, ebenso bei genickten oder unsichtbaren Teammitgliedern |
+| `ip-bans.enabled` | `true` | registriert `/ipban` und prüft Adressen beim Login; Adressen nur als gesalzener SHA-256 (IPv6 als /64) |
+| `escalation.count-lifted` | `false` | aufgehobene Strafen zählen nicht als Verstoß |
+| `public-broadcast.enabled` | `false` | Meldung an alle ohne `prismarin.staff`, mit Nick, nie bei Unsichtbaren |
+| `public-broadcast.kinds` | `[ban, tempban, ipban]` | `ban`, `tempban`, `ipban`, `mute`, `tempmute`, `kick`, `warn` |
+| `templates.<id>` | hacking, chat, spam, name, teaming, bugusing, evasion | `name.<sprache>`, `icon`, `type`, `steps`, `permission`, `forget-after` |
+
+Schritte: eine Dauer (`30m`, `12h`, `7d`, `1w`, `1y`) oder `permanent` im Typ der Vorlage, oder mit eigenem Typ (`mute 2h`, `ban 7d`, `ban permanent`, `warn`, `kick`). Der letzte Schritt wiederholt sich. Gezählt werden frühere Strafen derselben Vorlage, ersetzte zählen mit, Einträge älter als `forget-after` nicht.
+
+Texte unter `punishment` in `messages_de.yml`/`messages_en.yml`: `screen.ban|tempban|ipban|kick`, `notice.mute|tempmute|warn|unmuted`, `staff.*`, `public.*`, `check.*`, `history.*`, `menu.*`, `usage.*`, Einheiten unter `time.*`, Datumsformat `date-format`. Platzhalter: `%player%`, `%type%`, `%reason%`, `%duration%`, `%remaining%`, `%expires%`, `%date%`, `%id%`, `%actor%`, `%appeal%`, `%appeal_line%`, `%template%`. Mehrzeilige Bildschirme mit `<newline>`.
+
+Kanal `prismarin:moderation`, neu: Proxy an Spielserver `punish-menu` (`uuid`, `target`, `target-name`, `title`, `head`, `head-lore`, `templates[]` mit `id`, `icon`, `name`, `lore`, alles fertig gerenderte MiniMessage-Texte), Spielserver an Proxy `punish` (`uuid`, `target`, `template`); der Proxy nimmt es nur von einer `ServerConnection` an, wenn der Träger der Absender ist und das Menü für genau dieses Ziel und diese Vorlage in den letzten zwei Minuten geöffnet wurde. `mute` trägt zusätzlich `id` und `appeal`.
+
+Gespeicherte Strafen bleiben lesbar: `Punishment` hat die neuen Felder `template`, `note`, `addressHash`, `revokeReason`, `replacedBy`, alte Dokumente ohne sie werden mit leeren Werten gelesen.

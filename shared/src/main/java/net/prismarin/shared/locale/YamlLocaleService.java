@@ -8,12 +8,22 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.prismarin.api.locale.LocaleService;
@@ -23,12 +33,20 @@ import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 
 public final class YamlLocaleService implements LocaleService {
 
+    public static final String LANGUAGE_NAME = "language.name";
+    public static final String LANGUAGE_ICON = "language.icon";
+
     private static final List<String> BUNDLED_LANGUAGES = List.of("de", "en");
+    private static final String DEFAULT_ICON = "PAPER";
+    private static final Pattern LANGUAGE_FILE =
+            Pattern.compile("messages_([A-Za-z]{2,3}(?:[_-](?:[A-Za-z]{2}|[0-9]{3}))?)\\.yml");
+    private static final Logger LOGGER = Logger.getLogger(YamlLocaleService.class.getName());
 
     private final TextFormatter formatter;
     private final Map<String, Map<String, String>> messages = new ConcurrentHashMap<>();
     private final Map<CacheKey, Component> componentCache = new ConcurrentHashMap<>();
     private final String fallbackLanguage;
+    private final Set<String> languages;
 
     public YamlLocaleService(Path dataDirectory, String defaultLanguage) {
         this(dataDirectory, defaultLanguage, TextFormatter.plain());
@@ -37,22 +55,47 @@ public final class YamlLocaleService implements LocaleService {
     public YamlLocaleService(Path dataDirectory, String defaultLanguage, TextFormatter formatter) {
         this.formatter = formatter;
         this.fallbackLanguage = defaultLanguage.toLowerCase(Locale.ROOT);
+        Set<String> loaded = new LinkedHashSet<>();
         try {
             Files.createDirectories(dataDirectory);
             for (String language : BUNDLED_LANGUAGES) {
-                Path file = dataDirectory.resolve("messages_" + language + ".yml");
-                seedIfAbsent(file, "messages_" + language + ".yml");
-                Map<String, String> merged = new HashMap<>(bundled("messages_" + language + ".yml"));
-                if (Files.exists(file)) {
-                    merged.putAll(flatten(loadYaml(file)));
+                seedIfAbsent(dataDirectory.resolve(fileName(language)), fileName(language));
+            }
+            Map<String, Path> files = new LinkedHashMap<>();
+            for (String language : BUNDLED_LANGUAGES) {
+                files.put(language, dataDirectory.resolve(fileName(language)));
+            }
+            files.putAll(discover(dataDirectory, files.keySet()));
+            for (Map.Entry<String, Path> entry : files.entrySet()) {
+                String language = entry.getKey();
+                Map<String, String> merged = new HashMap<>(bundled(fileName(language)));
+                if (Files.exists(entry.getValue())) {
+                    try {
+                        merged.putAll(flatten(loadYaml(entry.getValue())));
+                    } catch (IOException e) {
+                        if (BUNDLED_LANGUAGES.contains(language)) {
+                            throw e;
+                        }
+                        LOGGER.log(Level.WARNING, "Skipping broken language file " + entry.getValue().getFileName(), e);
+                        continue;
+                    }
                 }
                 if (!merged.isEmpty()) {
+                    merged.putIfAbsent(LANGUAGE_NAME, nativeName(language));
+                    merged.putIfAbsent(LANGUAGE_ICON, DEFAULT_ICON);
                     messages.put(language, merged);
+                    loaded.add(language);
                 }
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+        this.languages = Collections.unmodifiableSet(loaded);
+    }
+
+    @Override
+    public Set<String> languages() {
+        return languages;
     }
 
     @Override
@@ -104,8 +147,48 @@ public final class YamlLocaleService implements LocaleService {
         if (locale == null || locale.getLanguage().isEmpty()) {
             return fallbackLanguage;
         }
+        String tag = locale.toLanguageTag().toLowerCase(Locale.ROOT);
+        if (messages.containsKey(tag)) {
+            return tag;
+        }
         String language = locale.getLanguage().toLowerCase(Locale.ROOT);
         return messages.containsKey(language) ? language : fallbackLanguage;
+    }
+
+    static String normalizeTag(String tag) {
+        return tag.replace('_', '-').toLowerCase(Locale.ROOT);
+    }
+
+    static String nativeName(String tag) {
+        Locale locale = Locale.forLanguageTag(tag);
+        String name = locale.getDisplayLanguage(locale);
+        if (name.isBlank() || name.equalsIgnoreCase(locale.getLanguage())) {
+            return tag;
+        }
+        String capitalized = name.substring(0, 1).toUpperCase(locale) + name.substring(1);
+        String country = locale.getDisplayCountry(locale);
+        return country.isBlank() ? capitalized : capitalized + " (" + country + ")";
+    }
+
+    private static String fileName(String language) {
+        return "messages_" + language + ".yml";
+    }
+
+    private static Map<String, Path> discover(Path dataDirectory, Set<String> known) throws IOException {
+        Map<String, Path> found = new TreeMap<>();
+        try (Stream<Path> entries = Files.list(dataDirectory)) {
+            for (Path path : entries.sorted().toList()) {
+                Matcher matcher = LANGUAGE_FILE.matcher(path.getFileName().toString());
+                if (!matcher.matches() || !Files.isRegularFile(path)) {
+                    continue;
+                }
+                String language = normalizeTag(matcher.group(1));
+                if (!known.contains(language)) {
+                    found.putIfAbsent(language, path);
+                }
+            }
+        }
+        return found;
     }
 
     private static void seedIfAbsent(Path file, String resourceName) throws IOException {

@@ -21,10 +21,14 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockReceiveGameEvent;
+import org.bukkit.event.entity.EntityCombustEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
+import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
+import org.bukkit.event.player.PlayerGameModeChangeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -35,6 +39,7 @@ import org.bukkit.scheduler.BukkitTask;
 public final class VanishListener implements Listener {
 
     private static final long REMINDER_TICKS = 40L;
+    private static final long MOB_TICKS = 10L;
 
     private final PrismarinCorePlugin plugin;
     private final VanishService vanish;
@@ -42,6 +47,7 @@ public final class VanishListener implements Listener {
     private final ProfileService profiles;
     private final VanishSettings settings;
     private BukkitTask reminder;
+    private BukkitTask mobs;
 
     @Inject
     public VanishListener(PrismarinCorePlugin plugin, VanishService vanish, LocaleService locale,
@@ -55,12 +61,17 @@ public final class VanishListener implements Listener {
 
     public void start() {
         reminder = plugin.getServer().getScheduler().runTaskTimer(plugin, this::remind, REMINDER_TICKS, REMINDER_TICKS);
+        mobs = plugin.getServer().getScheduler().runTaskTimer(plugin, vanish::calmMobs, MOB_TICKS, MOB_TICKS);
     }
 
     public void stop() {
         if (reminder != null) {
             reminder.cancel();
             reminder = null;
+        }
+        if (mobs != null) {
+            mobs.cancel();
+            mobs = null;
         }
     }
 
@@ -92,8 +103,51 @@ public final class VanishListener implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onTarget(EntityTargetLivingEntityEvent event) {
-        if (event.getTarget() instanceof Player player && vanish.vanished(player)) {
+        if (settings.mobsIgnore() && event.getTarget() instanceof Player player && vanish.vanished(player)) {
             event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player) || !vanish.vanished(player)) {
+            if (event.getEntity() instanceof Player player && event.getCause() == EntityDamageEvent.DamageCause.FALL
+                    && vanish.consumeFallGrace(player)) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+        EntityDamageEvent.DamageCause cause = event.getCause();
+        if (settings.invincible() && cause != EntityDamageEvent.DamageCause.VOID
+                && cause != EntityDamageEvent.DamageCause.KILL && cause != EntityDamageEvent.DamageCause.WORLD_BORDER) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onCombust(EntityCombustEvent event) {
+        if (settings.invincible() && event.getEntity() instanceof Player player && vanish.vanished(player)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(ignoreCancelled = true)
+    public void onHunger(FoodLevelChangeEvent event) {
+        if (settings.noHunger() && event.getEntity() instanceof Player player && vanish.vanished(player)
+                && event.getFoodLevel() < player.getFoodLevel()) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onGameModeChange(PlayerGameModeChangeEvent event) {
+        Player player = event.getPlayer();
+        if (vanish.vanished(player)) {
+            plugin.getServer().getScheduler().runTask(plugin, () -> {
+                if (player.isOnline()) {
+                    vanish.grantFlight(player);
+                }
+            });
         }
     }
 
@@ -191,7 +245,7 @@ public final class VanishListener implements Listener {
         }
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             if (vanish.vanished(player)) {
-                player.sendActionBar(locale.render("vanish.reminder", PlayerLocales.of(player, profiles)));
+                player.sendActionBar(locale.render("vanish.actionbar", PlayerLocales.of(player, profiles)));
             }
         }
     }

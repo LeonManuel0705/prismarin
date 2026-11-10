@@ -6,6 +6,7 @@ import java.util.UUID;
 import net.prismarin.api.Prismarin;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.economy.EconomyService;
+import net.prismarin.api.nick.NickService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerStatus;
@@ -13,9 +14,26 @@ import net.prismarin.api.server.ServerStatus;
 public final class PrismarinPlaceholders {
 
     private final Prismarin prismarin;
+    private final NickService nicks;
 
     public PrismarinPlaceholders(Prismarin prismarin) {
+        this(prismarin, null);
+    }
+
+    public PrismarinPlaceholders(Prismarin prismarin, NickService nicks) {
         this.prismarin = prismarin;
+        this.nicks = nicks;
+    }
+
+    public String resolveRelational(UUID viewer, boolean viewerSeesRealNames, UUID target, String params) {
+        if (target == null) {
+            return null;
+        }
+        return switch (params.toLowerCase(Locale.ROOT)) {
+            case "nick" -> nickName(target);
+            case "realname" -> viewerSeesRealNames || target.equals(viewer) ? realName(target) : nickName(target);
+            default -> null;
+        };
     }
 
     public String resolve(UUID player, String params) {
@@ -28,6 +46,9 @@ public final class PrismarinPlaceholders {
             case "xp" -> profile(player).map(profile -> String.valueOf(profile.getXp())).orElse("0");
             case "xp_required" -> profile(player).map(profile -> String.valueOf(profile.xpForNextLevel())).orElse("0");
             case "locale" -> profile(player).map(PlayerProfile::getLocale).orElse("");
+            case "nick" -> nickName(player);
+            case "realname" -> realName(player);
+            case "nicked" -> String.valueOf(player != null && nicks != null && nicks.isNicked(player));
             case "network_online" -> String.valueOf(prismarin.serverStatus().statuses().stream()
                     .filter(ServerStatus::online).mapToInt(ServerStatus::players).sum());
             case "network_servers_online" -> String.valueOf(prismarin.serverStatus().statuses().stream()
@@ -85,6 +106,22 @@ public final class PrismarinPlaceholders {
                     .sum());
         }
         return null;
+    }
+
+    private String nickName(UUID player) {
+        if (player == null) {
+            return "";
+        }
+        Optional<String> nick = nicks == null ? Optional.empty() : nicks.shownNick(player);
+        return nick.orElseGet(() -> realName(player));
+    }
+
+    private String realName(UUID player) {
+        if (player == null) {
+            return "";
+        }
+        Optional<String> real = nicks == null ? Optional.empty() : nicks.realName(player);
+        return real.or(() -> profile(player).map(PlayerProfile::getName)).orElse("");
     }
 
     private EconomyService economy() {

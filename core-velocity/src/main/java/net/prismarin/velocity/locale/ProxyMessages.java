@@ -3,6 +3,7 @@ package net.prismarin.velocity.locale;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 import java.util.Locale;
+import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.prismarin.api.locale.LocaleService;
@@ -11,10 +12,20 @@ public final class ProxyMessages {
 
     private final LocaleService locale;
     private final Locale fallback;
+    private final PlayerLocaleRegistry players;
 
-    public ProxyMessages(LocaleService locale, Locale fallback) {
+    public ProxyMessages(LocaleService locale, Locale fallback, PlayerLocaleRegistry players) {
         this.locale = locale;
         this.fallback = fallback;
+        this.players = players;
+    }
+
+    public PlayerLocaleRegistry players() {
+        return players;
+    }
+
+    public Locale fallback() {
+        return fallback;
     }
 
     public Component render(CommandSource source, String key, TagResolver... resolvers) {
@@ -31,6 +42,10 @@ public final class ProxyMessages {
 
     public Locale localeOf(CommandSource source) {
         if (source instanceof Player player) {
+            Optional<Locale> chosen = players.locale(player.getUniqueId());
+            if (chosen.isPresent()) {
+                return chosen.get();
+            }
             Locale effective = player.getEffectiveLocale();
             if (effective != null) {
                 return effective;

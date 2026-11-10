@@ -4,6 +4,8 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
+import net.prismarin.core.essentials.FlightGrants;
+import net.prismarin.core.vanish.VanishService;
 import net.prismarin.lobby.world.LobbyWorlds;
 import org.bukkit.GameMode;
 import org.bukkit.Particle;
@@ -21,10 +23,18 @@ public final class DoubleJumpListener implements Listener {
     private static final double UPWARD_STRENGTH = 0.9;
 
     private final LobbyWorlds worlds;
+    private final VanishService vanish;
+    private final FlightGrants grants;
 
     @Inject
-    public DoubleJumpListener(LobbyWorlds worlds) {
+    public DoubleJumpListener(LobbyWorlds worlds, VanishService vanish, FlightGrants grants) {
         this.worlds = worlds;
+        this.vanish = vanish;
+        this.grants = grants;
+    }
+
+    private boolean freeFlight(Player player) {
+        return grants.granted(player) || vanish.vanished(player) && vanish.settings().flight();
     }
 
     @EventHandler
@@ -33,7 +43,7 @@ public final class DoubleJumpListener implements Listener {
         if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) {
             return;
         }
-        if (!worlds.isLobbyWorld(player.getWorld())) {
+        if (!worlds.isLobbyWorld(player.getWorld()) || freeFlight(player)) {
             return;
         }
         event.setCancelled(true);
@@ -52,7 +62,7 @@ public final class DoubleJumpListener implements Listener {
             return;
         }
         Player player = event.getPlayer();
-        if (player.getAllowFlight()) {
+        if (player.getAllowFlight() || freeFlight(player)) {
             return;
         }
         if (player.getGameMode() == GameMode.CREATIVE || player.getGameMode() == GameMode.SPECTATOR) {

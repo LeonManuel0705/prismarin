@@ -8,9 +8,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Consumer;
-import net.kyori.adventure.key.Key;
-import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -20,23 +17,25 @@ import net.prismarin.api.economy.Currency;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
-import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.api.server.ServerGroup;
 import net.prismarin.api.server.ServerStatus;
-import net.prismarin.core.gui.ClickContext;
 import net.prismarin.core.gui.ItemBuilder;
 import net.prismarin.core.gui.Menu;
 import net.prismarin.core.gui.MenuButton;
 import net.prismarin.core.gui.MenuService;
 import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.core.network.GameStateNames;
-import net.prismarin.lobby.LobbyPlugin;
+import net.prismarin.core.rank.RankFormatProvider;
+import net.prismarin.lobby.action.ItemAction;
+import net.prismarin.lobby.config.LobbySettings;
+import net.prismarin.lobby.config.ProfileLayout;
 import net.prismarin.lobby.item.LobbyItems;
-import net.prismarin.lobby.player.PlayerHiderService;
-import net.prismarin.lobby.server.ServerConnector;
+import net.prismarin.lobby.network.LobbyDirectory;
+import net.prismarin.lobby.network.LobbyTravel;
 import net.prismarin.lobby.util.CurrencyDisplay;
+import net.prismarin.lobby.util.Languages;
 import net.prismarin.lobby.util.XpProgressBar;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.status.NetworkStatusService;
@@ -47,56 +46,100 @@ import org.bukkit.inventory.ItemStack;
 @Singleton
 public final class LobbyMenus {
 
-    private static final int MENU_ROWS = 3;
-    private static final int SERVER_ROW = 1;
-    private static final int PROFILE_HEAD_SLOT = 4;
-    private static final int PROFILE_ROW = 1;
-    private static final int BACK_SLOT = 18;
-    private static final int CLOSE_SLOT = 26;
+    private static final int NAVIGATOR_PER_ROW = 7;
+    private static final int NAVIGATOR_MAX_ROWS = 4;
     private static final int LEVEL_BAR_SEGMENTS = 10;
-    private static final Consumer<ClickContext> DECORATION = context -> context.player().updateInventory();
 
-    private final LobbyPlugin plugin;
     private final MenuService menuService;
     private final LocaleService locale;
     private final ProfileService profiles;
     private final ServerDirectory directory;
     private final MiniMessage miniMessage;
     private final LobbyItems items;
-    private final PlayerHiderService hider;
-    private final ServerConnector connector;
     private final CoreConfig config;
     private final Branding branding;
     private final CurrencyDisplay currencies;
     private final NetworkStatusService status;
-    private final NetworkConnector network;
+    private final LobbySettings settings;
+    private final RankFormatProvider ranks;
+    private final LobbyDirectory lobbies;
+    private final LobbyTravel travel;
+    private final MenuKit kit;
+    private final LobbySelectorMenu selector;
+    private final LanguageMenu languages;
+    private final SocialMenus social;
+    private final NickToolMenu nickTool;
 
     @Inject
-    public LobbyMenus(LobbyPlugin plugin, MenuService menuService, LocaleService locale, ProfileService profiles,
-                      ServerDirectory directory, MiniMessage miniMessage, LobbyItems items,
-                      PlayerHiderService hider, ServerConnector connector, CoreConfig config,
+    public LobbyMenus(MenuService menuService, LocaleService locale, ProfileService profiles,
+                      ServerDirectory directory, MiniMessage miniMessage, LobbyItems items, CoreConfig config,
                       Branding branding, CurrencyDisplay currencies, NetworkStatusService status,
-                      NetworkConnector network) {
-        this.plugin = plugin;
+                      LobbySettings settings, RankFormatProvider ranks, LobbyDirectory lobbies, LobbyTravel travel,
+                      MenuKit kit, LobbySelectorMenu selector, LanguageMenu languages, SocialMenus social,
+                      NickToolMenu nickTool) {
+        this.social = social;
+        this.nickTool = nickTool;
         this.menuService = menuService;
         this.locale = locale;
         this.profiles = profiles;
         this.directory = directory;
         this.miniMessage = miniMessage;
         this.items = items;
-        this.hider = hider;
-        this.connector = connector;
         this.config = config;
         this.branding = branding;
         this.currencies = currencies;
         this.status = status;
-        this.network = network;
+        this.settings = settings;
+        this.ranks = ranks;
+        this.lobbies = lobbies;
+        this.travel = travel;
+        this.kit = kit;
+        this.selector = selector;
+        this.languages = languages;
+    }
+
+    public boolean open(Player player, String menu) {
+        switch (menu) {
+            case ItemAction.MENU_NAVIGATOR -> {
+                if (!settings.enabled(LobbySettings.NAVIGATOR)) {
+                    return false;
+                }
+                openNavigator(player);
+            }
+            case ItemAction.MENU_PROFILE -> {
+                if (!settings.enabled(LobbySettings.PROFILE_MENU)) {
+                    return false;
+                }
+                openProfile(player);
+            }
+            case ItemAction.MENU_LOBBIES -> {
+                if (!settings.enabled(LobbySettings.LOBBY_SELECTOR)) {
+                    return false;
+                }
+                openLobbies(player);
+            }
+            case ItemAction.MENU_LANGUAGES -> {
+                if (languages.languages().size() < 2) {
+                    return false;
+                }
+                languages.open(player, this::openProfile);
+            }
+            case ItemAction.MENU_FRIENDS -> social.openFriends(player, 0);
+            case ItemAction.MENU_PARTY -> social.openParty(player);
+            case ItemAction.MENU_NICK -> nickTool.open(player);
+            default -> {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public void openLobbies(Player player) {
+        selector.open(player, settings.enabled(LobbySettings.NAVIGATOR) ? this::openNavigator : null);
     }
 
     public void openNavigator(Player player) {
         Locale playerLocale = PlayerLocales.of(player, profiles);
-        Menu menu = new Menu(locale.render("lobby.navigator.title", playerLocale), MENU_ROWS);
-        fill(menu);
         List<MenuButton> entries = new ArrayList<>();
         Set<String> listedGroups = new HashSet<>();
         for (ServerGroup group : directory.groups()) {
@@ -110,12 +153,13 @@ public final class LobbyMenus {
                 entries.add(serverButton(playerLocale, server));
             }
         }
-        int count = Math.min(entries.size(), 9);
-        if (count > 0) {
-            List<Integer> slots = MenuLayout.centeredRowSlots(SERVER_ROW, count);
-            for (int i = 0; i < count; i++) {
-                menu.button(slots.get(i), entries.get(i));
-            }
+        int count = Math.min(entries.size(), NAVIGATOR_PER_ROW * NAVIGATOR_MAX_ROWS);
+        int contentRows = MenuLayout.rowsFor(count, NAVIGATOR_PER_ROW);
+        Menu menu = new Menu(locale.render("lobby.navigator.title", playerLocale), contentRows + 2);
+        kit.fill(menu);
+        List<Integer> slots = MenuLayout.centeredSlots(1, count, NAVIGATOR_PER_ROW);
+        for (int i = 0; i < count; i++) {
+            menu.button(slots.get(i), entries.get(i));
         }
         menuService.open(player, menu);
     }
@@ -128,32 +172,59 @@ public final class LobbyMenus {
             return;
         }
         PlayerProfile profile = cached.get();
-        Menu menu = new Menu(locale.render("lobby.profile.title", playerLocale), MENU_ROWS);
-        fill(menu);
-        menu.button(PROFILE_HEAD_SLOT, new MenuButton(items.profileHead(player, playerLocale), DECORATION));
-        List<MenuButton> entries = new ArrayList<>();
-        for (Currency currency : currencies.shown()) {
-            entries.add(new MenuButton(currencyIcon(playerLocale, profile, currency), DECORATION));
+        ProfileLayout layout = settings.profile();
+        Menu menu = new Menu(locale.render("lobby.profile.title", playerLocale), layout.rows());
+        kit.fill(menu);
+        if (layout.headSlot() >= 0) {
+            menu.button(layout.headSlot(), kit.decoration(items.profileHead(player, playerLocale)));
         }
-        if (config.systemEnabled(PrismarinSystems.LEVELS)) {
-            entries.add(new MenuButton(levelIcon(playerLocale, profile), DECORATION));
+        List<MenuButton> automatic = new ArrayList<>();
+        for (ProfileLayout.Entry entry : layout.allEntries()) {
+            List<MenuButton> buttons = entryButtons(player, playerLocale, profile, entry.kind());
+            if (entry.automatic()) {
+                automatic.addAll(buttons);
+                continue;
+            }
+            for (int i = 0; i < buttons.size() && entry.slot() + i < menu.size(); i++) {
+                menu.button(entry.slot() + i, buttons.get(i));
+            }
         }
-        entries.add(localeButton(playerLocale, profile));
-        List<Integer> slots = MenuLayout.centeredRowSlots(PROFILE_ROW, entries.size());
-        for (int i = 0; i < entries.size(); i++) {
-            menu.button(slots.get(i), entries.get(i));
+        int count = Math.min(automatic.size(), 9);
+        if (count > 0) {
+            List<Integer> slots = MenuLayout.centeredRowSlots(layout.entryRow(), count);
+            for (int i = 0; i < count; i++) {
+                menu.button(slots.get(i), automatic.get(i));
+            }
         }
-        menu.button(BACK_SLOT, new MenuButton(
-                ItemBuilder.of(Material.ARROW).name(locale.render("menu.back", playerLocale)).build(),
-                context -> openNavigator(context.player())));
-        menu.button(CLOSE_SLOT, new MenuButton(
-                ItemBuilder.of(Material.BARRIER).name(locale.render("menu.close", playerLocale)).build(),
-                context -> closeLater(context.player())));
+        if (layout.backSlot() >= 0 && settings.enabled(LobbySettings.NAVIGATOR)) {
+            menu.button(layout.backSlot(), kit.back(playerLocale, this::openNavigator));
+        }
+        if (layout.closeSlot() >= 0) {
+            menu.button(layout.closeSlot(), kit.close(playerLocale));
+        }
         menuService.open(player, menu);
+    }
+
+    private List<MenuButton> entryButtons(Player player, Locale playerLocale, PlayerProfile profile,
+                                          ProfileLayout.Entry.Kind kind) {
+        return switch (kind) {
+            case CURRENCIES -> currencies.shown().stream()
+                    .map(currency -> kit.decoration(currencyIcon(playerLocale, profile, currency)))
+                    .toList();
+            case LEVEL -> config.systemEnabled(PrismarinSystems.LEVELS)
+                    ? List.of(kit.decoration(levelIcon(playerLocale, profile)))
+                    : List.of();
+            case RANK -> List.of(kit.decoration(rankIcon(player, playerLocale)));
+            case LANGUAGE -> languages.languages().size() < 2 ? List.of() : List.of(languageButton(player,
+                    playerLocale));
+            case FRIENDS, PARTY -> social.profileEntry(player, playerLocale, kind);
+        };
     }
 
     private MenuButton serverButton(Locale playerLocale, NetworkServer server) {
         boolean here = server.name().equalsIgnoreCase(config.serverId());
+        boolean selectorHere = here && server.inGroup(NetworkServer.GROUP_LOBBY)
+                && settings.enabled(LobbySettings.LOBBY_SELECTOR) && lobbies.hasChoice();
         Component name = here
                 ? locale.render("lobby.navigator.here-name", playerLocale,
                         Placeholder.unparsed("server", capitalize(server.name())))
@@ -166,24 +237,32 @@ public final class LobbyMenus {
                         Placeholder.unparsed("players", String.valueOf(entry.players())),
                         Placeholder.unparsed("max", String.valueOf(entry.maxPlayers())))));
         lore.add(Component.empty());
-        lore.add(here
-                ? locale.render("lobby.navigator.here", playerLocale)
+        lore.add(selectorHere ? locale.render("lobby.navigator.lobby-click", playerLocale)
+                : here ? locale.render("lobby.navigator.here", playerLocale)
                 : locale.render("lobby.navigator.connect", playerLocale));
         ItemStack icon = ItemBuilder.of(iconFor(server))
                 .name(name)
                 .lore(lore)
                 .glow(!here)
                 .build();
+        if (selectorHere) {
+            return new MenuButton(icon, context -> openLobbies(context.player()));
+        }
         if (here) {
             return new MenuButton(icon, context -> context.player().sendActionBar(
                     locale.render("lobby.navigator.already-here",
                             PlayerLocales.of(context.player(), profiles))));
         }
-        return new MenuButton(icon, context -> connect(context.player(), server));
+        return new MenuButton(icon, context -> {
+            kit.closeLater(context.player());
+            travel.connect(context.player(), server);
+        });
     }
 
     private MenuButton groupButton(Locale playerLocale, ServerGroup group) {
         List<NetworkServer> servers = directory.byGroup(group.name());
+        boolean lobbyGroup = NetworkServer.GROUP_LOBBY.equalsIgnoreCase(group.name())
+                && settings.enabled(LobbySettings.LOBBY_SELECTOR);
         int online = 0;
         int joinable = 0;
         for (NetworkServer server : servers) {
@@ -198,48 +277,22 @@ public final class LobbyMenus {
                 Placeholder.unparsed("online", String.valueOf(online)),
                 Placeholder.unparsed("joinable", String.valueOf(joinable))));
         lore.add(Component.empty());
-        lore.add(locale.render(joinable > 0 ? "lobby.navigator.group-click" : "lobby.navigator.group-none",
-                playerLocale));
+        lore.add(locale.render(lobbyGroup ? "lobby.navigator.lobby-click"
+                : joinable > 0 ? "lobby.navigator.group-click" : "lobby.navigator.group-none", playerLocale));
         Material material = group.property("icon").map(Material::matchMaterial).filter(Material::isItem)
-                .orElse(Material.ENDER_PEARL);
+                .orElse(lobbyGroup ? Material.PRISMARINE : Material.ENDER_PEARL);
         ItemStack icon = ItemBuilder.of(material)
                 .name(locale.format(group.displayName()))
                 .lore(lore)
-                .glow(joinable > 0)
+                .glow(lobbyGroup || joinable > 0)
                 .build();
-        return new MenuButton(icon, context -> playGroup(context.player(), group));
-    }
-
-    private void playGroup(Player player, ServerGroup group) {
-        Locale playerLocale = PlayerLocales.of(player, profiles);
-        closeLater(player);
-        network.connectToGroup(player.getUniqueId(), group.name()).thenAccept(result -> plugin.getServer()
-                .getScheduler().runTask(plugin, () -> {
-                    if (result.isEmpty()) {
-                        player.sendMessage(locale.render("play.no-server", playerLocale,
-                                Placeholder.unparsed("group", group.name())));
-                        return;
-                    }
-                    player.sendMessage(locale.render("lobby.navigator.connecting", playerLocale,
-                            Placeholder.component("server", locale.format(result.get().displayName()))));
-                    player.playSound(Sound.sound(Key.key("entity.enderman.teleport"), Sound.Source.MASTER, 0.7f,
-                            1.2f), Sound.Emitter.self());
-                }));
-    }
-
-    private void connect(Player player, NetworkServer server) {
-        Locale playerLocale = PlayerLocales.of(player, profiles);
-        player.sendMessage(locale.render("lobby.navigator.connecting", playerLocale,
-                Placeholder.component("server", locale.format(server.displayName()))));
-        player.playSound(Sound.sound(Key.key("entity.enderman.teleport"), Sound.Source.MASTER, 0.7f, 1.2f),
-                Sound.Emitter.self());
-        connector.connect(player, server.name());
-        closeLater(player);
-    }
-
-    private void closeLater(Player player) {
-        Runnable close = player::closeInventory;
-        plugin.getServer().getScheduler().runTask(plugin, close);
+        if (lobbyGroup) {
+            return new MenuButton(icon, context -> openLobbies(context.player()));
+        }
+        return new MenuButton(icon, context -> {
+            kit.closeLater(context.player());
+            travel.playGroup(context.player(), group.name());
+        });
     }
 
     private ItemStack currencyIcon(Locale playerLocale, PlayerProfile profile, Currency currency) {
@@ -266,48 +319,41 @@ public final class LobbyMenus {
                 .build();
     }
 
-    private MenuButton localeButton(Locale playerLocale, PlayerProfile profile) {
-        ItemStack icon = ItemBuilder.of(Material.WRITABLE_BOOK)
-                .name(locale.render("lobby.profile.locale.name", playerLocale))
-                .lore(List.of(
-                        locale.render("lobby.profile.locale.current", playerLocale),
-                        locale.render("lobby.profile.locale.hint", playerLocale)))
+    private ItemStack rankIcon(Player player, Locale playerLocale) {
+        return ItemBuilder.of(Material.NAME_TAG)
+                .name(locale.render("lobby.profile.rank.name", playerLocale))
+                .lore(locale.render("lobby.profile.rank.lore", playerLocale, player.getUniqueId(),
+                        Placeholder.component("rank", ranks.prefix(player))))
                 .build();
-        return new MenuButton(icon, context -> switchLocale(context.player(), profile.getLocale()));
     }
 
-    private void switchLocale(Player player, String current) {
-        String next = current != null && current.startsWith("de") ? "en" : "de";
-        Locale fallback = PlayerLocales.of(player, profiles);
-        profiles.modify(player.getUniqueId(), profile -> {
-                    profile.setLocale(next);
-                    profile.getSettings().put(PlayerProfile.SETTING_LOCALE_OVERRIDE, "true");
-                })
-                .whenComplete((profile, error) -> plugin.getServer().getScheduler().runTask(plugin, () -> {
-                    if (!player.isOnline()) {
-                        return;
-                    }
-                    if (error != null) {
-                        player.sendMessage(locale.render("general.profile-not-loaded", fallback));
-                        return;
-                    }
-                    Locale updated = Locale.forLanguageTag(next);
-                    items.give(player, hider.hiding(player));
-                    player.sendMessage(locale.render("lobby.profile.locale.changed", updated));
-                    openProfile(player);
-                }));
-    }
-
-    private void fill(Menu menu) {
-        ItemStack pane = ItemBuilder.of(Material.BLACK_STAINED_GLASS_PANE).name(Component.space()).build();
-        for (int slot = 0; slot < menu.size(); slot++) {
-            menu.button(slot, new MenuButton(pane, DECORATION));
+    private MenuButton languageButton(Player player, Locale playerLocale) {
+        List<String> available = languages.languages();
+        String current = languages.current(player);
+        Optional<String> toggle = settings.profile().languageClick() == ProfileLayout.LanguageClick.AUTO
+                ? Languages.toggleTarget(available, current)
+                : Optional.empty();
+        Component hint = toggle
+                .map(next -> locale.render("lobby.profile.language.hint-toggle", playerLocale,
+                        Placeholder.unparsed("language", languages.name(next))))
+                .orElseGet(() -> locale.render("lobby.profile.language.hint-menu", playerLocale));
+        ItemStack icon = ItemBuilder.of(Material.WRITABLE_BOOK)
+                .name(locale.render("lobby.profile.language.name", playerLocale))
+                .lore(List.of(
+                        locale.render("lobby.profile.language.current", playerLocale,
+                                Placeholder.unparsed("language", languages.name(current))),
+                        hint))
+                .build();
+        if (toggle.isPresent()) {
+            String next = toggle.get();
+            return new MenuButton(icon, context -> languages.switchTo(context.player(), next, this::openProfile));
         }
+        return new MenuButton(icon, context -> languages.open(context.player(), this::openProfile));
     }
 
     private static Material iconFor(NetworkServer server) {
         return server.property("icon")
-                .map(name -> Material.matchMaterial(name))
+                .map(Material::matchMaterial)
                 .filter(Material::isItem)
                 .orElseGet(() -> switch (server.group()) {
                     case NetworkServer.GROUP_LOBBY -> Material.PRISMARINE;

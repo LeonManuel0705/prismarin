@@ -2,9 +2,7 @@ package net.prismarin.lobby.listener;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
-import net.kyori.adventure.key.Key;
-import net.kyori.adventure.sound.Sound;
-import net.prismarin.lobby.config.LocationsFile;
+import net.prismarin.lobby.network.LobbyDirectory;
 import net.prismarin.lobby.player.BuildModeService;
 import net.prismarin.lobby.world.LobbyWorlds;
 import org.bukkit.World;
@@ -22,8 +20,9 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.weather.ThunderChangeEvent;
 import org.bukkit.event.weather.WeatherChangeEvent;
 
@@ -31,14 +30,14 @@ import org.bukkit.event.weather.WeatherChangeEvent;
 public final class ProtectionListener implements Listener {
 
     private final LobbyWorlds worlds;
-    private final LocationsFile locations;
     private final BuildModeService buildMode;
+    private final LobbyDirectory lobbies;
 
     @Inject
-    public ProtectionListener(LobbyWorlds worlds, LocationsFile locations, BuildModeService buildMode) {
+    public ProtectionListener(LobbyWorlds worlds, BuildModeService buildMode, LobbyDirectory lobbies) {
         this.worlds = worlds;
-        this.locations = locations;
         this.buildMode = buildMode;
+        this.lobbies = lobbies;
     }
 
     @EventHandler
@@ -57,8 +56,32 @@ public final class ProtectionListener implements Listener {
 
     @EventHandler
     public void onDamage(EntityDamageEvent event) {
-        if (event.getEntity() instanceof Player player && worlds.isLobbyWorld(player.getWorld())) {
+        if (!(event.getEntity() instanceof Player player) || !worlds.isLobbyWorld(player.getWorld())) {
+            return;
+        }
+        EntityDamageEvent.DamageCause cause = event.getCause();
+        if (cause != EntityDamageEvent.DamageCause.VOID && cause != EntityDamageEvent.DamageCause.KILL) {
             event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onDeath(PlayerDeathEvent event) {
+        if (!worlds.isLobbyWorld(event.getPlayer().getWorld())) {
+            return;
+        }
+        event.setKeepInventory(true);
+        event.getDrops().clear();
+        event.setKeepLevel(true);
+        event.setShouldDropExperience(false);
+        event.deathMessage(null);
+    }
+
+    @EventHandler
+    public void onRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        if (worlds.isLobbyWorld(player.getWorld())) {
+            lobbies.rescueSpawn(player).ifPresent(event::setRespawnLocation);
         }
     }
 
@@ -133,23 +156,6 @@ public final class ProtectionListener implements Listener {
         if (worlds.isLobbyWorld(event.getBlock().getWorld())) {
             event.setCancelled(true);
         }
-    }
-
-    @EventHandler
-    public void onMove(PlayerMoveEvent event) {
-        if (!event.hasChangedPosition()) {
-            return;
-        }
-        Player player = event.getPlayer();
-        if (!worlds.isLobbyWorld(player.getWorld())) {
-            return;
-        }
-        if (event.getTo().getY() >= locations.voidTeleportY()) {
-            return;
-        }
-        worlds.teleportToSpawn(player);
-        player.playSound(Sound.sound(Key.key("entity.enderman.teleport"), Sound.Source.MASTER, 0.7f, 0.9f),
-                Sound.Emitter.self());
     }
 
     private boolean protectedFor(Player player, World world) {

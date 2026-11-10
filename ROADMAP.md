@@ -21,6 +21,7 @@ Grundregeln für alles, was hier entsteht:
 | 3 | Spielserver-Adapter: Status fremder Plugins, Connect- und Queue-API | fertig (0.3.0) |
 | 4 | Speicher: MySQL/MariaDB, SQLite | fertig (0.3.0) |
 | 5 | Admin-System über alle Server | fertig (0.3.0, Ergänzungen 0.4.0), das meiste ohne Redis |
+| 5b | Community und Lobby: Freunde, Party, Nicks, Reports, Strafvorlagen, Essentials, Multi-Lobby | fertig (nach 0.4.0) |
 | 6 | Veröffentlichen: Maven-Paket, Releases, Doku, Beispiel-Plugin | offen |
 | 7 | Baukasten für Spielmodi (ehemals Game-Engine) | offen |
 
@@ -81,7 +82,8 @@ Grundregeln für alles, was hier entsteht:
 Fast alles läuft im Proxy-Plugin und braucht deshalb kein Redis. Jedes Werkzeug hat einen eigenen Schalter unter `modules`.
 
 - Team-Chat `/sc`, Teamliste `/team`, `/find`, `/goto`, `/send <spieler|all|server:x> <server|group:x>`.
-- Strafen: `/ban`, `/mute` (mit Dauer wie `30m`, `12h`, `7d`, `1w`), `/kick`, `/warn`, `/unban`, `/unmute`, `/history`. Bans greifen beim Login am Proxy, Mutes setzt der Spielserver durch, der Proxy meldet sie ihm über den Kanal `prismarin:moderation`. Als API: `prismarin.punishments()` mit Events.
+- Strafen: `/ban` (dauerhaft), `/tempban`, `/ipban`, `/mute`, `/tempmute`, `/kick`, `/warn`, `/unban`, `/unmute`, `/history`, `/check` und `/punish` mit Vorlagen aus `punishments.yml`. Eine Vorlage hat eine Eskalationsleiter (zum Beispiel Hacking 30d, 90d, dauerhaft), der nächste Schritt ergibt sich aus den bisherigen Verstößen derselben Vorlage. `/punish <spieler>` öffnet auf dem Spielserver ein Menü mit der Stufe, die greifen würde. Bildschirme und Hinweise mit Grund, Dauer, Ende, Fall-Nummer und Einspruchs-Link stehen unter `punishment` in den Sprachdateien des Proxys. Bans greifen beim Login am Proxy, Mutes setzt der Spielserver durch, der Proxy meldet sie ihm über den Kanal `prismarin:moderation`. Als API: `prismarin.punishments()` mit Events und `PunishmentRequest`.
+- Essentials auf den Spielservern: `/tpall`, `/tphere`, `/heal`, `/feed`, `/fly`, `/gm`, `/speed`, `/clearinventory`, `/invsee`, `/enderchest`, `/day`, `/night`, `/sun`, `/rain`, `/thunder`, `/ping`, `/hat`, `/skull`. Jeder Befehl hat ein eigenes Recht und einen Schalter unter `essentials.commands`, das ganze Modul tritt bei EssentialsX oder CMI zurück.
 - Reports: `/report` mit Abklingzeit, `/reports` und `/reports close <id>`, Meldung an das Team und optional an Discord.
 - Ankündigungen: `/alert [-t] [server:x|group:x] Nachricht`, als Chat und auf Wunsch als Titel.
 - Wartung pro Server oder Gruppe: `/maintenance server|group <name> on|off`, Bypass mit `prismarin.maintenance.bypass`.
@@ -92,6 +94,16 @@ Fast alles läuft im Proxy-Plugin und braucht deshalb kein Redis. Jedes Werkzeug
 - Lautlose Behälter (0.4.0): Unsichtbare öffnen Truhen, Fässer und Shulker als Kopie ohne Deckel und Geräusch, Änderungen werden beim Schließen übernommen, wenn sich der Behälter inzwischen nicht verändert hat. Lautloser Abbau ohne Partikel und Geräusch. Beides unter `vanish.silent-containers` und `vanish.silent-blocks` abschaltbar. Offen: die Riss-Animation beim Abbauen und das Platzier-Geräusch sehen und hören andere weiterhin.
 - OPs vom Spielserver auf dem Proxy (0.4.0): Mit `permissions.trust-backend-operators: true` in der `admin.yml` des Proxys bekommen Spieler, die auf ihrem aktuellen Spielserver OP sind, alle `prismarin.*`-Rechte auf dem Proxy. Gedacht für kleine Netzwerke ohne LuckPerms auf dem Proxy, standardmäßig aus.
 - `/prismarin` und `/prismarinproxy` zeigen Version, Speicher, Bus, Systeme, Module und warum ein Modul aus ist.
+
+## Stufe 5b: Community und Lobby (fertig)
+
+- Freunde, Party mit Chat und Mitziehen, `/msg` und `/r` über das ganze Netzwerk, Menüs im Lobby-Profil (`social.yml`).
+- Nick-System mit echtem Namen und Skin, Fake-Rang ohne Rechteverlust, Regeln pro Servergruppe, Runde und Welt (`nick.yml`).
+- Reports mit Gründe-Menü, Bündeln, Chatverlauf, Lagebild, Klick-Aktionen, Auto-Schließen bei Strafe und Dank an Meldende, auch gegen Offline-Spieler.
+- Strafvorlagen mit Eskalation, `/punish`-Menü, Tempban, Tempmute, IP-Bann, `/check` (`punishments.yml`).
+- Essentials-Modul, `/level`, `/rank`, Währungsbefehle pro Währung, LuckPerms-Präfixe mit `&`-Codes.
+- Lobby: Weltlobbys und Lobby-Server mit Verteilung, Premium-Lobby, Sprachmenü, Nick-Tool, Silent-Lobby, eigene Items, Void-Teleport erst nach `/setvoid`.
+- Kommentierte YAML-Dateien über `YamlComments`.
 
 ## Stufe 6: Veröffentlichen
 

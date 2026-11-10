@@ -3,6 +3,7 @@ package net.prismarin.velocity.locale;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 import java.util.Locale;
+import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.prismarin.api.locale.LocaleService;
@@ -16,7 +17,18 @@ import static org.mockito.Mockito.when;
 class ProxyMessagesTest {
 
     private final RecordingLocaleService localeService = new RecordingLocaleService();
-    private final ProxyMessages messages = new ProxyMessages(localeService, Locale.GERMAN);
+    private final PlayerLocaleRegistry registry = new PlayerLocaleRegistry();
+    private final ProxyMessages messages = new ProxyMessages(localeService, Locale.GERMAN, registry);
+
+    @Test
+    void prefersTheLanguageChosenOnTheBackend() {
+        Player player = mock(Player.class);
+        UUID uuid = UUID.randomUUID();
+        when(player.getUniqueId()).thenReturn(uuid);
+        when(player.getEffectiveLocale()).thenReturn(Locale.ENGLISH);
+        registry.update(uuid, "de", "lobby");
+        assertEquals(Locale.GERMAN, messages.localeOf(player));
+    }
 
     @Test
     void usesEffectiveLocaleOfPlayers() {

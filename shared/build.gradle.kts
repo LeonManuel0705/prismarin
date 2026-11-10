@@ -14,6 +14,7 @@ dependencies {
     compileOnly(libs.gson)
     compileOnly(libs.adventure.api)
     compileOnly(libs.adventure.minimessage)
+    compileOnly(libs.adventure.plain)
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

@@ -13,8 +13,6 @@ libraries:
   - org.mariadb.jdbc:mariadb-java-client:4.0.0
   - org.xerial:sqlite-jdbc:3.54.1.0
 commands:
-  coins:
-    description: Shows your own coin balance.
   economy:
     description: Manages player balances.
   network:
@@ -26,13 +24,120 @@ commands:
   prismarin:
     description: Shows the PRISMARIN status or moves data between storages.
     permission: prismarin.admin.info
+  level:
+    description: Shows or changes the level of a player.
+    permission: prismarin.admin.level
+  rank:
+    description: Shows or changes the LuckPerms rank of a player.
+    aliases: [ranks]
+    permission: prismarin.admin.rank
   vanish:
     description: Makes you invisible to players without permission.
     aliases: [v]
     permission: prismarin.vanish.use
+  nick:
+    description: Gives you a random nick, a chosen one or turns auto nick on and off.
+    usage: /nick [name|auto]
+  unnick:
+    description: Removes your nick, staff can name another player.
+    usage: /unnick [player]
+  realname:
+    description: Shows who is behind a nick.
+    usage: /realname [nick]
+    permission: prismarin.nick.realname
+  tpall:
+    description: Teleports every visible player to you.
+    permission: prismarin.essentials.tpall
+  tphere:
+    description: Teleports a player to you.
+    usage: /tphere <player>
+    permission: prismarin.essentials.tphere
+  heal:
+    description: Heals you or another player.
+    usage: /heal [player]
+    permission: prismarin.essentials.heal
+  feed:
+    description: Fills the hunger bar of you or another player.
+    usage: /feed [player]
+    permission: prismarin.essentials.feed
+  fly:
+    description: Turns flying on or off.
+    usage: /fly [player]
+    permission: prismarin.essentials.fly
+  gm:
+    description: Changes the game mode.
+    usage: /gm <0-3|s|c|a|sp> [player]
+    permission: prismarin.essentials.gamemode
+  gmc:
+    description: Switches to creative mode.
+    usage: /gmc [player]
+    permission: prismarin.essentials.gamemode
+  gms:
+    description: Switches to survival mode.
+    usage: /gms [player]
+    permission: prismarin.essentials.gamemode
+  gma:
+    description: Switches to adventure mode.
+    usage: /gma [player]
+    permission: prismarin.essentials.gamemode
+  gmsp:
+    description: Switches to spectator mode.
+    usage: /gmsp [player]
+    permission: prismarin.essentials.gamemode
+  speed:
+    description: Sets the walk speed, or the fly speed while flying.
+    usage: /speed <1-10|reset> [player]
+    permission: prismarin.essentials.speed
+  clearinventory:
+    description: Empties your inventory or the one of another player.
+    usage: /clearinventory [player]
+    aliases: [ci, clearinv]
+    permission: prismarin.essentials.clearinventory
+  invsee:
+    description: Opens the inventory of another player.
+    usage: /invsee <player>
+    permission: prismarin.essentials.invsee
+  enderchest:
+    description: Opens your ender chest or the one of another player.
+    usage: /enderchest [player]
+    aliases: [ec, echest]
+    permission: prismarin.essentials.enderchest
+  day:
+    description: Sets the time to day.
+    usage: /day [world]
+    permission: prismarin.essentials.time
+  night:
+    description: Sets the time to night.
+    usage: /night [world]
+    permission: prismarin.essentials.time
+  sun:
+    description: Clears the weather.
+    usage: /sun [world]
+    permission: prismarin.essentials.weather
+  rain:
+    description: Lets it rain.
+    usage: /rain [world]
+    permission: prismarin.essentials.weather
+  thunder:
+    description: Starts a thunderstorm.
+    usage: /thunder [world]
+    permission: prismarin.essentials.weather
+  ping:
+    description: Shows your ping or the ping of another player.
+    usage: /ping [player]
+    permission: prismarin.essentials.ping
+  hat:
+    description: Puts the item in your hand on your head.
+    permission: prismarin.essentials.hat
+  skull:
+    description: Gives you the head of a player.
+    usage: /skull [name]
+    permission: prismarin.essentials.skull
 permissions:
   prismarin.command.coins:
     default: true
+  prismarin.command.balance.others:
+    default: op
   prismarin.admin.economy:
     default: op
   prismarin.chat.format:
@@ -45,9 +150,73 @@ permissions:
     default: true
   prismarin.admin.info:
     default: op
+  prismarin.admin.level:
+    default: op
+  prismarin.admin.rank:
+    default: op
   prismarin.vanish.use:
     default: op
   prismarin.vanish.others:
     default: op
   prismarin.vanish.see:
+    default: op
+  prismarin.nick.use:
+    default: op
+  prismarin.nick.custom:
+    default: op
+  prismarin.nick.auto:
+    default: op
+  prismarin.nick.others:
+    default: op
+  prismarin.nick.realname:
+    default: op
+  prismarin.essentials.tpall:
+    default: op
+  prismarin.essentials.tphere:
+    default: op
+  prismarin.essentials.heal:
+    default: op
+  prismarin.essentials.heal.others:
+    default: op
+  prismarin.essentials.feed:
+    default: op
+  prismarin.essentials.feed.others:
+    default: op
+  prismarin.essentials.fly:
+    default: op
+  prismarin.essentials.fly.others:
+    default: op
+  prismarin.essentials.gamemode:
+    default: op
+  prismarin.essentials.gamemode.others:
+    default: op
+  prismarin.essentials.speed:
+    default: op
+  prismarin.essentials.speed.others:
+    default: op
+  prismarin.essentials.clearinventory:
+    default: op
+  prismarin.essentials.clearinventory.others:
+    default: op
+  prismarin.essentials.invsee:
+    default: op
+  prismarin.essentials.invsee.modify:
+    default: op
+  prismarin.essentials.enderchest:
+    default: op
+  prismarin.essentials.enderchest.others:
+    default: op
+  prismarin.essentials.enderchest.modify:
+    default: op
+  prismarin.essentials.time:
+    default: op
+  prismarin.essentials.weather:
+    default: op
+  prismarin.essentials.ping:
+    default: true
+  prismarin.essentials.ping.others:
+    default: true
+  prismarin.essentials.hat:
+    default: op
+  prismarin.essentials.skull:
     default: op

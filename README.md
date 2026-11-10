@@ -14,14 +14,19 @@ The point of the architecture is that a game mode never talks to a database. It 
 | Text | MiniMessage, `&` colour codes, `&#RRGGBB` and `&x&R&R&G&G&B&B` hex, placeholders written as `%name%` |
 | Servers | A directory with groups and properties per server, used by the navigator and by plugins |
 | Game servers | Game states (waiting, starting, running, ending, full) from the API or from a placeholder of any game plugin, visible to lobbies even without Redis, plus `/play <group>` and `connectToGroup` that pick the best free server |
-| Admin | Staff chat, staff list, `/find`, `/send`, `/goto`, bans and mutes with durations, kicks, warnings, history, reports, broadcasts, maintenance per server or group, player records, an audit log, outage alerts with Discord webhook, `/netexec`, a SuperVanish style vanish with silent containers, and `/prismarin migrate` to move all data between storage backends |
+| Admin | Staff chat, staff list, `/find`, `/send`, `/goto`, bans, temporary bans, IP bans, mutes, kicks and warnings with templates that escalate on repeat offences, a punish menu, `/check` and history, reports, broadcasts, maintenance per server or group, player records, an audit log, outage alerts with Discord webhook, `/netexec`, a SuperVanish style vanish with silent containers, and `/prismarin migrate` to move all data between storage backends |
+| Essentials | `/tpall`, `/tphere`, `/heal`, `/feed`, `/fly`, `/gm`, `/speed`, `/clearinventory`, `/invsee`, `/enderchest`, `/day`, `/night`, `/sun`, `/rain`, `/thunder`, `/ping`, `/hat` and `/skull`, each with its own permission and switch, stepping aside when EssentialsX or CMI is installed |
+| Reports | `/report` opens a reason menu, bundles reports against the same player into one case, attaches the recent chat as evidence, shows staff the client, ping and record with one click actions, closes cases when a punishment is issued and thanks the reporters, also for offline players |
+| Nicks | A cross server nick system that changes the name and the skin, with a fake rank that keeps real permissions, auto nick, rules per server group, per round and per world |
+| Friends and parties | Friend requests, online status and jump, parties with chat and follow the leader, network wide `/msg` and `/r`, all reachable from the lobby profile menu |
+| Ranks and levels | `/rank` sets, adds or removes LuckPerms groups with optional durations, LuckPerms prefixes with `&` codes colour the name, `/level` sets, adds or removes levels and XP, a balance command per currency plus `/balance` |
 | Network overview | `/network` opens a live inventory with status, players, ping, version, TPS, memory and uptime per server |
 | Events | `ProfileLoadedEvent`, `ProfileUnloadedEvent`, `BalanceChangedEvent`, `PunishmentIssuedEvent` and `PunishmentRevokedEvent` on proxy and backends |
 | Vault | Registers as the Vault economy for the classic API and the multi currency VaultUnlocked API, so every shop or game plugin pays out network currency |
 | PlaceholderAPI | `%prismarin_balance%`, `%prismarin_group_online_bedwars%` and more for other plugins, and PlaceholderAPI placeholders inside PRISMARIN's own tablist, sidebar and chat |
 | Compatibility | Switches its own tablist, sidebar or chat format off when TAB, a scoreboard plugin or a chat plugin is installed |
 | Systems and modules | Whole systems (economy, levels, network status) and single features (chat, tablist, sidebar, join messages, commands, proxy features, lobby parts) can each be switched off |
-| Lobby | An optional ready made lobby with navigator, profile menu, player hider and double jump |
+| Lobby | An optional ready made lobby with navigator, lobby selector for several lobby worlds or servers with premium lobbies, profile menu, language menu, nick tool, silent lobby, player hider, double jump, void teleport and custom hotbar items with click actions |
 
 ## Architecture
 

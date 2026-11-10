@@ -1,3 +1,6 @@
+language:
+  name: "English"
+  icon: "BLUE_BANNER"
 prefix: "%brand_prefix%"
 general:
   player-not-found: "%brand_prefix%The player <color:#22D3EE>%player%</color> could not be found.</gray>"
@@ -12,6 +15,22 @@ chat:
 rank:
   admin-prefix: "<red><b>Admin</b></red>"
   default-prefix: "<gray>Player</gray>"
+  usage: "%brand_prefix%Usage: <color:#22D3EE>/rank player [set|add|remove] [rank] [duration]</color> or <color:#22D3EE>/rank list</color></gray>"
+  no-luckperms: "%brand_prefix%✖ Ranks need LuckPerms.</gray>"
+  unknown-group: "%brand_prefix%✖ There is no rank called <color:#22D3EE>%group%</color>.</gray>"
+  invalid-duration: "%brand_prefix%✖ <color:#22D3EE>%duration%</color> is not a valid duration, for example 30d or 12h.</gray>"
+  set: "%brand_prefix%✔ <white>%player%</white> now has the rank <color:#22D3EE>%group%</color>.</gray>"
+  set-temporary: "%brand_prefix%✔ <white>%player%</white> now has the rank <color:#22D3EE>%group%</color> for <white>%duration%</white>.</gray>"
+  added: "%brand_prefix%✔ <white>%player%</white> got the additional rank <color:#22D3EE>%group%</color>.</gray>"
+  added-temporary: "%brand_prefix%✔ <white>%player%</white> got the additional rank <color:#22D3EE>%group%</color> for <white>%duration%</white>.</gray>"
+  removed: "%brand_prefix%✔ <white>%player%</white> no longer has the rank <color:#22D3EE>%group%</color>.</gray>"
+  received: "%brand_prefix%✔ You received the rank <color:#22D3EE>%group%</color>.</gray>"
+  failed: "%brand_prefix%✖ That did not work: <white>%reason%</white></gray>"
+  info-header: "%brand_prefix%<white>%player%</white> <dark_gray>·</dark_gray> primary rank <color:#22D3EE>%group%</color></gray>"
+  info-entry: " <dark_gray>»</dark_gray> <white>%group%</white> <dark_gray>(permanent)</dark_gray>"
+  info-temporary: " <dark_gray>»</dark_gray> <white>%group%</white> <dark_gray>(%duration% left)</dark_gray>"
+  list-header: "%brand_prefix%Ranks <dark_gray>(%count%)</dark_gray></gray>"
+  list-entry: " <dark_gray>»</dark_gray> <white>%group%</white> <dark_gray>weight %weight%</dark_gray> %prefix%"
 join:
   message: "<dark_gray>[<color:#2DD4BF>+</color>]</dark_gray> <gray>%player%</gray>"
   first-message: "<dark_gray>[<color:#FBBF24>◆</color>]</dark_gray> <color:#FBBF24>%player%</color> <gray>joined</gray> %brand% <gray>for the first time!</gray>"
@@ -20,6 +39,10 @@ quit:
   message: "<dark_gray>[<red>-</red>]</dark_gray> <gray>%player%</gray>"
 economy:
   balance: "%brand_prefix%Your balance: <color:#FBBF24>◆ %amount%</color> %currency%</gray>"
+  balance-other: "%brand_prefix%<white>%player%</white> has <color:#FBBF24>◆ %amount%</color> %currency%</gray>"
+  balance-all: "%brand_prefix%Your balances:</gray>"
+  balance-all-other: "%brand_prefix%Balances of <white>%player%</white>:</gray>"
+  balance-entry: " <dark_gray>»</dark_gray> %currency%<gray>:</gray> <color:#FBBF24>%amount%</color>"
   deposit-success: "%brand_prefix%✔ You received <color:#FBBF24>%amount%</color> %currency%<gray>. New balance: <color:#FBBF24>%balance%</color></gray>"
   withdraw-success: "%brand_prefix%✔ Withdrew <color:#FBBF24>%amount%</color> %currency%<gray>. New balance: <color:#FBBF24>%balance%</color></gray>"
   insufficient-funds: "%brand_prefix%✖ Not enough %currency%<gray>. You are missing <color:#FBBF24>%missing%</color>.</gray>"
@@ -51,6 +74,12 @@ lobby:
     navigator:
       name: "<color:#22D3EE>◆ Navigator</color> <dark_gray>› Right click</dark_gray>"
       lore: "<gray>Opens the server selection.</gray>"
+    lobby-selector:
+      name: "<color:#2DD4BF>◆ Lobbies</color> <dark_gray>› Right click</dark_gray>"
+      lore: "<gray>Switch to another lobby.</gray>"
+    premium:
+      name: "<color:#FBBF24>◆ Premium lobby</color> <dark_gray>› Right click</dark_gray>"
+      lore: "<gray>Takes you to the premium lobby.</gray>"
     profile:
       name: "<color:#2DD4BF>● %player%</color> <dark_gray>› Right click</dark_gray>"
       lore:
@@ -58,10 +87,18 @@ lobby:
         gems: "<gray>Gems:</gray> <color:#2DD4BF>%gems%</color>"
         currency: "<gray>%currency%:</gray> <white>%amount%</white>"
         level: "<gray>Level:</gray> <color:#22D3EE>%level%</color>"
+        rank: "<gray>Rank:</gray> %rank%"
     hider:
       visible: "<color:#2DD4BF>● Players visible</color> <dark_gray>› Right click</dark_gray>"
       hidden: "<gray>● Players hidden</gray> <dark_gray>› Right click</dark_gray>"
       lore: "<gray>Hides every other player.</gray>"
+    nick-tool:
+      name: "<color:#FBBF24>◆ Nick</color> <dark_gray>› Right click</dark_gray>"
+      lore: "<gray>Nick yourself or switch auto nick on and off.</gray>"
+    silent:
+      "off": "<color:#C084FC>◆ Silent lobby</color> <dark_gray>› Right click</dark_gray>"
+      "on": "<color:#C084FC>● Silent lobby is on</color> <dark_gray>› Right click</dark_gray>"
+      lore: "<gray>You see nobody, nobody sees you and lobby chat stays quiet.</gray>"
   navigator:
     group-lore: "<gray>%online% players</gray> <dark_gray>·</dark_gray> <color:#2DD4BF>%joinable%</color> <gray>free servers</gray>"
     group-click: "<color:#22D3EE>Click to play</color>"
@@ -71,6 +108,7 @@ lobby:
     here-name: "<gray>%server%</gray>"
     here: "<gray>● You are here.</gray>"
     connect: "<color:#22D3EE>» Click to connect</color>"
+    lobby-click: "<color:#22D3EE>» Click to pick a lobby</color>"
     connecting: "%brand_prefix%Connecting you to %server%<gray> ...</gray>"
     already-here: "<gray>You are already on this server.</gray>"
     description:
@@ -91,11 +129,47 @@ lobby:
     level:
       name: "<color:#22D3EE>◆ Level %level%</color>"
       lore: "%bar% <gray>%xp%/%max% XP</gray>"
-    locale:
+    rank:
+      name: "<color:#22D3EE>◆ Rank</color>"
+      lore: "%rank%"
+    language:
       name: "<color:#22D3EE>◆ Language</color>"
-      current: "<gray>Current:</gray> <color:#22D3EE>English</color>"
-      hint: "<color:#22D3EE>» Click for German</color>"
-      changed: "%brand_prefix%✔ Language switched to <color:#22D3EE>English</color>.</gray>"
+      current: "<gray>Current:</gray> <color:#22D3EE>%language%</color>"
+      hint-toggle: "<color:#22D3EE>» Click for %language%</color>"
+      hint-menu: "<color:#22D3EE>» Click to choose</color>"
+      changed: "%brand_prefix%✔ Language switched to <color:#22D3EE>%language%</color>.</gray>"
+      title: "<gradient:#22D3EE:#2DD4BF><b>Language</b></gradient>"
+      entry: "<color:#22D3EE>%language%</color>"
+      selected: "<gray>● Selected</gray>"
+      select: "<color:#22D3EE>» Click to choose</color>"
+    friends:
+      name: "<color:#2DD4BF>◆ Friends</color>"
+      lore: "<gray>Who is online, where they play and open requests.</gray>"
+      click: "<color:#22D3EE>» Click to open</color>"
+    party:
+      name: "<color:#C084FC>◆ Party</color>"
+      lore: "<gray>Play together and follow your leader.</gray>"
+      click: "<color:#22D3EE>» Click to open</color>"
+  selector:
+    title: "<gradient:#22D3EE:#2DD4BF><b>Lobbies</b></gradient>"
+    players: "<gray>%players% players</gray>"
+    players-max: "<gray>%players%/%max% players</gray>"
+    offline: "<red>● Offline</red>"
+    premium: "<color:#FBBF24>◆ Premium</color>"
+    here: "<gray>● You are here.</gray>"
+    click: "<color:#22D3EE>» Click to join</color>"
+    locked: "<red>✖ Premium only</red>"
+    unavailable: "<red>✖ Not reachable right now</red>"
+    empty: "<gray>No lobby is available right now.</gray>"
+    already-here: "<gray>You are already in</gray> %lobby%<gray>.</gray>"
+    teleported: "%brand_prefix%✔ Welcome to %lobby%<gray>.</gray>"
+    no-spawn: "%brand_prefix%✖ %lobby% <gray>has no spawn yet.</gray>"
+    no-permission: "%brand_prefix%✖ %lobby% <gray>is for premium players only.</gray>"
+    unreachable: "%brand_prefix%✖ %lobby% <gray>is not reachable right now.</gray>"
+  premium:
+    none: "%brand_prefix%✖ There is no premium lobby right now.</gray>"
+    locked: "%brand_prefix%✖ The premium lobby is for premium players only.</gray>"
+    already-here: "<gray>You are already in the premium lobby.</gray>"
   hider:
     hidden: "<gray>All players are now <color:#22D3EE>hidden</color>.</gray>"
     shown: "<gray>All players are now <color:#2DD4BF>visible</color>.</gray>"
@@ -103,9 +177,29 @@ lobby:
   build:
     enabled: "%brand_prefix%✔ Build mode <color:#2DD4BF>enabled</color>. The lobby protections no longer apply to you.</gray>"
     disabled: "%brand_prefix%✔ Build mode <color:#22D3EE>disabled</color>. The lobby protections apply again.</gray>"
+    taken: "%brand_prefix%✔ Ended the build mode of <color:#22D3EE>%player%</color>.</gray>"
+    taken-target: "%brand_prefix%Your build mode was ended by <color:#22D3EE>%player%</color>.</gray>"
+    not-active: "%brand_prefix%✖ <color:#22D3EE>%player%</color> is not in build mode.</gray>"
+    usage-console: "%brand_prefix%Usage: <color:#22D3EE>/lobbybuild player</color></gray>"
   setspawn:
     success: "%brand_prefix%✔ Spawn set: <color:#22D3EE>%x% / %y% / %z%</color> <gray>in</gray> <color:#22D3EE>%world%</color><gray>.</gray>"
     failed: "%brand_prefix%✖ The spawn could not be saved.</gray>"
+    cleared: "%brand_prefix%✔ Removed the spawn in <color:#22D3EE>%world%</color>.</gray>"
+    none: "%brand_prefix%✖ There is no spawn in <color:#22D3EE>%world%</color>.</gray>"
+    void-hint: "%brand_prefix%Tip: <color:#22D3EE>/setvoid height</color> brings players back from the void.</gray>"
+    below-void: "%brand_prefix%Careful: this spawn is below the void height <color:#22D3EE>Y %y%</color>. Nobody is brought back there, lower the height with <color:#22D3EE>/setvoid</color>.</gray>"
+  setvoid:
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/setvoid height|here|off [world]</color></gray>"
+    status-on: "%brand_prefix%Void teleport in <color:#22D3EE>%world%</color>: below Y <color:#22D3EE>%y%</color>.</gray>"
+    status-off: "%brand_prefix%Void teleport in <color:#22D3EE>%world%</color> is off.</gray>"
+    set: "%brand_prefix%✔ Players falling below Y <color:#22D3EE>%y%</color> in <color:#22D3EE>%world%</color> now return to the spawn.</gray>"
+    disabled: "%brand_prefix%✔ Void teleport in <color:#22D3EE>%world%</color> switched off.</gray>"
+    no-spawn: "%brand_prefix%Tip: set a spawn with <color:#22D3EE>/setspawn</color> as well, otherwise nobody is teleported.</gray>"
+    spawn-below: "%brand_prefix%Careful: the spawn in <color:#22D3EE>%world%</color> is below <color:#22D3EE>Y %y%</color>. Nobody is brought back there, set a lower height.</gray>"
+    not-lobby-world: "%brand_prefix%Note: <color:#22D3EE>%world%</color> is no lobby world. Add it under <color:#22D3EE>worlds</color> in config.yml.</gray>"
+    invalid: "%brand_prefix%✖ <color:#22D3EE>%value%</color> is no valid height.</gray>"
+    unknown-world: "%brand_prefix%✖ There is no world called <color:#22D3EE>%world%</color>.</gray>"
+    failed: "%brand_prefix%✖ The height could not be saved.</gray>"
   sidebar:
     rank-label: "<gray>Rank</gray>"
     rank: " %rank%"
@@ -116,25 +210,60 @@ lobby:
     progress: " %bar% <dark_gray>%xp%/%max%</dark_gray>"
     online: "<gray>Online:</gray> <color:#22D3EE>%online%</color>"
     footer: "<color:#22D3EE>prismarin.net</color>"
+  silent:
+    "on": "<color:#C084FC>● Silent lobby on</color> <dark_gray>·</dark_gray> <gray>you see nobody and nobody sees you</gray>"
+    "off": "<color:#2DD4BF>● Silent lobby off</color> <dark_gray>·</dark_gray> <gray>everyone is back</gray>"
+    cooldown: "<gray>Please wait another <color:#FBBF24>%seconds%s</color>.</gray>"
+  nick-tool:
+    title: "<gradient:#FBBF24:#F472B6><b>Nick</b></gradient>"
+    status:
+      name: "<white>%player%</white>"
+      nicked: "<gray>Nick:</gray> <color:#FBBF24>%nick%</color>"
+      none: "<gray>Nick:</gray> <dark_gray>none</dark_gray>"
+      auto-on: "<gray>Auto nick:</gray> <color:#2DD4BF>on</color>"
+      auto-off: "<gray>Auto nick:</gray> <dark_gray>off</dark_gray>"
+      where: "<gray>Nicks show on game servers, not here in the lobby.</gray>"
+      custom: "<gray>Your own name:</gray> <color:#22D3EE>/nick name</color>"
+    random:
+      name: "<color:#FBBF24>◆ Nick now</color>"
+      again: "<color:#FBBF24>◆ New random nick</color>"
+      lore: "<gray>Gives you a random name and skin.</gray>"
+    auto:
+      "on": "<color:#2DD4BF>● Auto nick on</color>"
+      "off": "<gray>● Auto nick off</gray>"
+      lore: "<gray>Nicks you on every join where nicks are on.</gray>"
+    remove:
+      name: "<red>✖ Remove nick</red>"
+      lore: "<gray>You play as yourself again instead of</gray> <color:#FBBF24>%nick%</color><gray>.</gray>"
 network:
-  menu:
-    title: "<dark_gray>Network</dark_gray> <dark_gray>(</dark_gray><color:#2DD4BF>%online%</color><dark_gray>/</dark_gray><gray>%total%</gray><dark_gray>)</dark_gray>"
-    summary: "<white>%players%</white> <gray>players on</gray> <color:#2DD4BF>%online%</color><gray>/%total% servers</gray>"
-    refresh: "<color:#22D3EE>Refresh</color>"
-  server:
-    state: "<gray>State:</gray> %state%"
-    group: "<gray>Group:</gray> <white>%group%</white>"
-    offline: "<red>● Offline</red>"
-    players: "<gray>Players:</gray> <white>%players%</white><dark_gray>/</dark_gray><gray>%max%</gray>"
-    ping: "<gray>Ping:</gray> <white>%ping% ms</white>"
-    ping-unknown: "<gray>Ping:</gray> <dark_gray>unknown</dark_gray>"
-    version: "<gray>Version:</gray> <white>%version%</white>"
-    tps: "<gray>TPS:</gray> <white>%tps%</white> <dark_gray>(%mspt% ms/tick)</dark_gray>"
-    memory: "<gray>RAM:</gray> <white>%used%</white><dark_gray>/</dark_gray><gray>%max% MB</gray>"
-    uptime: "<gray>Uptime:</gray> <white>%uptime%</white>"
-    no-metrics: "<dark_gray>No PRISMARIN: ping data only</dark_gray>"
-    here: "<color:#2DD4BF>● You are here</color>"
-    connect: "<color:#22D3EE>Click to connect</color>"
+  overview:
+    title: "<dark_gray>Network</dark_gray> <dark_gray>·</dark_gray> <brand_accent>%online%</brand_accent><dark_gray>/</dark_gray><gray>%total% online</gray>"
+    summary: "<brand_primary><b>Network overview</b></brand_primary>"
+    players: "<gray>Players online:</gray> <white>%players%</white> <dark_gray>of %max% slots</dark_gray>"
+    servers: "<gray>Servers reachable:</gray> <white>%online%</white> <dark_gray>of %total%</dark_gray>"
+    tps: "<gray>Average TPS:</gray> <white>%tps%</white>"
+    updated: "<gray>Updated:</gray> <white>%time%</white>"
+    legend: "<#4ADE80>●</#4ADE80> <gray>Ready</gray>  <#FACC15>●</#FACC15> <gray>Slow</gray>  <#FB923C>●</#FB923C> <gray>Full or in game</gray>  <#F87171>●</#F87171> <gray>Offline</gray>"
+    refresh: "<brand_primary>Refresh</brand_primary>"
+    refresh-hint: "<gray>Asks every server again</gray>"
+    previous: "<gray>« Page %page%/%pages%</gray>"
+    next: "<gray>Page %page%/%pages% »</gray>"
+  card:
+    group: "<dark_gray>%group% · %server%</dark_gray>"
+    online: "<#4ADE80>Online</#4ADE80>"
+    offline: "<#F87171>Not reachable</#F87171>"
+    state: "<gray>State</gray> <dark_gray>»</dark_gray> %state%"
+    players: "<gray>Players</gray> <dark_gray>»</dark_gray> <white>%players%</white><dark_gray>/</dark_gray><gray>%max%</gray>  %bar%"
+    ping: "<gray>Ping</gray> <dark_gray>»</dark_gray> <white>%ping% ms</white>"
+    ping-unknown: "<gray>Ping</gray> <dark_gray>»</dark_gray> <dark_gray>unknown</dark_gray>"
+    tps: "<gray>TPS</gray> <dark_gray>»</dark_gray> <white>%tps%</white> <dark_gray>(%mspt% ms per tick)</dark_gray>"
+    memory: "<gray>RAM</gray> <dark_gray>»</dark_gray> <white>%used%</white><dark_gray>/</dark_gray><gray>%max% MB</gray>"
+    uptime: "<gray>Uptime</gray> <dark_gray>»</dark_gray> <white>%uptime%</white>"
+    version: "<gray>Version</gray> <dark_gray>»</dark_gray> <white>%version%</white>"
+    no-metrics: "<dark_gray>Without PRISMARIN only ping data</dark_gray>"
+    here: "<brand_accent>● You are on this server</brand_accent>"
+    connect: "<brand_primary>» Click to connect</brand_primary>"
+    unreachable: "<dark_gray>Cannot connect right now</dark_gray>"
 game-state:
   unknown: "<gray>Unknown</gray>"
   waiting: "<color:#2DD4BF>Waiting</color>"
@@ -151,11 +280,26 @@ play:
 vanish:
   silent-title: "<dark_gray>Opened silently</dark_gray>"
   container-changed: "%brand_prefix%✖ The container changed in the meantime, your changes were not saved.</gray>"
-  reminder: "<color:#2DD4BF>● You are vanished</color>"
+  actionbar: "<brand_accent>▶</brand_accent> <gradient:#22D3EE:#2DD4BF>You are vanished</gradient> <brand_accent>◀</brand_accent>"
   enabled: "%brand_prefix%✔ You are now <color:#2DD4BF>vanished</color>.</gray>"
   disabled: "%brand_prefix%✔ You are <color:#22D3EE>visible</color> again.</gray>"
   enabled-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> is now vanished.</gray>"
   disabled-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> is visible again.</gray>"
+level:
+  usage: "%brand_prefix%Usage: <color:#22D3EE>/level player [set|add|remove|addxp] [amount]</color></gray>"
+  invalid-amount: "%brand_prefix%✖ Please enter a valid amount.</gray>"
+  show: "%brand_prefix%<white>%player%</white> is level <color:#22D3EE>%level%</color> <dark_gray>(%xp%/%max% XP)</dark_gray></gray>"
+  changed: "%brand_prefix%✔ <white>%player%</white>: level <dark_gray>%before%</dark_gray> <gray>»</gray> <color:#22D3EE>%level%</color> <dark_gray>(%xp% XP)</dark_gray></gray>"
+  up: "%brand_prefix%✔ You are now level <color:#22D3EE>%level%</color>!</gray>"
+  down: "%brand_prefix%Your level was set to <color:#22D3EE>%level%</color>.</gray>"
+report:
+  menu:
+    title: "<dark_gray>Report</dark_gray> <dark_gray>·</dark_gray> <white>%player%</white>"
+    target: "<gray>Report</gray> <white>%player%</white>"
+    target-lore: "<gray>Pick the matching reason below.</gray>"
+    reason: "<white>%reason%</white>"
+    reason-lore: "<brand_primary>» Click to report %player%</brand_primary>"
+    cancel: "<red>Cancel</red>"
 moderation:
   muted: "%brand_prefix%✖ You are muted. Reason: <white>%reason%</white><gray>, remaining</gray> <white>%remaining%</white><gray>.</gray>"
 admin:
@@ -171,3 +315,236 @@ admin:
   migrate-start: "%brand_prefix%Moving data from <color:#22D3EE>%from%</color> to <color:#22D3EE>%to%</color> ...</gray>"
   migrate-done: "%brand_prefix%✔ Done: <white>%profiles%</white> profiles, <white>%balances%</white> balances, <white>%documents%</white> documents. Now set <color:#22D3EE>storage.mode: %to%</color> and restart.</gray>"
   migrate-failed: "%brand_prefix%✖ Migration stopped: <white>%reason%</white></gray>"
+nick:
+  usage: "%brand_prefix%Usage: <color:#22D3EE>/nick</color>, <color:#22D3EE>/nick name</color> or <color:#22D3EE>/nick auto</color></gray>"
+  applied: "%brand_prefix%✔ You are now nicked as <color:#22D3EE>%nick%</color><gray>.</gray>"
+  stored: "%brand_prefix%✔ Your nick <color:#22D3EE>%nick%</color> is saved. It shows wherever nicks are on, for example on game servers or in a round.</gray>"
+  removed: "%brand_prefix%✔ Your nick is gone. You play as <color:#22D3EE>%name%</color> again.</gray>"
+  auto-still-on: "%brand_prefix%Auto nick is still on, so the next server nicks you again. <color:#22D3EE>/nick auto</color> turns it off.</gray>"
+  removed-by-staff: "%brand_prefix%A team member removed your nick. You play as <color:#22D3EE>%name%</color> again.</gray>"
+  not-nicked: "%brand_prefix%✖ You are not nicked.</gray>"
+  invalid-name: "%brand_prefix%✖ <color:#22D3EE>%nick%</color> cannot be used as a nick. Use 3 to 16 letters, numbers or underscores.</gray>"
+  name-taken: "%brand_prefix%✖ The name <color:#22D3EE>%nick%</color> is already taken.</gray>"
+  no-free-name: "%brand_prefix%✖ No free nick was found. Please try again.</gray>"
+  failed: "%brand_prefix%✖ Your nick could not be changed. Please try again.</gray>"
+  disabled: "%brand_prefix%✖ Nicks are switched off on this server.</gray>"
+  busy: "%brand_prefix%✖ Your nick is being changed right now, one moment.</gray>"
+  auto-on: "%brand_prefix%✔ Auto nick is <color:#2DD4BF>on</color>. You get a random nick wherever nicks are on.</gray>"
+  auto-off: "%brand_prefix%✔ Auto nick is <color:#22D3EE>off</color>.</gray>"
+  auto-not-here: "%brand_prefix%This server does not hand out auto nicks, the setting still counts on servers that do.</gray>"
+  actionbar: "<brand_accent>▶</brand_accent> <gray>Nicked as</gray> <white>%nick%</white> <brand_accent>◀</brand_accent>"
+  revealed: "%brand_prefix%The round is over, you play as <color:#22D3EE>%name%</color> again.</gray>"
+  renamed: "%brand_prefix%The player <color:#22D3EE>%old%</color> joined, so your nick is now <color:#22D3EE>%nick%</color><gray>.</gray>"
+  login-retry: "%brand%<newline><newline><gray>Your name is still in use as a nick on this server.</gray><newline><gray>It is being freed up, please join again in a moment.</gray>"
+  others:
+    removed: "%brand_prefix%✔ Removed the nick <color:#22D3EE>%player%</color> of <color:#FBBF24>%name%</color><gray>.</gray>"
+    not-nicked: "%brand_prefix%✖ <color:#22D3EE>%player%</color> is not nicked.</gray>"
+  realname:
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/realname nick</color></gray>"
+    result: "%brand_prefix%<color:#22D3EE>%nick%</color> is <color:#FBBF24>%name%</color><gray>.</gray>"
+    result-remote: "%brand_prefix%<color:#22D3EE>%nick%</color> is <color:#FBBF24>%name%</color> <dark_gray>(last seen on %server%)</dark_gray></gray>"
+    unknown: "%brand_prefix%✖ Nobody uses the nick <color:#22D3EE>%nick%</color><gray>.</gray>"
+    list-header: "%brand_prefix%Nicked players on this server: <white>%count%</white></gray>"
+    list-entry: " <color:#22D3EE>%nick%</color> <dark_gray>»</dark_gray> <color:#FBBF24>%name%</color>"
+    list-empty: "%brand_prefix%Nobody is nicked on this server.</gray>"
+essentials:
+  teleport:
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/tphere player</color></gray>"
+    all: "%brand_prefix%✔ Brought <color:#22D3EE>%count%</color> players to you.</gray>"
+    nobody: "%brand_prefix%✖ There is nobody you could bring here.</gray>"
+    here: "%brand_prefix%✔ Brought <color:#22D3EE>%player%</color> to you.</gray>"
+    self: "%brand_prefix%✖ You are already where you are.</gray>"
+    pulled: "%brand_prefix%<color:#22D3EE>%player%</color> brought you to them.</gray>"
+    pulled-hidden: "%brand_prefix%You were teleported.</gray>"
+  heal:
+    self: "%brand_prefix%✔ You were healed.</gray>"
+    other: "%brand_prefix%✔ Healed <color:#22D3EE>%player%</color>.</gray>"
+    dead: "%brand_prefix%✖ <color:#22D3EE>%player%</color> is dead right now.</gray>"
+  feed:
+    self: "%brand_prefix%✔ Your hunger is gone.</gray>"
+    other: "%brand_prefix%✔ Fed <color:#22D3EE>%player%</color>.</gray>"
+  fly:
+    "on": "%brand_prefix%✔ Flying is <color:#2DD4BF>on</color>.</gray>"
+    "off": "%brand_prefix%✔ Flying is <color:#22D3EE>off</color>.</gray>"
+    on-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> can fly now.</gray>"
+    off-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> can no longer fly.</gray>"
+  gamemode:
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/gm 0|1|2|3 [player]</color> <gray>or</gray> <color:#22D3EE>/gms, /gmc, /gma, /gmsp</color></gray>"
+    changed: "%brand_prefix%✔ Game mode: <color:#22D3EE>%mode%</color>.</gray>"
+    changed-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> now plays in <color:#22D3EE>%mode%</color> mode.</gray>"
+    mode:
+      survival: "Survival"
+      creative: "Creative"
+      adventure: "Adventure"
+      spectator: "Spectator"
+  speed:
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/speed 1-10|reset [player]</color> <dark_gray>(while flying it sets the fly speed)</dark_gray></gray>"
+    walk: "%brand_prefix%✔ Walk speed <color:#22D3EE>%speed%</color>.</gray>"
+    fly: "%brand_prefix%✔ Fly speed <color:#22D3EE>%speed%</color>.</gray>"
+    walk-other: "%brand_prefix%✔ Walk speed of <color:#22D3EE>%player%</color>: <color:#22D3EE>%speed%</color>.</gray>"
+    fly-other: "%brand_prefix%✔ Fly speed of <color:#22D3EE>%player%</color>: <color:#22D3EE>%speed%</color>.</gray>"
+  clear:
+    self: "%brand_prefix%✔ Your inventory is empty.</gray>"
+    other: "%brand_prefix%✔ The inventory of <color:#22D3EE>%player%</color> is empty.</gray>"
+  invsee:
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/invsee player</color> <gray>or</gray> <color:#22D3EE>/enderchest [player]</color></gray>"
+    self: "%brand_prefix%✖ Open your own inventory with <color:#22D3EE>E</color>.</gray>"
+    opened: "%brand_prefix%Opened the inventory of <color:#22D3EE>%player%</color>.</gray>"
+    view-only: "%brand_prefix%Opened the inventory of <color:#22D3EE>%player%</color>, view only.</gray>"
+  enderchest:
+    opened: "%brand_prefix%Opened the ender chest of <color:#22D3EE>%player%</color>.</gray>"
+    view-only: "%brand_prefix%Opened the ender chest of <color:#22D3EE>%player%</color>, view only.</gray>"
+  world:
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/%command% world</color></gray>"
+    unknown: "%brand_prefix%✖ There is no world called <color:#22D3EE>%world%</color>.</gray>"
+    day: "%brand_prefix%✔ It is day in <color:#22D3EE>%world%</color> now.</gray>"
+    night: "%brand_prefix%✔ It is night in <color:#22D3EE>%world%</color> now.</gray>"
+    sun: "%brand_prefix%✔ The sun shines in <color:#22D3EE>%world%</color> now.</gray>"
+    rain: "%brand_prefix%✔ It rains in <color:#22D3EE>%world%</color> now.</gray>"
+    thunder: "%brand_prefix%✔ A thunderstorm rolls over <color:#22D3EE>%world%</color> now.</gray>"
+  ping:
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/ping player</color></gray>"
+    self: "%brand_prefix%Your ping: %ping%</gray>"
+    other: "%brand_prefix%Ping of <color:#22D3EE>%player%</color>: %ping%</gray>"
+    good: "<color:#2DD4BF>%ms% ms</color>"
+    fair: "<color:#FBBF24>%ms% ms</color>"
+    poor: "<red>%ms% ms</red>"
+  hat:
+    empty: "%brand_prefix%✖ Hold an item in your hand first.</gray>"
+    done: "%brand_prefix%✔ You now wear <white>%item%</white> on your head.</gray>"
+  skull:
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/skull [name]</color></gray>"
+    invalid: "%brand_prefix%✖ <color:#22D3EE>%player%</color> is no valid player name.</gray>"
+    loading: "%brand_prefix%Looking up the head of <color:#22D3EE>%player%</color> ...</gray>"
+    unknown: "%brand_prefix%✖ There is no Minecraft account called <color:#22D3EE>%player%</color>.</gray>"
+    given: "%brand_prefix%✔ You got the head of <color:#22D3EE>%player%</color>.</gray>"
+friends:
+  time:
+    unknown: "a long time"
+    now: "a moment"
+    minutes: "%amount% min"
+    hours: "%amount% h"
+    days: "%amount% days"
+    months: "%amount% months"
+  value:
+    everyone: "<color:#2DD4BF>everyone</color>"
+    friends: "<color:#22D3EE>friends only</color>"
+    friends-of-friends: "<color:#22D3EE>friends of friends</color>"
+    nobody: "<red>nobody</red>"
+    "on": "<color:#2DD4BF>on</color>"
+    "off": "<red>off</red>"
+  menu:
+    disabled: "%brand_prefix%✖ Friends are switched off on this network.</gray>"
+    unavailable: "%brand_prefix%✖ The friend system does not answer right now. Please try again in a moment.</gray>"
+    title: "<gradient:#2DD4BF:#22D3EE><b>Friends</b></gradient> <dark_gray>·</dark_gray> <gray>%online%/%total% online</gray>"
+    info:
+      name: "<color:#2DD4BF>◆ Your friends</color>"
+      lore: "<color:#2DD4BF>%online%</color> <gray>of</gray> <white>%total%</white> <gray>online</gray> <dark_gray>· room for %limit%</dark_gray>"
+      page: "<dark_gray>Page %page% of %pages%</dark_gray>"
+    empty:
+      name: "<gray>No friends yet</gray>"
+      lore: "<gray>Add someone with</gray> <color:#22D3EE>/friend add name</color><gray>.</gray>"
+    friend:
+      title: "<dark_gray>Friend</dark_gray> <dark_gray>·</dark_gray> <white>%player%</white>"
+      online: "<color:#2DD4BF>● %player%</color>"
+      offline: "<gray>● %player%</gray>"
+      server: "<gray>Online on</gray> %server%"
+      last-seen: "<gray>Last seen %time% ago</gray>"
+      click: "<color:#22D3EE>» Click for options</color>"
+    action:
+      jump: "<color:#22D3EE>◆ Jump to server</color>"
+      jump-lore: "<gray>Takes you to</gray> %server%"
+      jump-off: "<gray>Jumping is switched off</gray>"
+      jump-offline: "<gray>Offline right now</gray>"
+      invite: "<color:#C084FC>◆ Invite to party</color>"
+      invite-lore: "<gray>Sends a party invite.</gray>"
+      remove: "<red>◆ Remove friend</red>"
+      remove-lore: "<gray>Asks once more before removing.</gray>"
+    confirm:
+      title: "<dark_gray>Remove</dark_gray> <white>%player%</white><dark_gray>?</dark_gray>"
+      "yes": "<red>✖ Remove %player%</red>"
+      "no": "<color:#2DD4BF>✔ Keep as friend</color>"
+    requests:
+      name: "<color:#22D3EE>◆ Requests</color> <dark_gray>(%count%)</dark_gray>"
+      lore: "<gray>Accept or decline open requests.</gray>"
+      title: "<gradient:#2DD4BF:#22D3EE><b>Requests</b></gradient> <dark_gray>·</dark_gray> <gray>%count%</gray>"
+      help: "<gray>Left click accepts, right click declines.</gray>"
+      empty: "<gray>No open requests</gray>"
+    request:
+      name: "<white>%player%</white>"
+      time: "<gray>Sent %time% ago</gray>"
+      click: "<color:#2DD4BF>Left click: accept</color> <dark_gray>·</dark_gray> <red>Right click: decline</red>"
+    outgoing:
+      name: "<gray>To</gray> <white>%player%</white>"
+      time: "<gray>Open for %time%</gray>"
+      click: "<red>» Click to take back</red>"
+    settings:
+      name: "<color:#22D3EE>◆ Settings</color>"
+      lore: "<gray>Choose who may contact you.</gray>"
+      title: "<gradient:#2DD4BF:#22D3EE><b>Settings</b></gradient>"
+    setting:
+      requests: "<color:#22D3EE>◆ Friend requests</color>"
+      notifications: "<color:#22D3EE>◆ Online and offline notices</color>"
+      jump: "<color:#22D3EE>◆ Friends may jump to you</color>"
+      party-invites: "<color:#22D3EE>◆ Party invites</color>"
+      messages: "<color:#22D3EE>◆ Private messages</color>"
+      selected: "<white>● %value%</white>"
+      option: "<dark_gray>○</dark_gray> <gray>%value%</gray>"
+      click: "<color:#22D3EE>» Click for</color> %value%"
+party:
+  menu:
+    disabled: "%brand_prefix%✖ Parties are switched off on this network.</gray>"
+    title: "<gradient:#C084FC:#F472B6><b>Party</b></gradient> <dark_gray>·</dark_gray> <gray>%count%/%max%</gray>"
+    info:
+      name: "<color:#C084FC>◆ Your party</color> <dark_gray>(%count%/%max%)</dark_gray>"
+      leader: "<gray>Leader:</gray> <color:#FBBF24>%player%</color>"
+    none:
+      name: "<color:#C084FC>◆ No party</color>"
+      lore: "<gray>Invite friends to play together.</gray>"
+      hint: "<gray>No open invites</gray>"
+    invite:
+      name: "<color:#C084FC>Invite from</color> <white>%player%</white>"
+      size: "<gray>%count% players in the party</gray>"
+      click: "<color:#2DD4BF>Left click: join</color> <dark_gray>·</dark_gray> <red>Right click: decline</red>"
+    member:
+      title: "<dark_gray>Party</dark_gray> <dark_gray>·</dark_gray> <white>%player%</white>"
+      leader: "<color:#FBBF24>♛ %player%</color>"
+      self: "<white>%player%</white> <dark_gray>(you)</dark_gray>"
+      name: "<color:#C084FC>● %player%</color>"
+      server: "<gray>On</gray> %server%"
+      offline: "<dark_gray>Offline</dark_gray>"
+      click: "<color:#22D3EE>» Click for options</color>"
+    invited:
+      name: "<gray>%player%</gray>"
+      lore: "<dark_gray>Invited, waiting for an answer</dark_gray>"
+      click: "<red>» Click to take back</red>"
+    invite-friend:
+      name: "<color:#2DD4BF>◆ Invite a friend</color>"
+      lore: "<gray>Shows your friends who are online.</gray>"
+      title: "<gradient:#C084FC:#F472B6><b>Invite</b></gradient>"
+    candidate:
+      name: "<white>%player%</white>"
+      server: "<gray>On</gray> %server%"
+      click: "<color:#C084FC>» Click to invite</color>"
+      empty: "<gray>No friend is free right now</gray>"
+    warp:
+      name: "<color:#22D3EE>◆ Warp party</color>"
+      lore: "<gray>Pulls every member to your server.</gray>"
+    leave:
+      name: "<color:#FBBF24>◆ Leave party</color>"
+      lore: "<gray>You leave, the others stay together.</gray>"
+    disband:
+      name: "<red>◆ End party</red>"
+      lore: "<gray>Sends everyone off, asks once more.</gray>"
+      title: "<dark_gray>End the party?</dark_gray>"
+      "yes": "<red>✖ End party</red>"
+      "no": "<color:#2DD4BF>✔ Keep playing</color>"
+    promote:
+      name: "<color:#FBBF24>◆ Make leader</color>"
+      lore: "<white>%player%</white> <gray>leads the party afterwards.</gray>"
+    kick:
+      name: "<red>◆ Remove from party</red>"
+      lore: "<white>%player%</white> <gray>has to leave the party.</gray>"
+    befriend:
+      name: "<color:#2DD4BF>◆ Add as friend</color>"
+      lore: "<gray>Sends</gray> <white>%player%</white> <gray>a friend request.</gray>"

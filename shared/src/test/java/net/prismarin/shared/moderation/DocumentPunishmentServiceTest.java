@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import net.prismarin.api.event.PrismarinEvent;
 import net.prismarin.api.moderation.Punishment;
 import net.prismarin.api.moderation.PunishmentIssuedEvent;
+import net.prismarin.api.moderation.PunishmentRequest;
 import net.prismarin.api.moderation.PunishmentRevokedEvent;
 import net.prismarin.api.moderation.PunishmentType;
 import net.prismarin.shared.event.SimpleEventBus;
@@ -34,6 +35,7 @@ class DocumentPunishmentServiceTest {
     private final UUID player = UUID.randomUUID();
     private final List<PrismarinEvent> events = new ArrayList<>();
     private DocumentPunishmentService service;
+    private JsonFileDocumentStore store;
 
     @BeforeEach
     void setUp() {
@@ -55,7 +57,8 @@ class DocumentPunishmentServiceTest {
                 return Instant.ofEpochMilli(now.get());
             }
         };
-        service = new DocumentPunishmentService(new JsonFileDocumentStore(directory), Runnable::run, bus, clock);
+        store = new JsonFileDocumentStore(directory);
+        service = new DocumentPunishmentService(store, Runnable::run, bus, clock);
     }
 
     @Test
@@ -101,5 +104,54 @@ class DocumentPunishmentServiceTest {
         service.punish(player, "Steve", PunishmentType.WARN, "a", "Leon", null).join();
         service.punish(UUID.randomUUID(), "Alex", PunishmentType.WARN, "b", "Leon", null).join();
         assertEquals(1, service.history(player).join().size());
+    }
+
+    @Test
+    void readsPunishmentsStoredBeforeTemplatesExisted() {
+        store.save(DocumentPunishmentService.COLLECTION, "old1", "{\"id\":\"old1\",\"target\":\"" + player
+                + "\",\"targetName\":\"Steve\",\"type\":\"BAN\",\"reason\":\"Hacking\",\"actor\":\"Leon\","
+                + "\"createdAt\":900000,\"expiresAt\":0,\"active\":true,\"revokedBy\":\"\",\"revokedAt\":0}");
+        Punishment old = service.active(player, PunishmentType.BAN).join().orElseThrow();
+        assertEquals("Hacking", old.reason());
+        assertEquals("", old.template());
+        assertFalse(old.addressBound());
+        assertFalse(old.lifted());
+        assertTrue(old.permanent());
+    }
+
+    @Test
+    void replacedPunishmentsPointToTheirSuccessor() {
+        Punishment first = service.punish(player, "Steve", PunishmentType.MUTE, "a", "Leon", Duration.ofHours(1))
+                .join();
+        Punishment second = service.punish(PunishmentRequest.of(player, "Steve", PunishmentType.MUTE, "b", "Leon",
+                Duration.ofHours(6)).withTemplate("chat", "caps")).join();
+        Punishment stored = service.history(player).join().stream()
+                .filter(entry -> entry.id().equals(first.id())).findFirst().orElseThrow();
+        assertEquals(second.id(), stored.replacedBy());
+        assertFalse(stored.lifted());
+        assertEquals("chat", second.template());
+        assertEquals("caps", second.note());
+    }
+
+    @Test
+    void liftedPunishmentsKeepTheReason() {
+        service.punish(player, "Steve", PunishmentType.BAN, "a", "Leon", null).join();
+        Punishment lifted = service.revoke(player, PunishmentType.BAN, "Mod", "appeal accepted").join().orElseThrow();
+        assertTrue(lifted.lifted());
+        assertEquals("appeal accepted", lifted.revokeReason());
+        assertEquals("Mod", lifted.revokedBy());
+    }
+
+    @Test
+    void addressBansAreFoundByTheirHash() {
+        service.punish(PunishmentRequest.of(player, "Steve", PunishmentType.BAN, "alts", "Leon", Duration.ofDays(1))
+                .withAddress("abc123")).join();
+        service.punish(PunishmentRequest.of(UUID.randomUUID(), "Alex", PunishmentType.MUTE, "x", "Leon", null)
+                .withAddress("abc123")).join();
+        assertEquals(player, service.activeForAddress("abc123").join().orElseThrow().target());
+        assertTrue(service.activeForAddress("other").join().isEmpty());
+        assertTrue(service.activeForAddress("").join().isEmpty());
+        now.addAndGet(Duration.ofDays(2).toMillis());
+        assertTrue(service.activeForAddress("abc123").join().isEmpty());
     }
 }

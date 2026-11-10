@@ -2,21 +2,18 @@ package net.prismarin.velocity.command;
 
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
-import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import java.util.Optional;
-import net.prismarin.velocity.config.ProxyConfigStore;
 import net.prismarin.velocity.locale.ProxyMessages;
+import net.prismarin.velocity.server.LobbyBalancer;
 
 public final class HubCommand implements SimpleCommand {
 
-    private final ProxyServer proxy;
-    private final ProxyConfigStore configStore;
+    private final LobbyBalancer lobbies;
     private final ProxyMessages messages;
 
-    public HubCommand(ProxyServer proxy, ProxyConfigStore configStore, ProxyMessages messages) {
-        this.proxy = proxy;
-        this.configStore = configStore;
+    public HubCommand(LobbyBalancer lobbies, ProxyMessages messages) {
+        this.lobbies = lobbies;
         this.messages = messages;
     }
 
@@ -26,17 +23,16 @@ public final class HubCommand implements SimpleCommand {
             messages.send(invocation.source(), "general.players-only");
             return;
         }
-        String lobbyName = configStore.config().lobbyServer();
-        Optional<RegisteredServer> lobby = proxy.getServer(lobbyName);
-        if (lobby.isEmpty()) {
-            messages.send(player, "hub.unreachable");
-            return;
-        }
         boolean alreadyThere = player.getCurrentServer()
-                .map(current -> current.getServerInfo().getName().equalsIgnoreCase(lobbyName))
+                .map(current -> lobbies.isLobby(current.getServerInfo().getName()))
                 .orElse(false);
         if (alreadyThere) {
             messages.send(player, "hub.already-there");
+            return;
+        }
+        Optional<RegisteredServer> lobby = lobbies.pick(player, null);
+        if (lobby.isEmpty()) {
+            messages.send(player, "hub.unreachable");
             return;
         }
         player.createConnectionRequest(lobby.get()).connect().whenComplete((result, throwable) -> {

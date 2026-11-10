@@ -1,6 +1,7 @@
 package net.prismarin.lobby.player;
 
 import com.google.inject.Singleton;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -10,6 +11,7 @@ import org.bukkit.entity.Player;
 public final class BuildModeService {
 
     public static final String PERMISSION = "prismarin.lobby.build";
+    public static final String OTHERS_PERMISSION = "prismarin.lobby.build.others";
 
     private final Set<UUID> enabled = ConcurrentHashMap.newKeySet();
 
@@ -24,6 +26,14 @@ public final class BuildModeService {
 
     public boolean active(Player player) {
         return enabled.contains(player.getUniqueId()) && player.hasPermission(PERMISSION);
+    }
+
+    public boolean disable(Player player) {
+        return enabled.remove(player.getUniqueId());
+    }
+
+    public List<UUID> players() {
+        return List.copyOf(enabled);
     }
 
     public void clear(UUID id) {

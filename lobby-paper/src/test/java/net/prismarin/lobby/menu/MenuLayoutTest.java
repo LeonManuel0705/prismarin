@@ -40,4 +40,15 @@ class MenuLayoutTest {
         assertThrows(IllegalArgumentException.class, () -> MenuLayout.centeredRowSlots(-1, 3));
         assertThrows(IllegalArgumentException.class, () -> MenuLayout.centeredRowSlots(6, 3));
     }
+
+    @Test
+    void spreadsManyEntriesOverBalancedRows() {
+        assertEquals(List.of(13), MenuLayout.centeredSlots(1, 1, 5));
+        assertEquals(List.of(11, 13, 15, 20, 22, 24), MenuLayout.centeredSlots(1, 6, 5));
+        assertEquals(List.of(10, 12, 14, 16, 20, 22, 24), MenuLayout.centeredSlots(1, 7, 5));
+        assertEquals(List.of(), MenuLayout.centeredSlots(1, 0, 5));
+        assertEquals(2, MenuLayout.rowsFor(8, 7));
+        assertEquals(1, MenuLayout.rowsFor(0, 7));
+        assertThrows(IllegalArgumentException.class, () -> MenuLayout.centeredSlots(4, 12, 5));
+    }
 }

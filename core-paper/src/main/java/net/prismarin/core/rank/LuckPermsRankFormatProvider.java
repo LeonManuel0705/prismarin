@@ -1,26 +1,26 @@
 package net.prismarin.core.rank;
 
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.luckperms.api.LuckPerms;
 import net.luckperms.api.LuckPermsProvider;
 import net.luckperms.api.cacheddata.CachedMetaData;
 import net.luckperms.api.model.group.Group;
 import net.luckperms.api.model.user.User;
+import net.prismarin.shared.text.PrefixStyle;
+import net.prismarin.shared.text.TextFormatter;
 import org.bukkit.entity.Player;
 
 public final class LuckPermsRankFormatProvider implements RankFormatProvider {
 
-    private final MiniMessage miniMessage;
+    private final TextFormatter formatter;
     private final RankFormatProvider fallback;
     private final Map<String, Component> prefixCache = new ConcurrentHashMap<>();
 
-    public LuckPermsRankFormatProvider(MiniMessage miniMessage, RankFormatProvider fallback) {
-        this.miniMessage = miniMessage;
+    public LuckPermsRankFormatProvider(TextFormatter formatter, RankFormatProvider fallback) {
+        this.formatter = formatter;
         this.fallback = fallback;
     }
 
@@ -30,7 +30,7 @@ public final class LuckPermsRankFormatProvider implements RankFormatProvider {
         if (prefix == null || prefix.isBlank()) {
             return fallback.prefix(player);
         }
-        return prefixCache.computeIfAbsent(prefix, miniMessage::deserialize);
+        return prefixCache.computeIfAbsent(prefix, text -> formatter.format(text));
     }
 
     @Override
@@ -46,12 +46,11 @@ public final class LuckPermsRankFormatProvider implements RankFormatProvider {
 
     @Override
     public NamedTextColor nameColor(Player player) {
-        String value = metaData(player).getMetaValue("name-color");
-        if (value == null) {
-            return fallback.nameColor(player);
-        }
-        NamedTextColor color = NamedTextColor.NAMES.value(value.toLowerCase(Locale.ROOT));
-        return color == null ? fallback.nameColor(player) : color;
+        CachedMetaData meta = metaData(player);
+        return PrefixStyle.parse(meta.getMetaValue("name-color"))
+                .or(() -> PrefixStyle.lastColor(meta.getPrefix()))
+                .map(PrefixStyle::nearest)
+                .orElseGet(() -> fallback.nameColor(player));
     }
 
     private static CachedMetaData metaData(Player player) {

@@ -107,3 +107,27 @@ Bukkit-abhängige Klassen (Listener, Manager) sind bewusst dünn gehalten und ni
 - **`RankFormatProvider`**: weitere Rang-Quellen als neue Implementierung plus Provider-Logik in `CoreModule`.
 - **Menü-Framework**: `Menu`/`PagedMenu` subclassen oder komponieren; `MenuService.open` übernimmt Thread-Hop und Klick-Handling.
 - **`MessageBus`**: für künftige Cross-Server-Features direkt injizierbar; Kanäle sind frei wählbar.
+
+## Essentials-Modul
+
+Schalter `modules.essentials`, tritt automatisch zurück, wenn `Essentials` (EssentialsX) oder `CMI` installiert ist. `EssentialsCommands.install` registriert die Befehle aus der `plugin.yml` oder entfernt sie, einzeln abschaltbar unter `essentials.commands.<name>` in der `config.yml`. Unsichtbare erscheinen weder in Vorschlägen noch als Ziel für Spieler, die sie nicht sehen; `/tpall` holt nie Unsichtbare. Wer andere ansteuert, braucht `.others`; Hinweise an das Ziel nennen den Auslöser nur, wenn das Ziel ihn sehen kann.
+
+| Schalter | Befehle | Rechte (Default op, außer ping) |
+| --- | --- | --- |
+| `tpall` | `/tpall` | `prismarin.essentials.tpall` |
+| `tphere` | `/tphere <spieler>` | `prismarin.essentials.tphere` |
+| `heal` | `/heal [spieler]` (Leben, Hunger, Feuer, Frost, schädliche Effekte) | `prismarin.essentials.heal`, `.others` |
+| `feed` | `/feed [spieler]` | `prismarin.essentials.feed`, `.others` |
+| `fly` | `/fly [spieler]` | `prismarin.essentials.fly`, `.others` |
+| `gamemode` | `/gm <0-3\|s\|c\|a\|sp> [spieler]`, `/gms`, `/gmc`, `/gma`, `/gmsp` | `prismarin.essentials.gamemode`, `.others` |
+| `speed` | `/speed <1-10\|reset> [spieler]`, im Flug die Fluggeschwindigkeit | `prismarin.essentials.speed`, `.others` |
+| `clearinventory` | `/clearinventory [spieler]`, `/ci` | `prismarin.essentials.clearinventory`, `.others` |
+| `invsee` | `/invsee <spieler>` | `prismarin.essentials.invsee`, Bearbeiten `.modify` |
+| `enderchest` | `/enderchest [spieler]`, `/ec` | `prismarin.essentials.enderchest`, `.others`, `.modify` |
+| `time` | `/day`, `/night [welt]` | `prismarin.essentials.time` |
+| `weather` | `/sun`, `/rain`, `/thunder [welt]` | `prismarin.essentials.weather` |
+| `ping` | `/ping [spieler]` | `prismarin.essentials.ping`, `.others` (beide Default true) |
+| `hat` | `/hat` | `prismarin.essentials.hat` |
+| `skull` | `/skull [name]`, fremde Köpfe werden asynchron bei Mojang nachgeschlagen | `prismarin.essentials.skull` |
+
+Das Vanilla-`/clear` bleibt unangetastet, damit Befehlsblöcke und Datenpakete weiter funktionieren. `/fly` übernimmt die Flugerlaubnis von Vanish (`VanishService.releaseFlight`), dadurch nimmt das Aufheben von Vanish einen per `/fly` gesetzten Flug nicht mehr weg. Texte unter `essentials` in den Sprachdateien. Tests: `EssentialsLogicTest`, `EssentialsSettingsTest`, `EssentialsResourcesTest` (beide Sprachen, `plugin.yml`).

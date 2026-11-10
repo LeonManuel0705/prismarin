@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.prismarin.api.economy.Currency;
@@ -27,6 +28,10 @@ public final class CurrencyDisplay {
 
     public List<Currency> shown() {
         return economy.enabled() ? economy.currencies().stream().limit(MAX_SHOWN).toList() : List.of();
+    }
+
+    public Optional<Currency> find(String id) {
+        return economy.enabled() ? economy.currency(id) : Optional.empty();
     }
 
     public Component render(String keyPrefix, Currency currency, long amount, Locale target) {

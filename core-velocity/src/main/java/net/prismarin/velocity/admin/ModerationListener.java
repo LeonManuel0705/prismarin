@@ -12,18 +12,19 @@ import net.prismarin.api.moderation.PunishmentType;
 public final class ModerationListener {
 
     private final AdminContext context;
+    private final PunishmentFlow flow;
 
-    public ModerationListener(AdminContext context) {
+    public ModerationListener(AdminContext context, PunishmentFlow flow) {
         this.context = context;
+        this.flow = flow;
     }
 
     @Subscribe
     public EventTask onLogin(LoginEvent event) {
         Player player = event.getPlayer();
-        return EventTask.resumeWhenComplete(context.services().punishments()
-                .active(player.getUniqueId(), PunishmentType.BAN)
-                .thenAccept(ban -> ban.ifPresent(punishment -> event.setResult(ResultedEvent.ComponentResult.denied(
-                        ModerationCommands.banScreen(context, player, punishment)))))
+        return EventTask.resumeWhenComplete(flow.loginBlock(player)
+                .thenAccept(block -> block.ifPresent(screen ->
+                        event.setResult(ResultedEvent.ComponentResult.denied(screen))))
                 .exceptionally(error -> null));
     }
 
@@ -36,7 +37,6 @@ public final class ModerationListener {
     public void onServerConnected(ServerPostConnectEvent event) {
         Player player = event.getPlayer();
         context.services().punishments().active(player.getUniqueId(), PunishmentType.MUTE)
-                .thenAccept(mute -> mute.ifPresent(punishment ->
-                        context.channel().sendMute(player, punishment.expiresAt(), punishment.reason())));
+                .thenAccept(mute -> mute.ifPresent(punishment -> flow.muteOn(player, punishment)));
     }
 }
