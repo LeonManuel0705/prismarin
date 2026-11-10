@@ -1,5 +1,6 @@
 package net.prismarin.api;
 
+import java.util.Optional;
 import java.util.Set;
 import net.prismarin.api.brand.Branding;
 import net.prismarin.api.economy.EconomyService;
@@ -12,6 +13,9 @@ import net.prismarin.api.server.GameStateService;
 import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.api.server.ServerStatusService;
+import net.prismarin.api.social.FriendService;
+import net.prismarin.api.social.PartyService;
+import net.prismarin.api.social.SocialApi;
 
 public interface Prismarin {
 
@@ -43,5 +47,13 @@ public interface Prismarin {
 
     default boolean systemEnabled(String system) {
         return enabledSystems().contains(system);
+    }
+
+    default Optional<FriendService> friends() {
+        return SocialApi.friends();
+    }
+
+    default Optional<PartyService> parties() {
+        return SocialApi.parties();
     }
 }

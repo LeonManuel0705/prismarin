@@ -1,4 +1,5 @@
 language:
+  head: "9623cb6757541550da1c11f36b75ec60fd73b06c933909ff96aeffac43c6a364"
   name: "English"
   icon: "BLUE_BANNER"
 prefix: "%brand_prefix%"
@@ -12,10 +13,11 @@ currency:
   gems: "<color:#2DD4BF>Gems</color>"
 chat:
   format: "%prefix% %name% <dark_gray>»</dark_gray> %message%"
+  line: "%prefix%%name%%suffix% <dark_gray>»</dark_gray> %message%"
 rank:
   admin-prefix: "<red><b>Admin</b></red>"
   default-prefix: "<gray>Player</gray>"
-  usage: "%brand_prefix%Usage: <color:#22D3EE>/rank player [set|add|remove] [rank] [duration]</color> or <color:#22D3EE>/rank list</color></gray>"
+  usage: "%brand_prefix%Usage: <color:#22D3EE>/rank \\<player> [set|add|remove] [\\<rank>] [\\<duration>]</color> or <color:#22D3EE>/rank list</color></gray>"
   no-luckperms: "%brand_prefix%✖ Ranks need LuckPerms.</gray>"
   unknown-group: "%brand_prefix%✖ There is no rank called <color:#22D3EE>%group%</color>.</gray>"
   invalid-duration: "%brand_prefix%✖ <color:#22D3EE>%duration%</color> is not a valid duration, for example 30d or 12h.</gray>"
@@ -47,7 +49,7 @@ economy:
   withdraw-success: "%brand_prefix%✔ Withdrew <color:#FBBF24>%amount%</color> %currency%<gray>. New balance: <color:#FBBF24>%balance%</color></gray>"
   insufficient-funds: "%brand_prefix%✖ Not enough %currency%<gray>. You are missing <color:#FBBF24>%missing%</color>.</gray>"
   transaction-failed: "%brand_prefix%✖ The transaction could not be completed.</gray>"
-  usage: "%brand_prefix%Usage: <color:#22D3EE>/economy give|take|set player currency amount</color></gray>"
+  usage: "%brand_prefix%Usage: <color:#22D3EE>/economy give|take|set \\<player> \\<currency> \\<amount></color></gray>"
   invalid-currency: "%brand_prefix%✖ Unknown currency. Available: <color:#FBBF24>%currencies%</color><gray>.</gray>"
   invalid-amount: "%brand_prefix%✖ The amount must be a whole number greater than 0.</gray>"
   give-success: "%brand_prefix%✔ Gave <color:#FBBF24>%amount%</color> %currency% <gray>to <color:#22D3EE>%player%</color>. New balance: <color:#FBBF24>%balance%</color></gray>"
@@ -180,7 +182,7 @@ lobby:
     taken: "%brand_prefix%✔ Ended the build mode of <color:#22D3EE>%player%</color>.</gray>"
     taken-target: "%brand_prefix%Your build mode was ended by <color:#22D3EE>%player%</color>.</gray>"
     not-active: "%brand_prefix%✖ <color:#22D3EE>%player%</color> is not in build mode.</gray>"
-    usage-console: "%brand_prefix%Usage: <color:#22D3EE>/lobbybuild player</color></gray>"
+    usage-console: "%brand_prefix%Usage: <color:#22D3EE>/lobbybuild \\<player></color></gray>"
   setspawn:
     success: "%brand_prefix%✔ Spawn set: <color:#22D3EE>%x% / %y% / %z%</color> <gray>in</gray> <color:#22D3EE>%world%</color><gray>.</gray>"
     failed: "%brand_prefix%✖ The spawn could not be saved.</gray>"
@@ -189,7 +191,7 @@ lobby:
     void-hint: "%brand_prefix%Tip: <color:#22D3EE>/setvoid height</color> brings players back from the void.</gray>"
     below-void: "%brand_prefix%Careful: this spawn is below the void height <color:#22D3EE>Y %y%</color>. Nobody is brought back there, lower the height with <color:#22D3EE>/setvoid</color>.</gray>"
   setvoid:
-    usage: "%brand_prefix%Usage: <color:#22D3EE>/setvoid height|here|off [world]</color></gray>"
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/setvoid \\<height>|here|off [\\<world>]</color></gray>"
     status-on: "%brand_prefix%Void teleport in <color:#22D3EE>%world%</color>: below Y <color:#22D3EE>%y%</color>.</gray>"
     status-off: "%brand_prefix%Void teleport in <color:#22D3EE>%world%</color> is off.</gray>"
     set: "%brand_prefix%✔ Players falling below Y <color:#22D3EE>%y%</color> in <color:#22D3EE>%world%</color> now return to the spawn.</gray>"
@@ -273,7 +275,7 @@ game-state:
   restarting: "<dark_gray>Restarting</dark_gray>"
   full: "<red>Full</red>"
 play:
-  usage: "%brand_prefix%Usage: <color:#22D3EE>/play group</color></gray>"
+  usage: "%brand_prefix%Usage: <color:#22D3EE>/play \\<group></color></gray>"
   unknown-group: "%brand_prefix%✖ There is no group called <color:#22D3EE>%group%</color>.</gray>"
   no-server: "%brand_prefix%✖ No server in <color:#22D3EE>%group%</color> is free right now.</gray>"
   connecting: "%brand_prefix%Connecting to %server%<gray> ...</gray>"
@@ -286,7 +288,7 @@ vanish:
   enabled-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> is now vanished.</gray>"
   disabled-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> is visible again.</gray>"
 level:
-  usage: "%brand_prefix%Usage: <color:#22D3EE>/level player [set|add|remove|addxp] [amount]</color></gray>"
+  usage: "%brand_prefix%Usage: <color:#22D3EE>/level \\<player> [set|add|remove|addxp] [\\<amount>]</color></gray>"
   invalid-amount: "%brand_prefix%✖ Please enter a valid amount.</gray>"
   show: "%brand_prefix%<white>%player%</white> is level <color:#22D3EE>%level%</color> <dark_gray>(%xp%/%max% XP)</dark_gray></gray>"
   changed: "%brand_prefix%✔ <white>%player%</white>: level <dark_gray>%before%</dark_gray> <gray>»</gray> <color:#22D3EE>%level%</color> <dark_gray>(%xp% XP)</dark_gray></gray>"
@@ -309,14 +311,14 @@ admin:
   info-modules: " <gray>Modules on:</gray> <white>%modules%</white>"
   info-off: " <dark_gray>off:</dark_gray> <gray>%module%</gray> <dark_gray>(%reason%)</dark_gray>"
   info-players: " <gray>Players here</gray> <white>%players%</white> <dark_gray>·</dark_gray> <gray>known servers</gray> <white>%servers%</white>"
-  migrate-usage: "%brand_prefix%Usage: <color:#22D3EE>/prismarin migrate from to</color> <dark_gray>(%modes%)</dark_gray></gray>"
+  migrate-usage: "%brand_prefix%Usage: <color:#22D3EE>/prismarin migrate \\<from> \\<to></color> <dark_gray>(%modes%)</dark_gray></gray>"
   migrate-console: "%brand_prefix%✖ Migration only runs from the console.</gray>"
   migrate-same: "%brand_prefix%✖ Source and target are the same.</gray>"
   migrate-start: "%brand_prefix%Moving data from <color:#22D3EE>%from%</color> to <color:#22D3EE>%to%</color> ...</gray>"
   migrate-done: "%brand_prefix%✔ Done: <white>%profiles%</white> profiles, <white>%balances%</white> balances, <white>%documents%</white> documents. Now set <color:#22D3EE>storage.mode: %to%</color> and restart.</gray>"
   migrate-failed: "%brand_prefix%✖ Migration stopped: <white>%reason%</white></gray>"
 nick:
-  usage: "%brand_prefix%Usage: <color:#22D3EE>/nick</color>, <color:#22D3EE>/nick name</color> or <color:#22D3EE>/nick auto</color></gray>"
+  usage: "%brand_prefix%Usage: <color:#22D3EE>/nick</color>, <color:#22D3EE>/nick \\<name></color> or <color:#22D3EE>/nick auto</color></gray>"
   applied: "%brand_prefix%✔ You are now nicked as <color:#22D3EE>%nick%</color><gray>.</gray>"
   stored: "%brand_prefix%✔ Your nick <color:#22D3EE>%nick%</color> is saved. It shows wherever nicks are on, for example on game servers or in a round.</gray>"
   removed: "%brand_prefix%✔ Your nick is gone. You play as <color:#22D3EE>%name%</color> again.</gray>"
@@ -349,7 +351,7 @@ nick:
     list-empty: "%brand_prefix%Nobody is nicked on this server.</gray>"
 essentials:
   teleport:
-    usage: "%brand_prefix%Usage: <color:#22D3EE>/tphere player</color></gray>"
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/tphere \\<player></color></gray>"
     all: "%brand_prefix%✔ Brought <color:#22D3EE>%count%</color> players to you.</gray>"
     nobody: "%brand_prefix%✖ There is nobody you could bring here.</gray>"
     here: "%brand_prefix%✔ Brought <color:#22D3EE>%player%</color> to you.</gray>"
@@ -369,7 +371,7 @@ essentials:
     on-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> can fly now.</gray>"
     off-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> can no longer fly.</gray>"
   gamemode:
-    usage: "%brand_prefix%Usage: <color:#22D3EE>/gm 0|1|2|3 [player]</color> <gray>or</gray> <color:#22D3EE>/gms, /gmc, /gma, /gmsp</color></gray>"
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/gm 0|1|2|3 [\\<player>]</color> <gray>or</gray> <color:#22D3EE>/gms, /gmc, /gma, /gmsp</color></gray>"
     changed: "%brand_prefix%✔ Game mode: <color:#22D3EE>%mode%</color>.</gray>"
     changed-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> now plays in <color:#22D3EE>%mode%</color> mode.</gray>"
     mode:
@@ -378,7 +380,7 @@ essentials:
       adventure: "Adventure"
       spectator: "Spectator"
   speed:
-    usage: "%brand_prefix%Usage: <color:#22D3EE>/speed 1-10|reset [player]</color> <dark_gray>(while flying it sets the fly speed)</dark_gray></gray>"
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/speed 1-10|reset [\\<player>]</color> <dark_gray>(while flying it sets the fly speed)</dark_gray></gray>"
     walk: "%brand_prefix%✔ Walk speed <color:#22D3EE>%speed%</color>.</gray>"
     fly: "%brand_prefix%✔ Fly speed <color:#22D3EE>%speed%</color>.</gray>"
     walk-other: "%brand_prefix%✔ Walk speed of <color:#22D3EE>%player%</color>: <color:#22D3EE>%speed%</color>.</gray>"
@@ -387,7 +389,7 @@ essentials:
     self: "%brand_prefix%✔ Your inventory is empty.</gray>"
     other: "%brand_prefix%✔ The inventory of <color:#22D3EE>%player%</color> is empty.</gray>"
   invsee:
-    usage: "%brand_prefix%Usage: <color:#22D3EE>/invsee player</color> <gray>or</gray> <color:#22D3EE>/enderchest [player]</color></gray>"
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/invsee \\<player></color> <gray>or</gray> <color:#22D3EE>/enderchest [\\<player>]</color></gray>"
     self: "%brand_prefix%✖ Open your own inventory with <color:#22D3EE>E</color>.</gray>"
     opened: "%brand_prefix%Opened the inventory of <color:#22D3EE>%player%</color>.</gray>"
     view-only: "%brand_prefix%Opened the inventory of <color:#22D3EE>%player%</color>, view only.</gray>"
@@ -395,7 +397,7 @@ essentials:
     opened: "%brand_prefix%Opened the ender chest of <color:#22D3EE>%player%</color>.</gray>"
     view-only: "%brand_prefix%Opened the ender chest of <color:#22D3EE>%player%</color>, view only.</gray>"
   world:
-    usage: "%brand_prefix%Usage: <color:#22D3EE>/%command% world</color></gray>"
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/%command% \\<world></color></gray>"
     unknown: "%brand_prefix%✖ There is no world called <color:#22D3EE>%world%</color>.</gray>"
     day: "%brand_prefix%✔ It is day in <color:#22D3EE>%world%</color> now.</gray>"
     night: "%brand_prefix%✔ It is night in <color:#22D3EE>%world%</color> now.</gray>"
@@ -403,7 +405,7 @@ essentials:
     rain: "%brand_prefix%✔ It rains in <color:#22D3EE>%world%</color> now.</gray>"
     thunder: "%brand_prefix%✔ A thunderstorm rolls over <color:#22D3EE>%world%</color> now.</gray>"
   ping:
-    usage: "%brand_prefix%Usage: <color:#22D3EE>/ping player</color></gray>"
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/ping \\<player></color></gray>"
     self: "%brand_prefix%Your ping: %ping%</gray>"
     other: "%brand_prefix%Ping of <color:#22D3EE>%player%</color>: %ping%</gray>"
     good: "<color:#2DD4BF>%ms% ms</color>"
@@ -413,7 +415,7 @@ essentials:
     empty: "%brand_prefix%✖ Hold an item in your hand first.</gray>"
     done: "%brand_prefix%✔ You now wear <white>%item%</white> on your head.</gray>"
   skull:
-    usage: "%brand_prefix%Usage: <color:#22D3EE>/skull [name]</color></gray>"
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/skull [\\<name>]</color></gray>"
     invalid: "%brand_prefix%✖ <color:#22D3EE>%player%</color> is no valid player name.</gray>"
     loading: "%brand_prefix%Looking up the head of <color:#22D3EE>%player%</color> ...</gray>"
     unknown: "%brand_prefix%✖ There is no Minecraft account called <color:#22D3EE>%player%</color>.</gray>"
@@ -443,7 +445,7 @@ friends:
       page: "<dark_gray>Page %page% of %pages%</dark_gray>"
     empty:
       name: "<gray>No friends yet</gray>"
-      lore: "<gray>Add someone with</gray> <color:#22D3EE>/friend add name</color><gray>.</gray>"
+      lore: "<gray>Add someone with</gray> <color:#22D3EE>/friend add \\<name></color><gray>.</gray>"
     friend:
       title: "<dark_gray>Friend</dark_gray> <dark_gray>·</dark_gray> <white>%player%</white>"
       online: "<color:#2DD4BF>● %player%</color>"
@@ -498,6 +500,7 @@ party:
     info:
       name: "<color:#C084FC>◆ Your party</color> <dark_gray>(%count%/%max%)</dark_gray>"
       leader: "<gray>Leader:</gray> <color:#FBBF24>%player%</color>"
+      role: "<gray>Your role:</gray> %role%"
     none:
       name: "<color:#C084FC>◆ No party</color>"
       lore: "<gray>Invite friends to play together.</gray>"
@@ -509,7 +512,9 @@ party:
     member:
       title: "<dark_gray>Party</dark_gray> <dark_gray>·</dark_gray> <white>%player%</white>"
       leader: "<color:#FBBF24>♛ %player%</color>"
+      moderator: "<color:#38BDF8>✦ %player%</color>"
       self: "<white>%player%</white> <dark_gray>(you)</dark_gray>"
+      role: "<gray>Role:</gray> %role%"
       name: "<color:#C084FC>● %player%</color>"
       server: "<gray>On</gray> %server%"
       offline: "<dark_gray>Offline</dark_gray>"
@@ -539,9 +544,41 @@ party:
       title: "<dark_gray>End the party?</dark_gray>"
       "yes": "<red>✖ End party</red>"
       "no": "<color:#2DD4BF>✔ Keep playing</color>"
-    promote:
+    moderator:
+      name: "<color:#38BDF8>◆ Make moderator</color>"
+      lore: "<white>%player%</white> <gray>may invite, remove members and change settings.</gray>"
+    demote:
+      name: "<color:#FBBF24>◆ Take moderator away</color>"
+      lore: "<white>%player%</white> <gray>becomes a regular member again.</gray>"
+    transfer:
       name: "<color:#FBBF24>◆ Make leader</color>"
-      lore: "<white>%player%</white> <gray>leads the party afterwards.</gray>"
+      lore: "<white>%player%</white> <gray>leads the party afterwards, you stay moderator.</gray>"
+      title: "<dark_gray>Hand over the lead?</dark_gray>"
+      "yes": "<color:#FBBF24>♛ Make %player% leader</color>"
+      "no": "<color:#2DD4BF>✔ Keep the lead</color>"
+    role:
+      leader: "<color:#FBBF24>Leader</color>"
+      moderator: "<color:#38BDF8>Moderator</color>"
+      member: "<color:#C084FC>Member</color>"
+    settings:
+      name: "<color:#C084FC>◆ Party settings</color>"
+      lore: "<gray>Who may invite, join and write.</gray>"
+      title: "<gradient:#C084FC:#F472B6><b>Party settings</b></gradient>"
+      locked: "<dark_gray>Only the leader and moderators can change this.</dark_gray>"
+    setting:
+      invite: "<color:#C084FC>◆ Who may invite</color>"
+      access: "<color:#C084FC>◆ Who may join without invite</color>"
+      follow: "<color:#C084FC>◆ Members follow the leader</color>"
+      chat: "<color:#C084FC>◆ Who may write in the chat</color>"
+    value:
+      leader: "<color:#FBBF24>only the leader</color>"
+      moderators: "<color:#38BDF8>leader and moderators</color>"
+      members: "<color:#2DD4BF>every member</color>"
+      invite-only: "<color:#FBBF24>invited players only</color>"
+      friends: "<color:#22D3EE>friends of the leader</color>"
+      open: "<color:#2DD4BF>everyone</color>"
+      "on": "<color:#2DD4BF>yes</color>"
+      "off": "<red>no</red>"
     kick:
       name: "<red>◆ Remove from party</red>"
       lore: "<white>%player%</white> <gray>has to leave the party.</gray>"

@@ -18,6 +18,7 @@ import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
+import net.prismarin.api.social.PartyRole;
 import net.prismarin.core.gui.ItemBuilder;
 import net.prismarin.core.gui.Menu;
 import net.prismarin.core.gui.MenuButton;
@@ -111,6 +112,10 @@ public final class SocialMenus {
 
     public void openSettings(Player player, Consumer<Player> back) {
         call(player, client.view(player, SocialClient.VIEW_SETTINGS, 0), view -> renderSettings(player, view, back));
+    }
+
+    public void openPartySettings(Player player) {
+        call(player, client.view(player, SocialClient.VIEW_PARTY, 0), view -> renderPartySettings(player, view));
     }
 
     public void openPartyInvite(Player player, int page) {
@@ -342,8 +347,14 @@ public final class SocialMenus {
                     .name(locale.render("party.menu.info.name", target,
                             Placeholder.unparsed("count", String.valueOf(party.members().size())),
                             Placeholder.unparsed("max", String.valueOf(party.max()))))
-                    .lore(locale.render("party.menu.info.leader", target, Placeholder.unparsed("player", leaderName)))
+                    .lore(locale.render("party.menu.info.leader", target, Placeholder.unparsed("player", leaderName)),
+                            locale.render("party.menu.info.role", target,
+                                    Placeholder.component("role", role(target, party.role()))))
                     .build()));
+            menu.button(SocialLayout.PARTY_OPTIONS, new MenuButton(ItemBuilder.of(Material.WRITABLE_BOOK)
+                    .name(locale.render("party.menu.settings.name", target))
+                    .lore(locale.render("party.menu.settings.lore", target))
+                    .build(), context -> openPartySettings(context.player())));
             List<SocialView.Person> people = new ArrayList<>(party.members());
             int members = people.size();
             people.addAll(party.invited());
@@ -390,12 +401,14 @@ public final class SocialMenus {
                     .lore(locale.render("party.menu.invite-friend.lore", target))
                     .build(), context -> openPartyInvite(context.player(), 0)));
         }
-        if (party.inParty() && party.leaderSelf()) {
+        if (party.inParty() && party.canWarp()) {
             menu.button(PARTY_WARP, new MenuButton(ItemBuilder.of(Material.ENDER_EYE)
                     .name(locale.render("party.menu.warp.name", target))
                     .lore(locale.render("party.menu.warp.lore", target))
                     .build(), context -> act(context.player(), "party-warp", null, SocialClient.VIEW_PARTY, 0,
                     next -> renderParty(context.player(), next))));
+        }
+        if (party.inParty() && party.canDisband()) {
             menu.button(PARTY_DISBAND, new MenuButton(ItemBuilder.of(Material.TNT)
                     .name(locale.render("party.menu.disband.name", target))
                     .lore(locale.render("party.menu.disband.lore", target))
@@ -415,15 +428,19 @@ public final class SocialMenus {
 
     private MenuButton memberButton(Locale target, SocialView.Person person, SocialView.PartyView party,
                                     SocialView.Features features) {
-        String key = person.leader() ? "party.menu.member.leader"
-                : person.self() ? "party.menu.member.self" : "party.menu.member.name";
+        String key = switch (person.role()) {
+            case LEADER -> "party.menu.member.leader";
+            case MODERATOR -> "party.menu.member.moderator";
+            case MEMBER -> person.self() ? "party.menu.member.self" : "party.menu.member.name";
+        };
         List<Component> lore = new ArrayList<>();
+        lore.add(locale.render("party.menu.member.role", target,
+                Placeholder.component("role", role(target, person.role()))));
         lore.add(person.online()
                 ? locale.render("party.menu.member.server", target,
                         Placeholder.component("server", serverName(person.server())))
                 : locale.render("party.menu.member.offline", target));
-        boolean actions = !person.self() && (party.leaderSelf()
-                || features.friends() && !person.friend() && !person.masked());
+        boolean actions = !person.self() && !memberActions(person, features).isEmpty();
         if (actions) {
             lore.add(Component.empty());
             lore.add(locale.render("party.menu.member.click", target));
@@ -442,7 +459,7 @@ public final class SocialMenus {
     private MenuButton invitedButton(Locale target, SocialView.Person person, SocialView.PartyView party) {
         List<Component> lore = new ArrayList<>();
         lore.add(locale.render("party.menu.invited.lore", target));
-        if (party.leaderSelf()) {
+        if (party.canRevoke()) {
             lore.add(Component.empty());
             lore.add(locale.render("party.menu.invited.click", target));
         }
@@ -450,11 +467,17 @@ public final class SocialMenus {
                 .name(locale.render("party.menu.invited.name", target, Placeholder.unparsed("player", person.name())))
                 .lore(lore)
                 .build();
-        if (!party.leaderSelf()) {
+        if (!party.canRevoke()) {
             return kit.decoration(icon);
         }
         return new MenuButton(icon, context -> act(context.player(), "party-kick", person.ref(),
                 SocialClient.VIEW_PARTY, 0, next -> renderParty(context.player(), next)));
+    }
+
+    private List<SocialLayout.MemberAction> memberActions(SocialView.Person person, SocialView.Features features) {
+        SocialView.Permissions allowed = person.permissions();
+        return SocialLayout.memberActions(allowed.promote(), allowed.demote(), allowed.transfer(),
+                features.friends() && !person.friend() && !person.masked(), allowed.kick());
     }
 
     private void openMember(Player player, SocialView.Person person, SocialView.PartyView party,
@@ -465,31 +488,123 @@ public final class SocialMenus {
         kit.fill(menu);
         menu.button(SMALL_INFO, kit.decoration(head(person.uuid(), person.showSkin())
                 .name(locale.render("party.menu.member.name", target, Placeholder.unparsed("player", person.name())))
+                .lore(locale.render("party.menu.member.role", target,
+                        Placeholder.component("role", role(target, person.role()))))
                 .build()));
-        if (party.leaderSelf() && !person.leader()) {
-            menu.button(SMALL_LEFT, new MenuButton(ItemBuilder.of(Material.GOLDEN_HELMET)
-                    .name(locale.render("party.menu.promote.name", target))
-                    .lore(locale.render("party.menu.promote.lore", target,
-                            Placeholder.unparsed("player", person.name())))
-                    .build(), context -> act(context.player(), "party-promote", person.ref(), SocialClient.VIEW_PARTY,
-                    0, next -> renderParty(context.player(), next))));
-            menu.button(SMALL_RIGHT, new MenuButton(ItemBuilder.of(Material.IRON_DOOR)
-                    .name(locale.render("party.menu.kick.name", target))
-                    .lore(locale.render("party.menu.kick.lore", target, Placeholder.unparsed("player", person.name())))
-                    .build(), context -> act(context.player(), "party-kick", person.ref(), SocialClient.VIEW_PARTY,
-                    0, next -> renderParty(context.player(), next))));
-        }
-        if (features.friends() && !person.friend() && !person.masked()) {
-            menu.button(SMALL_MIDDLE, new MenuButton(ItemBuilder.of(Material.TOTEM_OF_UNDYING)
-                    .name(locale.render("party.menu.befriend.name", target))
-                    .lore(locale.render("party.menu.befriend.lore", target,
-                            Placeholder.unparsed("player", person.name())))
-                    .build(), context -> act(context.player(), "friend-add", person.ref(), SocialClient.VIEW_PARTY,
-                    0, next -> renderParty(context.player(), next))));
+        List<SocialLayout.MemberAction> actions = memberActions(person, features);
+        List<Integer> slots = actions.isEmpty() ? List.of() : MenuLayout.centeredRowSlots(1, actions.size());
+        for (int i = 0; i < actions.size(); i++) {
+            menu.button(slots.get(i), memberAction(target, actions.get(i), person, party, features));
         }
         menu.button(SMALL_BACK, kit.back(target, this::openParty));
         menu.button(SMALL_CLOSE, kit.close(target));
         menus.open(player, menu);
+    }
+
+    private MenuButton memberAction(Locale target, SocialLayout.MemberAction action, SocialView.Person person,
+                                    SocialView.PartyView party, SocialView.Features features) {
+        return switch (action) {
+            case PROMOTE -> partyButton(target, Material.GOLDEN_HELMET, "party.menu.moderator", person,
+                    "party-promote");
+            case DEMOTE -> partyButton(target, Material.LEATHER_HELMET, "party.menu.demote", person, "party-demote");
+            case KICK -> partyButton(target, Material.IRON_DOOR, "party.menu.kick", person, "party-kick");
+            case TRANSFER -> new MenuButton(ItemBuilder.of(Material.GOLDEN_APPLE)
+                    .name(locale.render("party.menu.transfer.name", target))
+                    .lore(locale.render("party.menu.transfer.lore", target,
+                            Placeholder.unparsed("player", person.name())))
+                    .build(), context -> confirmTransfer(context.player(), person, party, features));
+            case BEFRIEND -> partyButton(target, Material.TOTEM_OF_UNDYING, "party.menu.befriend", person,
+                    "friend-add");
+        };
+    }
+
+    private MenuButton partyButton(Locale target, Material icon, String key, SocialView.Person person, String action) {
+        return new MenuButton(ItemBuilder.of(icon)
+                .name(locale.render(key + ".name", target))
+                .lore(locale.render(key + ".lore", target, Placeholder.unparsed("player", person.name())))
+                .build(), context -> act(context.player(), action, person.ref(), SocialClient.VIEW_PARTY, 0,
+                next -> renderParty(context.player(), next)));
+    }
+
+    private void confirmTransfer(Player player, SocialView.Person person, SocialView.PartyView party,
+                                 SocialView.Features features) {
+        Locale target = locale(player);
+        Menu menu = new Menu(locale.render("party.menu.transfer.title", target), SMALL_ROWS);
+        kit.fill(menu);
+        menu.button(SMALL_MIDDLE, kit.decoration(head(person.uuid(), person.showSkin())
+                .name(locale.render("party.menu.member.name", target, Placeholder.unparsed("player", person.name())))
+                .build()));
+        menu.button(SMALL_LEFT, new MenuButton(ItemBuilder.of(Material.GOLD_BLOCK)
+                .name(locale.render("party.menu.transfer.yes", target, Placeholder.unparsed("player", person.name())))
+                .build(), context -> act(context.player(), "party-transfer", person.ref(), SocialClient.VIEW_PARTY, 0,
+                next -> renderParty(context.player(), next))));
+        menu.button(SMALL_RIGHT, new MenuButton(ItemBuilder.of(Material.LIME_CONCRETE)
+                .name(locale.render("party.menu.transfer.no", target)).build(),
+                context -> openMember(context.player(), person, party, features)));
+        menus.open(player, menu);
+    }
+
+    private void renderPartySettings(Player player, SocialView view) {
+        Locale target = locale(player);
+        SocialView.PartyView party = view.party();
+        if (party == null || !party.inParty()) {
+            openParty(player);
+            return;
+        }
+        List<SocialView.Setting> settings = party.settings().subList(0, Math.min(9, party.settings().size()));
+        Menu menu = new Menu(locale.render("party.menu.settings.title", target), SMALL_ROWS);
+        kit.fill(menu);
+        if (!settings.isEmpty()) {
+            List<Integer> slots = MenuLayout.centeredRowSlots(1, settings.size());
+            for (int i = 0; i < settings.size(); i++) {
+                SocialView.Setting setting = settings.get(i);
+                List<Component> lore = new ArrayList<>();
+                for (String option : setting.options()) {
+                    lore.add(locale.render(option.equals(setting.value()) ? "friends.menu.setting.selected"
+                            : "friends.menu.setting.option", target,
+                            Placeholder.component("value", locale.render("party.menu.value." + option, target))));
+                }
+                lore.add(Component.empty());
+                lore.add(party.canSettings()
+                        ? locale.render("friends.menu.setting.click", target, Placeholder.component("value",
+                                locale.render("party.menu.value." + setting.next(), target)))
+                        : locale.render("party.menu.settings.locked", target));
+                ItemStack icon = ItemBuilder.of(partySettingIcon(setting.key(), setting.value()))
+                        .name(locale.render("party.menu.setting." + setting.key(), target))
+                        .lore(lore)
+                        .build();
+                if (!party.canSettings()) {
+                    menu.button(slots.get(i), kit.decoration(icon));
+                    continue;
+                }
+                menu.button(slots.get(i), new MenuButton(icon, context -> call(context.player(),
+                        client.partySetting(context.player(), setting.key(), setting.next()),
+                        next -> {
+                            context.player().playSound(SUCCESS, Sound.Emitter.self());
+                            renderPartySettings(context.player(), next);
+                        })));
+            }
+        }
+        menu.button(SMALL_BACK, kit.back(target, this::openParty));
+        menu.button(SMALL_CLOSE, kit.close(target));
+        menus.open(player, menu);
+    }
+
+    private static Material partySettingIcon(String key, String value) {
+        if ("off".equals(value)) {
+            return Material.GRAY_DYE;
+        }
+        return switch (key) {
+            case "invite" -> Material.EMERALD;
+            case "access" -> "open".equals(value) ? Material.OAK_DOOR : Material.IRON_DOOR;
+            case "follow" -> Material.LEAD;
+            case "chat" -> Material.OAK_SIGN;
+            default -> Material.COMPARATOR;
+        };
+    }
+
+    private Component role(Locale target, PartyRole role) {
+        return locale.render("party.menu.role." + role.id(), target);
     }
 
     private void confirmDisband(Player player) {

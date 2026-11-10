@@ -5,19 +5,23 @@ import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.Player;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.social.PartyRole;
 
 public final class SocialCommands {
 
     private static final List<String> FRIEND_ACTIONS = List.of("add", "accept", "deny", "cancel", "remove", "list",
             "requests", "jump", "settings", "help");
-    private static final List<String> PARTY_ACTIONS = List.of("invite", "accept", "deny", "leave", "kick", "promote",
-            "disband", "list", "warp", "chat", "settings", "help");
+    private static final List<String> PARTY_ACTIONS = List.of("invite", "accept", "deny", "join", "leave", "kick",
+            "promote", "demote", "transfer", "disband", "list", "warp", "chat", "settings", "help");
 
     private SocialCommands() {
         throw new AssertionError();
@@ -121,13 +125,19 @@ public final class SocialCommands {
                             name -> party.invite(player, name));
                     case "accept" -> party.accept(player, args.length > 1 ? args[1] : null);
                     case "deny" -> party.deny(player, args.length > 1 ? args[1] : null);
+                    case "join" -> named(context, player, args, "party.usage-join", label,
+                            name -> party.join(player, name));
                     case "leave" -> party.leave(player);
                     case "kick" -> named(context, player, args, "party.usage-kick", label,
                             name -> party.kick(player, name));
                     case "promote" -> named(context, player, args, "party.usage-promote", label,
                             name -> party.promote(player, name));
+                    case "demote" -> named(context, player, args, "party.usage-demote", label,
+                            name -> party.demote(player, name));
+                    case "transfer" -> named(context, player, args, "party.usage-transfer", label,
+                            name -> party.transfer(player, name));
                     case "disband" -> party.disband(player);
-                    case "list" -> party.list(player);
+                    case "list", "info" -> party.list(player);
                     case "warp" -> party.warp(player);
                     case "chat" -> {
                         if (args.length < 2) {
@@ -138,7 +148,7 @@ public final class SocialCommands {
                         }
                         party.chat(player, String.join(" ", Arrays.copyOfRange(args, 1, args.length)));
                     }
-                    case "settings" -> settings(context, friends, player, args, label);
+                    case "settings" -> partySettings(context, party, friends, player, args, label);
                     case "help" -> help(context, player, "party", label, PARTY_ACTIONS);
                     default -> {
                         if (args.length == 1 && FriendService.validName(args[0])) {
@@ -167,9 +177,12 @@ public final class SocialCommands {
                 return context.supply(() -> switch (args[0].toLowerCase(Locale.ROOT)) {
                     case "invite" -> context.visibleNames(player, context.friendsOf(player), prefix, false);
                     case "accept", "deny" -> party.inviterNames(player, prefix);
+                    case "join" -> joinSuggestions(context, party, player, prefix);
                     case "kick" -> party.memberNames(player, prefix, true);
-                    case "promote" -> party.memberNames(player, prefix, false);
-                    case "settings" -> settingSuggestions(context, args);
+                    case "promote" -> party.memberNames(player, prefix, false, PartyRole.MEMBER);
+                    case "demote" -> party.memberNames(player, prefix, false, PartyRole.MODERATOR);
+                    case "transfer" -> party.memberNames(player, prefix, false);
+                    case "settings" -> partySettingSuggestions(context, args);
                     default -> List.<String>of();
                 }).exceptionally(error -> List.of());
             }
@@ -274,6 +287,56 @@ public final class SocialCommands {
             return;
         }
         friends.change(player, setting.get(), value.get());
+    }
+
+    private static void partySettings(SocialContext context, PartyService party, FriendService friends, Player player,
+                                      String[] args, String label) {
+        if (args.length == 1) {
+            party.showSettings(player).thenRun(() -> friends.showSettings(player, label));
+            return;
+        }
+        Optional<PartyOption> option = PartyOption.byId(args[1])
+                .filter(found -> context.settings().party().options().contains(found));
+        if (option.isEmpty()) {
+            settings(context, friends, player, args, label);
+            return;
+        }
+        if (args.length != 3) {
+            context.send(player, "party.usage-settings", Placeholder.unparsed("command", label));
+            return;
+        }
+        Optional<String> value = option.get().normalize(args[2]);
+        if (value.isEmpty()) {
+            context.send(player, "friends.invalid-value",
+                    Placeholder.unparsed("value", args[2]),
+                    Placeholder.unparsed("options", String.join(", ", option.get().options())));
+            return;
+        }
+        party.configure(player, Map.of(option.get(), value.get()));
+    }
+
+    private static List<String> partySettingSuggestions(SocialContext context, String[] args) {
+        List<PartyOption> options = context.partyEnabled() ? context.settings().party().options() : List.of();
+        if (args.length == 2) {
+            List<String> keys = new ArrayList<>();
+            options.forEach(option -> keys.add(option.id()));
+            keys.addAll(settingSuggestions(context, args));
+            return FriendService.filter(keys, args[1]);
+        }
+        if (args.length == 3) {
+            Optional<PartyOption> option = PartyOption.byId(args[1]).filter(options::contains);
+            if (option.isPresent()) {
+                return FriendService.filter(option.get().options(), args[2]);
+            }
+        }
+        return settingSuggestions(context, args);
+    }
+
+    private static List<String> joinSuggestions(SocialContext context, PartyService party, Player player,
+                                                String prefix) {
+        Set<String> names = new LinkedHashSet<>(party.inviterNames(player, prefix));
+        names.addAll(context.visibleNames(player, context.friendsOf(player), prefix, false));
+        return List.copyOf(names);
     }
 
     private static List<String> settingSuggestions(SocialContext context, String[] args) {

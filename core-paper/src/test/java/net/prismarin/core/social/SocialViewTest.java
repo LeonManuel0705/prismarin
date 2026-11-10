@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.gson.JsonParser;
 import java.util.List;
 import java.util.UUID;
+import net.prismarin.api.social.PartyRole;
+import net.prismarin.api.social.SocialResult;
 import org.junit.jupiter.api.Test;
 
 class SocialViewTest {
@@ -46,6 +48,40 @@ class SocialViewTest {
         assertEquals(leader, member.ref());
         assertEquals("Shadow", member.name());
         assertEquals(leader, view.party().leader());
+    }
+
+    @Test
+    void readsRolesPermissionsAndPartySettings() {
+        UUID moderator = UUID.randomUUID();
+        SocialView view = parse("{\"id\":2,\"result\":\"not-allowed\",\"party\":{\"in-party\":true,\"leader\":\""
+                + leader + "\",\"leader-self\":true,\"role\":\"leader\",\"can-warp\":true,\"can-disband\":true,"
+                + "\"can-settings\":true,\"can-revoke\":true,\"max\":8,\"settings\":[{\"key\":\"invite\","
+                + "\"value\":\"moderators\",\"next\":\"members\",\"options\":[\"leader\",\"moderators\",\"members\"]}],"
+                + "\"members\":[{\"uuid\":\"" + leader + "\",\"name\":\"Leon\",\"leader\":true,\"self\":true,"
+                + "\"role\":\"leader\"},{\"uuid\":\"" + moderator + "\",\"name\":\"Alex\",\"role\":\"moderator\","
+                + "\"can-kick\":true,\"can-demote\":true,\"can-transfer\":true}],\"invited\":[],\"incoming\":[]}}");
+        assertEquals(SocialResult.NOT_ALLOWED, view.result());
+        SocialView.PartyView party = view.party();
+        assertEquals(PartyRole.LEADER, party.role());
+        assertTrue(party.canWarp() && party.canDisband() && party.canSettings() && party.canRevoke());
+        assertEquals(List.of(new SocialView.Setting("invite", "moderators", "members",
+                List.of("leader", "moderators", "members"))), party.settings());
+        SocialView.Person second = party.members().get(1);
+        assertEquals(PartyRole.MODERATOR, second.role());
+        assertEquals(new SocialView.Permissions(true, false, true, true), second.permissions());
+        assertEquals(SocialView.Permissions.NONE, party.members().getFirst().permissions());
+    }
+
+    @Test
+    void olderProxiesStillGiveSensibleRoles() {
+        SocialView view = parse("{\"id\":3,\"party\":{\"in-party\":true,\"leader-self\":false,\"members\":["
+                + "{\"uuid\":\"" + leader + "\",\"leader\":true},{\"uuid\":\"" + friend + "\"}]}}");
+        assertNull(view.result());
+        assertEquals(PartyRole.MEMBER, view.party().role());
+        assertEquals(PartyRole.LEADER, view.party().members().getFirst().role());
+        assertEquals(PartyRole.MEMBER, view.party().members().get(1).role());
+        assertFalse(view.party().members().get(1).permissions().any());
+        assertTrue(view.party().settings().isEmpty());
     }
 
     @Test

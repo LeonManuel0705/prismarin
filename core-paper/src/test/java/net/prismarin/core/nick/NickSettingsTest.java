@@ -24,7 +24,7 @@ class NickSettingsTest {
         Path file = directory.resolve("nick.yml");
         NickSettings settings = NickSettings.load(file);
 
-        assertEquals(NickPolicy.Where.NON_LOBBY, settings.policy().where());
+        assertEquals(NickPolicy.Where.EVERYWHERE, settings.policy().where());
         assertEquals(NickPolicy.When.ALWAYS, settings.policy().when());
         assertTrue(settings.policy().autoNick());
         assertEquals(Set.of("lobby"), settings.policy().lobbyGroups());
@@ -44,7 +44,7 @@ class NickSettingsTest {
         String written = Files.readString(file, StandardCharsets.UTF_8);
         assertTrue(written.startsWith("# Nick settings of this server."));
         assertTrue(written.contains("# Where nicks are shown"));
-        assertTrue(written.contains("where: non-lobby"));
+        assertTrue(written.contains("where: everywhere"));
         assertTrue(written.contains("  # LuckPerms group whose prefix"));
         assertTrue(written.contains("Placeholders are written as %name%"));
     }
@@ -125,7 +125,7 @@ class NickSettingsTest {
 
         NickSettings settings = NickSettings.load(file);
 
-        assertEquals(NickPolicy.Where.NON_LOBBY, settings.policy().where());
+        assertEquals(NickPolicy.Where.EVERYWHERE, settings.policy().where());
         assertEquals(NickPolicy.When.ALWAYS, settings.policy().when());
         assertEquals(Set.of(GameState.RUNNING), settings.roundStates());
         assertEquals(NickSettings.SkinMode.POOL, settings.skins().mode());
@@ -143,7 +143,7 @@ class NickSettingsTest {
 
         NickSettings settings = NickSettings.load(file);
 
-        assertEquals(NickPolicy.Where.NON_LOBBY, settings.policy().where());
+        assertEquals(NickPolicy.Where.EVERYWHERE, settings.policy().where());
         assertEquals(1, settings.problems().size());
         assertEquals(broken, Files.readString(file, StandardCharsets.UTF_8));
     }

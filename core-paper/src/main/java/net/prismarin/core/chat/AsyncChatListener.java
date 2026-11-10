@@ -6,9 +6,9 @@ import io.papermc.paper.event.player.AsyncChatEvent;
 import java.util.Locale;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
@@ -60,14 +60,14 @@ public final class AsyncChatListener implements Listener {
                 ? PlayerLocales.of(player, profiles)
                 : Locale.forLanguageTag(config.defaultLocale());
         Component prefix = ranks.prefix(source);
-        TagResolver[] resolvers = {
-                Placeholder.component("prefix", prefix),
+        Component suffix = ranks.suffix(source);
+        TextColor chatColor = ranks.chatColor(source);
+        return locale.render("chat.line", viewerLocale, source.getUniqueId(),
+                Placeholder.component("prefix", PrefixStyle.visible(prefix)
+                        ? prefix.append(Component.space()) : Component.empty()),
                 Placeholder.component("name", Component.text(source.getName(), ranks.nameColor(source))),
-                Placeholder.component("message", message)};
-        if (PrefixStyle.visible(prefix)) {
-            return locale.render("chat.format", viewerLocale, source.getUniqueId(), resolvers);
-        }
-        String format = locale.raw("chat.format", viewerLocale).replace("%prefix% ", "").replace("<prefix> ", "");
-        return locale.format(source.getUniqueId(), format, resolvers);
+                Placeholder.component("suffix", PrefixStyle.visible(suffix)
+                        ? Component.space().append(suffix) : Component.empty()),
+                Placeholder.component("message", chatColor == null ? message : message.colorIfAbsent(chatColor)));
     }
 }

@@ -8,12 +8,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.prismarin.shared.social.FriendDocuments;
 import net.prismarin.shared.storage.DocumentStore;
 
 public final class SocialStore {
 
-    public static final String FRIENDS = "friends";
-    public static final String PRESENCE = "presence";
+    public static final String FRIENDS = FriendDocuments.FRIENDS;
+    public static final String PRESENCE = FriendDocuments.PRESENCE;
 
     private static final long PROFILE_CACHE_MILLIS = 3_000L;
     private static final int PRESENCE_CACHE_LIMIT = 20_000;

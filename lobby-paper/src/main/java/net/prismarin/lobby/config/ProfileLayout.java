@@ -9,18 +9,18 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
-public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRow, int backSlot, int closeSlot,
-                            List<Entry> entries, LanguageClick languageClick, List<Entry> social) {
+public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRow, int actionRow, int backSlot,
+                            int closeSlot, List<Entry> entries, LanguageClick languageClick, List<Entry> social) {
 
     public static final String AUTO = "auto";
     public static final String OFF = "off";
     public static final List<String> DEFAULT_HEAD = List.of("currencies", "level");
     public static final Map<String, String> DEFAULT_ENTRIES = defaultEntries();
     public static final ProfileLayout DEFAULT = new ProfileLayout(
-            DEFAULT_HEAD.stream().map(Line::parse).toList(), 3, 4, 1, 18, 26,
+            DEFAULT_HEAD.stream().map(Line::parse).toList(), 5, 13, 2, 3, 36, 44,
             List.of(new Entry(Entry.Kind.CURRENCIES, -1), new Entry(Entry.Kind.LEVEL, -1),
                     new Entry(Entry.Kind.LANGUAGE, -1)),
-            LanguageClick.AUTO,
+            LanguageClick.MENU,
             List.of(new Entry(Entry.Kind.FRIENDS, -1), new Entry(Entry.Kind.PARTY, -1)));
 
     public ProfileLayout {
@@ -40,8 +40,16 @@ public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRo
         return rows * 9;
     }
 
+    public static boolean classicDefaults(int rows, int headSlot, int entryRow, int backSlot, int closeSlot) {
+        return rows == 3 && headSlot == 4 && entryRow == 1 && backSlot == 18 && closeSlot == 26;
+    }
+
+    public static boolean actionEntry(Entry.Kind kind) {
+        return kind == Entry.Kind.LANGUAGE || kind.social();
+    }
+
     public enum LanguageClick {
-        AUTO,
+        TOGGLE,
         MENU;
 
         public static Optional<LanguageClick> parse(String value) {
@@ -49,8 +57,8 @@ public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRo
                 return Optional.empty();
             }
             return switch (value.strip().toLowerCase(Locale.ROOT)) {
-                case ProfileLayout.AUTO, "toggle" -> Optional.of(AUTO);
-                case "menu", "list" -> Optional.of(MENU);
+                case "toggle" -> Optional.of(TOGGLE);
+                case ProfileLayout.AUTO, "menu", "list" -> Optional.of(MENU);
                 default -> Optional.empty();
             };
         }

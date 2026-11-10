@@ -26,7 +26,7 @@ public final class ConfigLoader {
     private static final String DEFAULT_MONGO_DATABASE = "prismarin";
     private static final String DEFAULT_REDIS_HOST = "localhost";
     private static final int DEFAULT_REDIS_PORT = 6379;
-    private static final String DEFAULT_LOCALE = "de";
+    private static final String DEFAULT_LOCALE = "en";
     private static final String MARIADB_ALIAS = "MARIADB";
     private static final List<String> DEFAULT_CURRENCIES = List.of(Currency.COINS.id(), Currency.GEMS.id());
 

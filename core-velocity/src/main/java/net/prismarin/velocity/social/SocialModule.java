@@ -2,10 +2,12 @@ package net.prismarin.velocity.social;
 
 import com.velocitypowered.api.command.CommandManager;
 import com.velocitypowered.api.command.SimpleCommand;
+import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
+import net.prismarin.api.social.SocialApi;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.velocity.ProxyModules;
 import net.prismarin.velocity.admin.AdminContext;
@@ -33,13 +35,16 @@ public final class SocialModule {
                 new NickDirectory(admin.services().documents()), admin.channel(), executor, friendsOn, partyOn,
                 messagesOn);
         FriendService friends = new FriendService(context);
-        PartyService party = new PartyService(context, new PartyManager(settings.party().membersCanInvite()),
+        PartyService party = new PartyService(context, new PartyManager(settings.party().defaults()),
                 admin.directory(), admin.status());
         MessageService messages = new MessageService(context);
         PresenceTracker presence = new PresenceTracker(context, friends, party, messages);
         admin.proxy().getEventManager().register(plugin, presence);
         presence.start();
         admin.channel().handleSocial(new SocialChannel(context, friends, party, new SocialViews(context, friends, party)));
+        SocialApi.register(friendsOn ? new ProxyFriendApi(context, friends) : null,
+                partyOn ? new ProxyPartyApi(context, party) : null);
+        admin.proxy().getEventManager().register(plugin, ProxyShutdownEvent.class, event -> SocialApi.unregister());
 
         CommandManager commands = admin.proxy().getCommandManager();
         List<String> registered = new ArrayList<>();

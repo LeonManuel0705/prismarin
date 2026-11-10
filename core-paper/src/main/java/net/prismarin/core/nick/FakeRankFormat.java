@@ -6,9 +6,11 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.locale.PlayerLocales;
+import net.prismarin.shared.text.PrefixStyle;
 import org.bukkit.entity.Player;
 
 @Singleton
@@ -46,6 +48,10 @@ public final class FakeRankFormat {
 
     public NamedTextColor nameColor() {
         return look().nameColor();
+    }
+
+    public TextColor chatColor() {
+        return look().prefix().flatMap(PrefixStyle::lastColor).orElse(null);
     }
 
     public boolean hasPerk(String permission) {

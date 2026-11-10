@@ -1,4 +1,5 @@
 language:
+  head: "5e7899b4806858697e283f084d9173fe487886453774626b24bd8cfecc77b3f"
   name: "Deutsch"
   icon: "YELLOW_BANNER"
 prefix: "%brand_prefix%"
@@ -12,10 +13,11 @@ currency:
   gems: "<color:#2DD4BF>Gems</color>"
 chat:
   format: "%prefix% %name% <dark_gray>»</dark_gray> %message%"
+  line: "%prefix%%name%%suffix% <dark_gray>»</dark_gray> %message%"
 rank:
   admin-prefix: "<red><b>Admin</b></red>"
   default-prefix: "<gray>Spieler</gray>"
-  usage: "%brand_prefix%Verwendung: <color:#22D3EE>/rank Spieler [set|add|remove] [Rang] [Dauer]</color> oder <color:#22D3EE>/rank list</color></gray>"
+  usage: "%brand_prefix%Verwendung: <color:#22D3EE>/rank \\<Spieler> [set|add|remove] [\\<Rang>] [\\<Dauer>]</color> oder <color:#22D3EE>/rank list</color></gray>"
   no-luckperms: "%brand_prefix%✖ Für Ränge wird LuckPerms benötigt.</gray>"
   unknown-group: "%brand_prefix%✖ Den Rang <color:#22D3EE>%group%</color> gibt es nicht.</gray>"
   invalid-duration: "%brand_prefix%✖ <color:#22D3EE>%duration%</color> ist keine gültige Dauer, zum Beispiel 30d oder 12h.</gray>"
@@ -47,7 +49,7 @@ economy:
   withdraw-success: "%brand_prefix%✔ Es wurden <color:#FBBF24>%amount%</color> %currency% <gray>abgebucht. Neuer Stand: <color:#FBBF24>%balance%</color></gray>"
   insufficient-funds: "%brand_prefix%✖ Nicht genug %currency%<gray>. Dir fehlen <color:#FBBF24>%missing%</color>.</gray>"
   transaction-failed: "%brand_prefix%✖ Die Transaktion konnte nicht ausgeführt werden.</gray>"
-  usage: "%brand_prefix%Verwendung: <color:#22D3EE>/economy give|take|set Spieler Währung Betrag</color></gray>"
+  usage: "%brand_prefix%Verwendung: <color:#22D3EE>/economy give|take|set \\<Spieler> \\<Währung> \\<Betrag></color></gray>"
   invalid-currency: "%brand_prefix%✖ Unbekannte Währung. Verfügbar: <color:#FBBF24>%currencies%</color><gray>.</gray>"
   invalid-amount: "%brand_prefix%✖ Der Betrag muss eine ganze Zahl größer als 0 sein.</gray>"
   give-success: "%brand_prefix%✔ <color:#FBBF24>%amount%</color> %currency% <gray>an <color:#22D3EE>%player%</color> vergeben. Neuer Stand: <color:#FBBF24>%balance%</color></gray>"
@@ -180,7 +182,7 @@ lobby:
     taken: "%brand_prefix%✔ Baumodus von <color:#22D3EE>%player%</color> beendet.</gray>"
     taken-target: "%brand_prefix%Dein Baumodus wurde von <color:#22D3EE>%player%</color> beendet.</gray>"
     not-active: "%brand_prefix%✖ <color:#22D3EE>%player%</color> ist nicht im Baumodus.</gray>"
-    usage-console: "%brand_prefix%Verwendung: <color:#22D3EE>/lobbybuild Spieler</color></gray>"
+    usage-console: "%brand_prefix%Verwendung: <color:#22D3EE>/lobbybuild \\<Spieler></color></gray>"
   setspawn:
     success: "%brand_prefix%✔ Spawn gesetzt: <color:#22D3EE>%x% / %y% / %z%</color> <gray>in</gray> <color:#22D3EE>%world%</color><gray>.</gray>"
     failed: "%brand_prefix%✖ Der Spawn konnte nicht gespeichert werden.</gray>"
@@ -189,7 +191,7 @@ lobby:
     void-hint: "%brand_prefix%Tipp: Mit <color:#22D3EE>/setvoid Höhe</color> holst du Spieler aus dem Void zurück.</gray>"
     below-void: "%brand_prefix%Achtung: Dieser Spawn liegt unter der Void-Höhe <color:#22D3EE>Y %y%</color>. Dorthin wird niemand zurückgeholt, setze die Höhe mit <color:#22D3EE>/setvoid</color> tiefer.</gray>"
   setvoid:
-    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/setvoid Höhe|here|off [Welt]</color></gray>"
+    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/setvoid \\<Höhe>|here|off [\\<Welt>]</color></gray>"
     status-on: "%brand_prefix%Void-Teleport in <color:#22D3EE>%world%</color>: unter Y <color:#22D3EE>%y%</color>.</gray>"
     status-off: "%brand_prefix%Void-Teleport in <color:#22D3EE>%world%</color> ist aus.</gray>"
     set: "%brand_prefix%✔ Wer in <color:#22D3EE>%world%</color> unter Y <color:#22D3EE>%y%</color> fällt, kommt zurück zum Spawn.</gray>"
@@ -273,7 +275,7 @@ game-state:
   restarting: "<dark_gray>Neustart</dark_gray>"
   full: "<red>Voll</red>"
 play:
-  usage: "%brand_prefix%Verwendung: <color:#22D3EE>/play Gruppe</color></gray>"
+  usage: "%brand_prefix%Verwendung: <color:#22D3EE>/play \\<Gruppe></color></gray>"
   unknown-group: "%brand_prefix%✖ Die Gruppe <color:#22D3EE>%group%</color> gibt es nicht.</gray>"
   no-server: "%brand_prefix%✖ Gerade ist kein Server in <color:#22D3EE>%group%</color> frei.</gray>"
   connecting: "%brand_prefix%Verbinde mit %server%<gray> ...</gray>"
@@ -286,7 +288,7 @@ vanish:
   enabled-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> ist jetzt unsichtbar.</gray>"
   disabled-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> ist wieder sichtbar.</gray>"
 level:
-  usage: "%brand_prefix%Verwendung: <color:#22D3EE>/level Spieler [set|add|remove|addxp] [Anzahl]</color></gray>"
+  usage: "%brand_prefix%Verwendung: <color:#22D3EE>/level \\<Spieler> [set|add|remove|addxp] [\\<Anzahl>]</color></gray>"
   invalid-amount: "%brand_prefix%✖ Bitte gib eine gültige Anzahl an.</gray>"
   show: "%brand_prefix%<white>%player%</white> ist Level <color:#22D3EE>%level%</color> <dark_gray>(%xp%/%max% XP)</dark_gray></gray>"
   changed: "%brand_prefix%✔ <white>%player%</white>: Level <dark_gray>%before%</dark_gray> <gray>»</gray> <color:#22D3EE>%level%</color> <dark_gray>(%xp% XP)</dark_gray></gray>"
@@ -309,7 +311,7 @@ admin:
   info-modules: " <gray>Module an:</gray> <white>%modules%</white>"
   info-off: " <dark_gray>aus:</dark_gray> <gray>%module%</gray> <dark_gray>(%reason%)</dark_gray>"
   info-players: " <gray>Spieler hier</gray> <white>%players%</white> <dark_gray>·</dark_gray> <gray>bekannte Server</gray> <white>%servers%</white>"
-  migrate-usage: "%brand_prefix%Verwendung: <color:#22D3EE>/prismarin migrate Von Nach</color> <dark_gray>(%modes%)</dark_gray></gray>"
+  migrate-usage: "%brand_prefix%Verwendung: <color:#22D3EE>/prismarin migrate \\<Von> \\<Nach></color> <dark_gray>(%modes%)</dark_gray></gray>"
   migrate-console: "%brand_prefix%✖ Der Umzug läuft nur über die Konsole.</gray>"
   migrate-same: "%brand_prefix%✖ Quelle und Ziel sind gleich.</gray>"
   migrate-start: "%brand_prefix%Ziehe Daten von <color:#22D3EE>%from%</color> nach <color:#22D3EE>%to%</color> um ...</gray>"
@@ -349,7 +351,7 @@ nick:
     list-empty: "%brand_prefix%Auf diesem Server ist niemand genickt.</gray>"
 essentials:
   teleport:
-    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/tphere Spieler</color></gray>"
+    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/tphere \\<Spieler></color></gray>"
     all: "%brand_prefix%✔ <color:#22D3EE>%count%</color> Spieler zu dir geholt.</gray>"
     nobody: "%brand_prefix%✖ Es ist niemand da, den du holen könntest.</gray>"
     here: "%brand_prefix%✔ <color:#22D3EE>%player%</color> zu dir geholt.</gray>"
@@ -369,7 +371,7 @@ essentials:
     on-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> kann jetzt fliegen.</gray>"
     off-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> kann nicht mehr fliegen.</gray>"
   gamemode:
-    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/gm 0|1|2|3 [Spieler]</color> <gray>oder</gray> <color:#22D3EE>/gms, /gmc, /gma, /gmsp</color></gray>"
+    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/gm 0|1|2|3 [\\<Spieler>]</color> <gray>oder</gray> <color:#22D3EE>/gms, /gmc, /gma, /gmsp</color></gray>"
     changed: "%brand_prefix%✔ Spielmodus: <color:#22D3EE>%mode%</color>.</gray>"
     changed-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> spielt jetzt im Modus <color:#22D3EE>%mode%</color>.</gray>"
     mode:
@@ -378,7 +380,7 @@ essentials:
       adventure: "Abenteuer"
       spectator: "Zuschauer"
   speed:
-    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/speed 1-10|reset [Spieler]</color> <dark_gray>(im Flug gilt es fürs Fliegen)</dark_gray></gray>"
+    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/speed 1-10|reset [\\<Spieler>]</color> <dark_gray>(im Flug gilt es fürs Fliegen)</dark_gray></gray>"
     walk: "%brand_prefix%✔ Laufgeschwindigkeit <color:#22D3EE>%speed%</color>.</gray>"
     fly: "%brand_prefix%✔ Fluggeschwindigkeit <color:#22D3EE>%speed%</color>.</gray>"
     walk-other: "%brand_prefix%✔ Laufgeschwindigkeit von <color:#22D3EE>%player%</color>: <color:#22D3EE>%speed%</color>.</gray>"
@@ -387,7 +389,7 @@ essentials:
     self: "%brand_prefix%✔ Dein Inventar ist leer.</gray>"
     other: "%brand_prefix%✔ Das Inventar von <color:#22D3EE>%player%</color> ist leer.</gray>"
   invsee:
-    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/invsee Spieler</color> <gray>oder</gray> <color:#22D3EE>/enderchest [Spieler]</color></gray>"
+    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/invsee \\<Spieler></color> <gray>oder</gray> <color:#22D3EE>/enderchest [\\<Spieler>]</color></gray>"
     self: "%brand_prefix%✖ Dein eigenes Inventar öffnest du mit <color:#22D3EE>E</color>.</gray>"
     opened: "%brand_prefix%Inventar von <color:#22D3EE>%player%</color> geöffnet.</gray>"
     view-only: "%brand_prefix%Inventar von <color:#22D3EE>%player%</color> geöffnet, nur zum Ansehen.</gray>"
@@ -395,7 +397,7 @@ essentials:
     opened: "%brand_prefix%Endertruhe von <color:#22D3EE>%player%</color> geöffnet.</gray>"
     view-only: "%brand_prefix%Endertruhe von <color:#22D3EE>%player%</color> geöffnet, nur zum Ansehen.</gray>"
   world:
-    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/%command% Welt</color></gray>"
+    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/%command% \\<Welt></color></gray>"
     unknown: "%brand_prefix%✖ Es gibt keine Welt <color:#22D3EE>%world%</color>.</gray>"
     day: "%brand_prefix%✔ In <color:#22D3EE>%world%</color> ist es jetzt Tag.</gray>"
     night: "%brand_prefix%✔ In <color:#22D3EE>%world%</color> ist es jetzt Nacht.</gray>"
@@ -403,7 +405,7 @@ essentials:
     rain: "%brand_prefix%✔ In <color:#22D3EE>%world%</color> regnet es jetzt.</gray>"
     thunder: "%brand_prefix%✔ In <color:#22D3EE>%world%</color> gewittert es jetzt.</gray>"
   ping:
-    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/ping Spieler</color></gray>"
+    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/ping \\<Spieler></color></gray>"
     self: "%brand_prefix%Dein Ping: %ping%</gray>"
     other: "%brand_prefix%Ping von <color:#22D3EE>%player%</color>: %ping%</gray>"
     good: "<color:#2DD4BF>%ms% ms</color>"
@@ -413,7 +415,7 @@ essentials:
     empty: "%brand_prefix%✖ Nimm zuerst einen Gegenstand in die Hand.</gray>"
     done: "%brand_prefix%✔ Du trägst jetzt <white>%item%</white> auf dem Kopf.</gray>"
   skull:
-    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/skull [Name]</color></gray>"
+    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/skull [\\<Name>]</color></gray>"
     invalid: "%brand_prefix%✖ <color:#22D3EE>%player%</color> ist kein gültiger Spielername.</gray>"
     loading: "%brand_prefix%Suche den Kopf von <color:#22D3EE>%player%</color> ...</gray>"
     unknown: "%brand_prefix%✖ Zu <color:#22D3EE>%player%</color> gibt es kein Minecraft-Konto.</gray>"
@@ -443,7 +445,7 @@ friends:
       page: "<dark_gray>Seite %page% von %pages%</dark_gray>"
     empty:
       name: "<gray>Noch keine Freunde</gray>"
-      lore: "<gray>Füge jemanden mit</gray> <color:#22D3EE>/friend add Name</color> <gray>hinzu.</gray>"
+      lore: "<gray>Füge jemanden mit</gray> <color:#22D3EE>/friend add \\<Name></color> <gray>hinzu.</gray>"
     friend:
       title: "<dark_gray>Freund</dark_gray> <dark_gray>·</dark_gray> <white>%player%</white>"
       online: "<color:#2DD4BF>● %player%</color>"
@@ -498,6 +500,7 @@ party:
     info:
       name: "<color:#C084FC>◆ Deine Party</color> <dark_gray>(%count%/%max%)</dark_gray>"
       leader: "<gray>Leiter:</gray> <color:#FBBF24>%player%</color>"
+      role: "<gray>Deine Rolle:</gray> %role%"
     none:
       name: "<color:#C084FC>◆ Keine Party</color>"
       lore: "<gray>Lade Freunde ein, um zusammen zu spielen.</gray>"
@@ -509,7 +512,9 @@ party:
     member:
       title: "<dark_gray>Party</dark_gray> <dark_gray>·</dark_gray> <white>%player%</white>"
       leader: "<color:#FBBF24>♛ %player%</color>"
+      moderator: "<color:#38BDF8>✦ %player%</color>"
       self: "<white>%player%</white> <dark_gray>(du)</dark_gray>"
+      role: "<gray>Rolle:</gray> %role%"
       name: "<color:#C084FC>● %player%</color>"
       server: "<gray>Auf</gray> %server%"
       offline: "<dark_gray>Offline</dark_gray>"
@@ -539,9 +544,41 @@ party:
       title: "<dark_gray>Party auflösen?</dark_gray>"
       "yes": "<red>✖ Party auflösen</red>"
       "no": "<color:#2DD4BF>✔ Weiterspielen</color>"
-    promote:
+    moderator:
+      name: "<color:#38BDF8>◆ Zum Moderator machen</color>"
+      lore: "<white>%player%</white> <gray>darf einladen, Mitglieder entfernen und Einstellungen ändern.</gray>"
+    demote:
+      name: "<color:#FBBF24>◆ Moderator wegnehmen</color>"
+      lore: "<white>%player%</white> <gray>wird wieder normales Mitglied.</gray>"
+    transfer:
       name: "<color:#FBBF24>◆ Zum Leiter machen</color>"
-      lore: "<white>%player%</white> <gray>leitet danach die Party.</gray>"
+      lore: "<white>%player%</white> <gray>leitet danach die Party, du bleibst Moderator.</gray>"
+      title: "<dark_gray>Leitung abgeben?</dark_gray>"
+      "yes": "<color:#FBBF24>♛ %player% zum Leiter machen</color>"
+      "no": "<color:#2DD4BF>✔ Leitung behalten</color>"
+    role:
+      leader: "<color:#FBBF24>Leiter</color>"
+      moderator: "<color:#38BDF8>Moderator</color>"
+      member: "<color:#C084FC>Mitglied</color>"
+    settings:
+      name: "<color:#C084FC>◆ Party-Einstellungen</color>"
+      lore: "<gray>Wer einladen, beitreten und schreiben darf.</gray>"
+      title: "<gradient:#C084FC:#F472B6><b>Party-Einstellungen</b></gradient>"
+      locked: "<dark_gray>Ändern dürfen nur der Leiter und Moderatoren.</dark_gray>"
+    setting:
+      invite: "<color:#C084FC>◆ Wer einladen darf</color>"
+      access: "<color:#C084FC>◆ Wer ohne Einladung beitreten darf</color>"
+      follow: "<color:#C084FC>◆ Mitglieder folgen dem Leiter</color>"
+      chat: "<color:#C084FC>◆ Wer im Chat schreiben darf</color>"
+    value:
+      leader: "<color:#FBBF24>nur der Leiter</color>"
+      moderators: "<color:#38BDF8>Leiter und Moderatoren</color>"
+      members: "<color:#2DD4BF>alle Mitglieder</color>"
+      invite-only: "<color:#FBBF24>nur Eingeladene</color>"
+      friends: "<color:#22D3EE>Freunde des Leiters</color>"
+      open: "<color:#2DD4BF>alle</color>"
+      "on": "<color:#2DD4BF>ja</color>"
+      "off": "<red>nein</red>"
     kick:
       name: "<red>◆ Aus der Party entfernen</red>"
       lore: "<white>%player%</white> <gray>muss die Party verlassen.</gray>"

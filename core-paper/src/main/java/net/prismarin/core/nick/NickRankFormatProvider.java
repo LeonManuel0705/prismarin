@@ -3,6 +3,7 @@ package net.prismarin.core.nick;
 import com.google.inject.Provider;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextColor;
 import net.prismarin.core.rank.RankFormatProvider;
 import org.bukkit.entity.Player;
 
@@ -31,5 +32,15 @@ public final class NickRankFormatProvider implements RankFormatProvider {
     @Override
     public NamedTextColor nameColor(Player player) {
         return registry.nicked(player.getUniqueId()) ? fake.get().nameColor() : real.nameColor(player);
+    }
+
+    @Override
+    public Component suffix(Player player) {
+        return registry.nicked(player.getUniqueId()) ? Component.empty() : real.suffix(player);
+    }
+
+    @Override
+    public TextColor chatColor(Player player) {
+        return registry.nicked(player.getUniqueId()) ? fake.get().chatColor() : real.chatColor(player);
     }
 }

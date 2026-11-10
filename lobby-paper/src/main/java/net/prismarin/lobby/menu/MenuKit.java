@@ -2,6 +2,7 @@ package net.prismarin.lobby.menu;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
 import net.kyori.adventure.text.Component;
@@ -33,6 +34,15 @@ public final class MenuKit {
         ItemStack pane = ItemBuilder.of(Material.BLACK_STAINED_GLASS_PANE).name(Component.space()).build();
         for (int slot = 0; slot < menu.size(); slot++) {
             menu.button(slot, new MenuButton(pane, DECORATION));
+        }
+    }
+
+    public void accent(Menu menu, List<Integer> slots) {
+        ItemStack pane = ItemBuilder.of(Material.CYAN_STAINED_GLASS_PANE).name(Component.space()).build();
+        for (int slot : slots) {
+            if (slot >= 0 && slot < menu.size()) {
+                menu.button(slot, decoration(pane));
+            }
         }
     }
 

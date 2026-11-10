@@ -176,9 +176,20 @@ public record LobbySettings(Map<String, Boolean> features, List<String> worlds, 
         }
         CommentedConfigurationNode menu = root.node("profile", "menu");
         ProfileLayout defaults = ProfileLayout.DEFAULT;
+        if (ProfileLayout.classicDefaults(stored(menu, "rows"), stored(menu, "head-slot"), stored(menu, "entry-row"),
+                stored(menu, "back-slot"), stored(menu, "close-slot"))) {
+            menu.node("rows").set(defaults.rows());
+            menu.node("head-slot").set(defaults.headSlot());
+            menu.node("entry-row").set(defaults.entryRow());
+            menu.node("action-row").set(defaults.actionRow());
+            menu.node("back-slot").set(defaults.backSlot());
+            menu.node("close-slot").set(defaults.closeSlot());
+            changed = true;
+        }
         changed |= fill(menu.node("rows"), defaults.rows());
         changed |= fill(menu.node("head-slot"), defaults.headSlot());
         changed |= fill(menu.node("entry-row"), defaults.entryRow());
+        changed |= fill(menu.node("action-row"), defaults.actionRow());
         changed |= fill(menu.node("back-slot"), defaults.backSlot());
         changed |= fill(menu.node("close-slot"), defaults.closeSlot());
         changed |= fill(menu.node("language-click"), ProfileLayout.AUTO);
@@ -224,6 +235,11 @@ public record LobbySettings(Map<String, Boolean> features, List<String> worlds, 
                 "player: coins"));
         node.node("actions", ItemClick.SHIFT_RIGHT_CLICK.id()).setList(String.class, List.of(
                 "message: &7Hello &#22D3EE%player%&7, have fun!"));
+    }
+
+    private static int stored(CommentedConfigurationNode menu, String key) {
+        CommentedConfigurationNode node = menu.node(key);
+        return node.virtual() ? Integer.MIN_VALUE : node.getInt(Integer.MIN_VALUE);
     }
 
     private static boolean fill(CommentedConfigurationNode node, Object value) throws SerializationException {
@@ -380,10 +396,18 @@ public record LobbySettings(Map<String, Boolean> features, List<String> worlds, 
             warnings.add("profile.menu.entry-row: " + entryRow + " is outside of the menu, using " + fallback);
             entryRow = fallback;
         }
+        int actionRow = menu.node("action-row").getInt(defaults.actionRow());
+        if (actionRow < 0 || actionRow >= rows) {
+            int fallback = Math.min(defaults.actionRow(), rows - 1);
+            if (!menu.node("action-row").virtual()) {
+                warnings.add("profile.menu.action-row: " + actionRow + " is outside of the menu, using " + fallback);
+            }
+            actionRow = fallback;
+        }
         String clickName = menu.node("language-click").getString(ProfileLayout.AUTO);
         ProfileLayout.LanguageClick languageClick = ProfileLayout.LanguageClick.parse(clickName).orElseGet(() -> {
-            warnings.add("profile.menu.language-click: use auto or menu, got '" + clickName + "'");
-            return ProfileLayout.LanguageClick.AUTO;
+            warnings.add("profile.menu.language-click: use menu or toggle, got '" + clickName + "'");
+            return ProfileLayout.LanguageClick.MENU;
         });
         List<ProfileLayout.Entry> entries = new ArrayList<>();
         List<ProfileLayout.Entry> social = new ArrayList<>();
@@ -409,7 +433,8 @@ public record LobbySettings(Map<String, Boolean> features, List<String> worlds, 
                 }
             }
         }
-        return new ProfileLayout(head, rows, headSlot, entryRow, backSlot, closeSlot, entries, languageClick, social);
+        return new ProfileLayout(head, rows, headSlot, entryRow, actionRow, backSlot, closeSlot, entries,
+                languageClick, social);
     }
 
     private static int slot(ConfigurationNode menu, String key, int fallback, int size, List<String> warnings) {
@@ -526,10 +551,14 @@ public record LobbySettings(Map<String, Boolean> features, List<String> worlds, 
                 "Lore of the profile head item, line by line: currencies, 'currency: <id>', level, rank, empty",
                 "or 'text: <text>'. Text lines may use PlaceholderAPI placeholders."));
         comments.put("profile.menu", List.of("Layout of the profile menu. Slots count from 0 (top left), -1 hides."));
+        comments.put("profile.menu.entry-row", List.of("Row of currencies, level and rank (0 is the top row)."));
+        comments.put("profile.menu.action-row", List.of(
+                "Row of language, friends and party. Use the same number as entry-row for one shared row."));
         comments.put("profile.menu.language-click", List.of(
-                "auto switches directly between two languages and lists them when there are more, menu always lists."));
+                "menu (or auto) opens a list of every language with flag heads, toggle switches directly",
+                "between two languages."));
         comments.put("profile.menu.entries", List.of(
-                "auto centers the entry in entry-row, a number pins it to that slot, off hides it.",
+                "auto centers the entry in its row, a number pins it to that slot, off hides it.",
                 "currencies takes one slot per currency. language needs at least two languages.",
                 "friends and party show up when the PRISMARIN proxy has the friends or party module on."));
         return Map.copyOf(comments);

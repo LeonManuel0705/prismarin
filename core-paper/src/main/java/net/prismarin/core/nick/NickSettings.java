@@ -37,7 +37,7 @@ public record NickSettings(NickPolicy policy, Set<GameState> roundStates, int ac
             "Notch", "jeb_", "Dinnerbone", "Grumm", "Searge", "slicedlime", "kingbdogz", "C418");
     static final List<String> DEFAULT_BLOCKED = List.of("admin", "owner", "staff", "moderator", "support");
 
-    private static final NickPolicy.Where DEFAULT_WHERE = NickPolicy.Where.NON_LOBBY;
+    private static final NickPolicy.Where DEFAULT_WHERE = NickPolicy.Where.EVERYWHERE;
     private static final NickPolicy.When DEFAULT_WHEN = NickPolicy.When.ALWAYS;
     private static final List<String> DEFAULT_LOBBY_GROUPS = List.of(NetworkServer.GROUP_LOBBY);
     private static final List<String> DEFAULT_ROUND_GROUPS = List.of("game");

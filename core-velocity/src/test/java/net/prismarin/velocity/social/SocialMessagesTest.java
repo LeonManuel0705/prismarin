@@ -15,7 +15,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.MatchResult;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.prismarin.api.social.PartyRole;
+import net.prismarin.shared.text.TextFormatter;
 import org.junit.jupiter.api.Test;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
@@ -57,10 +62,56 @@ class SocialMessagesTest {
                 "settings", "help")) {
             assertTrue(english.containsKey("friends.help." + action), action);
         }
-        for (String action : List.of("invite", "accept", "deny", "leave", "kick", "promote", "disband", "list",
-                "warp", "chat", "settings", "help")) {
+        for (String action : List.of("invite", "accept", "deny", "join", "leave", "kick", "promote", "demote",
+                "transfer", "disband", "list", "warp", "chat", "settings", "help")) {
             assertTrue(english.containsKey("party.help." + action), action);
         }
+        for (PartyOption option : PartyOption.values()) {
+            assertTrue(english.containsKey("party.setting." + option.id()), option.id());
+            for (String value : option.options()) {
+                assertTrue(english.containsKey("party.value." + value), value);
+            }
+        }
+        for (PartyRole role : PartyRole.values()) {
+            assertTrue(english.containsKey("party.role." + role.id()), role.id());
+            assertTrue(english.containsKey("party.list-" + role.id()), role.id());
+            assertTrue(english.containsKey("party.list-" + role.id() + "-offline"), role.id());
+        }
+    }
+
+    @Test
+    void helpAndUsageShowPlaceholdersInAngleBrackets() throws IOException {
+        TextFormatter formatter = TextFormatter.plain();
+        Pattern escaped = Pattern.compile("\\\\<([^>]+)>");
+        for (String resource : List.of("messages_de.yml", "messages_en.yml")) {
+            int checked = 0;
+            for (Map.Entry<String, String> entry : texts(resource).entrySet()) {
+                String key = entry.getKey();
+                if (!key.contains(".help.") && !key.contains("usage")) {
+                    continue;
+                }
+                String rendered = plain(formatter, entry.getValue());
+                assertFalse(rendered.contains("\\"), key);
+                Matcher matcher = escaped.matcher(entry.getValue());
+                while (matcher.find()) {
+                    assertTrue(rendered.contains("<" + matcher.group(1) + ">"), key + ": " + rendered);
+                    checked++;
+                }
+            }
+            assertTrue(checked > 25, resource);
+        }
+        Map<String, String> english = texts("messages_en.yml");
+        assertEquals(" /cmd add <name> » send a friend request", plain(formatter, english.get("friends.help.add")));
+        assertTrue(plain(formatter, english.get("msg.usage")).contains("Usage: /cmd <player> <message>"));
+        assertEquals(" /cmd promote <player> » make a member moderator (leader)",
+                plain(formatter, english.get("party.help.promote")));
+        assertEquals(" /cmd list [<page>] » show your friends", plain(formatter, english.get("friends.help.list")));
+    }
+
+    private static String plain(TextFormatter formatter, String text) {
+        return PlainTextComponentSerializer.plainText().serialize(formatter.format(text,
+                Placeholder.unparsed("command", "/cmd"), Placeholder.unparsed("player", "Leon"),
+                Placeholder.unparsed("name", "Leon"), Placeholder.unparsed("message", "hi")));
     }
 
     private static Set<String> placeholders(String text) {

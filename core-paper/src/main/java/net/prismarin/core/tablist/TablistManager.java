@@ -115,7 +115,9 @@ public final class TablistManager {
                 team = board.registerNewTeam(key);
             }
             Component prefix = ranks.prefix(target);
+            Component suffix = ranks.suffix(target);
             team.prefix(PrefixStyle.visible(prefix) ? prefix.append(Component.space()) : Component.empty());
+            team.suffix(PrefixStyle.visible(suffix) ? Component.space().append(suffix) : Component.empty());
             team.color(ranks.nameColor(target));
             if (!team.hasEntry(target.getName())) {
                 team.addEntry(target.getName());

@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
+import net.prismarin.api.social.SocialResult;
 import net.prismarin.core.PrismarinCorePlugin;
 import net.prismarin.core.moderation.ModerationChannel;
 import org.bukkit.entity.Player;
@@ -43,17 +44,23 @@ public final class SocialClient implements Listener {
     private record Pending(UUID player, CompletableFuture<SocialView> future) {
     }
 
+    private record PendingQuery(UUID carrier, CompletableFuture<JsonObject> future) {
+    }
+
     private final PrismarinCorePlugin plugin;
     private final ModerationChannel channel;
+    private final PartyMirror mirror;
     private final AtomicInteger ids = new AtomicInteger();
     private final Map<Integer, Pending> pending = new ConcurrentHashMap<>();
+    private final Map<Integer, PendingQuery> queries = new ConcurrentHashMap<>();
     private final Map<UUID, SocialView.Features> features = new ConcurrentHashMap<>();
     private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
 
     @Inject
-    public SocialClient(PrismarinCorePlugin plugin, ModerationChannel channel) {
+    public SocialClient(PrismarinCorePlugin plugin, ModerationChannel channel, PartyMirror mirror) {
         this.plugin = plugin;
         this.channel = channel;
+        this.mirror = mirror;
     }
 
     public SocialView.Features features(Player player) {
@@ -62,6 +69,10 @@ public final class SocialClient implements Listener {
 
     public boolean known(Player player) {
         return features.containsKey(player.getUniqueId());
+    }
+
+    public PartyMirror mirror() {
+        return mirror;
     }
 
     public CompletableFuture<SocialView> view(Player player, String view, int page) {
@@ -76,24 +87,57 @@ public final class SocialClient implements Listener {
         return request(player, "setting", null, key, value, VIEW_SETTINGS, 0);
     }
 
+    public CompletableFuture<SocialView> partySetting(Player player, String key, String value) {
+        JsonObject options = new JsonObject();
+        options.addProperty(key, value);
+        return send(player, "party-setting", null, null, null, options, VIEW_PARTY, 0, true);
+    }
+
     public CompletableFuture<SocialView> hello(Player player) {
         return request(player, "hello", null, null, null, VIEW_NONE, 0);
     }
 
     public CompletableFuture<SocialView> request(Player player, String action, UUID target, String key, String value,
                                                  String view, int page) {
-        boolean hello = "hello".equals(action);
-        if (!hello && !busy.add(player.getUniqueId())) {
+        return send(player, action, target, key, value, null, view, page, !"hello".equals(action));
+    }
+
+    public CompletableFuture<SocialResult> perform(Player player, String action, UUID target, JsonObject options) {
+        return send(player, action, target, null, null, options, VIEW_NONE, 0, false)
+                .thenApply(view -> view.result() == null ? SocialResult.FAILED : view.result())
+                .exceptionally(error -> SocialResult.UNAVAILABLE);
+    }
+
+    public CompletableFuture<JsonObject> query(Player carrier, String query, UUID player, UUID other) {
+        int id = ids.incrementAndGet();
+        CompletableFuture<JsonObject> future = new CompletableFuture<>();
+        queries.put(id, new PendingQuery(carrier.getUniqueId(), future));
+        future.orTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS).whenComplete((result, error) -> queries.remove(id));
+        JsonObject message = new JsonObject();
+        message.addProperty("id", id);
+        message.addProperty("query", query);
+        message.addProperty("player", player.toString());
+        if (other != null) {
+            message.addProperty("other", other.toString());
+        }
+        deliver(carrier, message, "social-query", future);
+        return future;
+    }
+
+    private CompletableFuture<SocialView> send(Player player, String action, UUID target, String key, String value,
+                                               JsonObject options, String view, int page, boolean gated) {
+        if (gated && !busy.add(player.getUniqueId())) {
             return CompletableFuture.failedFuture(new BusyException());
         }
+        boolean hello = "hello".equals(action);
         int id = ids.incrementAndGet();
         CompletableFuture<SocialView> future = new CompletableFuture<>();
         pending.put(id, new Pending(player.getUniqueId(), future));
         future.orTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS).whenComplete((result, error) -> {
             pending.remove(id);
-            if (!hello) {
+            if (gated) {
                 busy.remove(player.getUniqueId());
-            } else if (error != null && player.isOnline()) {
+            } else if (hello && error != null && player.isOnline()) {
                 features.putIfAbsent(player.getUniqueId(), SocialView.Features.NONE);
             }
         });
@@ -109,14 +153,32 @@ public final class SocialClient implements Listener {
         if (value != null) {
             message.addProperty("value", value);
         }
+        if (options != null) {
+            message.add("options", options);
+        }
         message.addProperty("view", view);
         message.addProperty("page", Math.max(0, page));
-        try {
-            channel.sendSocial(player, message);
-        } catch (RuntimeException e) {
-            future.completeExceptionally(e);
-        }
+        deliver(player, message, "social", future);
         return future;
+    }
+
+    private void deliver(Player player, JsonObject message, String type, CompletableFuture<?> future) {
+        Runnable task = () -> {
+            try {
+                if (!player.isOnline()) {
+                    future.completeExceptionally(new IllegalStateException("player left"));
+                    return;
+                }
+                channel.sendSocial(player, message, type);
+            } catch (RuntimeException e) {
+                future.completeExceptionally(e);
+            }
+        };
+        if (plugin.getServer().isPrimaryThread()) {
+            task.run();
+        } else {
+            plugin.getServer().getScheduler().runTask(plugin, task);
+        }
     }
 
     public <T> void onMain(CompletableFuture<T> future, BiConsumer<T, Throwable> action) {
@@ -130,6 +192,17 @@ public final class SocialClient implements Listener {
         Optional.ofNullable(pending.remove(view.id()))
                 .filter(entry -> entry.player().equals(carrier.getUniqueId()))
                 .ifPresent(entry -> entry.future().complete(view));
+    }
+
+    public void answer(Player carrier, JsonObject message) {
+        int id = message.has("id") && message.get("id").isJsonPrimitive() ? message.get("id").getAsInt() : 0;
+        Optional.ofNullable(queries.remove(id))
+                .filter(entry -> entry.carrier().equals(carrier.getUniqueId()))
+                .ifPresent(entry -> entry.future().complete(message));
+    }
+
+    public void party(JsonObject message) {
+        mirror.receive(message, uuid -> plugin.getServer().getPlayer(uuid) != null);
     }
 
     @EventHandler
@@ -147,8 +220,16 @@ public final class SocialClient implements Listener {
         UUID uuid = event.getPlayer().getUniqueId();
         features.remove(uuid);
         busy.remove(uuid);
+        mirror.forget(uuid, other -> plugin.getServer().getPlayer(other) != null);
         pending.values().removeIf(entry -> {
             if (entry.player().equals(uuid)) {
+                entry.future().cancel(false);
+                return true;
+            }
+            return false;
+        });
+        queries.values().removeIf(entry -> {
+            if (entry.carrier().equals(uuid)) {
                 entry.future().cancel(false);
                 return true;
             }

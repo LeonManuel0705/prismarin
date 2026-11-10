@@ -5,11 +5,14 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
@@ -17,6 +20,11 @@ import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.api.server.ServerStatus;
 import net.prismarin.api.server.ServerStatusService;
+import net.prismarin.api.social.PartyAction;
+import net.prismarin.api.social.PartyLeftEvent;
+import net.prismarin.api.social.PartyRole;
+import net.prismarin.api.social.PartySettings;
+import net.prismarin.api.social.SocialResult;
 
 public final class PartyService {
 
@@ -24,6 +32,7 @@ public final class PartyService {
     private final PartyManager parties;
     private final ServerDirectory directory;
     private final ServerStatusService status;
+    private final PartyFeed feed;
 
     public PartyService(SocialContext context, PartyManager parties, ServerDirectory directory,
                         ServerStatusService status) {
@@ -31,39 +40,64 @@ public final class PartyService {
         this.parties = parties;
         this.directory = directory;
         this.status = status;
+        this.feed = new PartyFeed(context);
     }
 
     public PartyManager parties() {
         return parties;
     }
 
+    public PartyFeed feed() {
+        return feed;
+    }
+
     public String command() {
         return "/" + context.settings().party().commands().getFirst();
     }
 
-    public CompletableFuture<Void> invite(Player actor, String input) {
-        return context.async(() -> {
+    public static SocialResult result(PartyManager.Status status) {
+        return switch (status) {
+            case OK -> SocialResult.SUCCESS;
+            case SELF -> SocialResult.SELF;
+            case NOT_IN_PARTY -> SocialResult.NOT_IN_PARTY;
+            case NOT_ALLOWED -> SocialResult.NOT_ALLOWED;
+            case NOT_MEMBER -> SocialResult.NOT_MEMBER;
+            case ALREADY_MEMBER -> SocialResult.ALREADY_MEMBER;
+            case TARGET_IN_PARTY -> SocialResult.TARGET_IN_PARTY;
+            case IN_PARTY -> SocialResult.ALREADY_IN_PARTY;
+            case ALREADY_INVITED -> SocialResult.ALREADY_INVITED;
+            case FULL -> SocialResult.FULL;
+            case NO_INVITE -> SocialResult.NO_INVITE;
+            case NO_PARTY -> SocialResult.NOT_FOUND;
+            case CLOSED -> SocialResult.CLOSED;
+            case ALREADY_ROLE -> SocialResult.ALREADY_ROLE;
+            case UNCHANGED -> SocialResult.UNCHANGED;
+        };
+    }
+
+    public CompletableFuture<SocialResult> invite(Player actor, String input) {
+        return context.result(() -> {
             Optional<Player> target = context.findVisible(actor, context.friendsOf(actor), input);
             if (target.isEmpty()) {
                 context.send(actor, "party.not-online", Placeholder.unparsed("player", input));
-                return;
+                return SocialResult.NOT_FOUND;
             }
-            inviteNow(actor, target.get());
+            return inviteNow(actor, target.get());
         });
     }
 
-    public CompletableFuture<Void> invite(Player actor, UUID target) {
-        return context.async(() -> {
+    public CompletableFuture<SocialResult> invite(Player actor, UUID target) {
+        return context.result(() -> {
             Optional<Player> online = context.proxy().getPlayer(target).filter(found -> context.visibleTo(actor, found));
             if (online.isEmpty()) {
                 context.send(actor, "party.not-online", Placeholder.unparsed("player", context.shownTo(actor, target)));
-                return;
+                return SocialResult.NOT_FOUND;
             }
-            inviteNow(actor, online.get());
+            return inviteNow(actor, online.get());
         });
     }
 
-    private void inviteNow(Player actor, Player target) {
+    private SocialResult inviteNow(Player actor, Player target) {
         String shownTarget = context.shownTo(actor, target.getUniqueId());
         SocialProfile theirs = context.store().cached(target.getUniqueId());
         String privacy = context.setting(theirs, SocialSetting.PARTY_INVITES);
@@ -71,16 +105,17 @@ public final class PartyService {
                 && (SocialSetting.NOBODY.equals(privacy)
                 || SocialSetting.FRIENDS.equals(privacy) && !theirs.friendsWith(actor.getUniqueId()))) {
             context.send(actor, "party.not-accepting", Placeholder.unparsed("player", shownTarget));
-            return;
+            return SocialResult.NOT_ACCEPTING;
         }
         long now = System.currentTimeMillis();
-        UUID leader = parties.partyOf(actor.getUniqueId()).map(PartyManager.Party::leader)
-                .orElse(actor.getUniqueId());
+        Optional<PartyManager.Party> current = parties.partyOf(actor.getUniqueId());
+        UUID leader = current.map(PartyManager.Party::leader).orElse(actor.getUniqueId());
         PartyManager.Result result = parties.invite(actor.getUniqueId(), target.getUniqueId(),
                 context.partyLimit(leader), now, context.settings().party().inviteExpiryMillis());
         switch (result.status()) {
             case SELF -> context.send(actor, "party.self");
-            case NOT_LEADER -> context.send(actor, "party.not-leader");
+            case NOT_ALLOWED -> context.send(actor, current.map(party -> party.settings().invite() == PartyRole.LEADER)
+                    .orElse(false) ? "party.invite-leader-only" : "party.invite-moderators-only");
             case ALREADY_MEMBER -> context.send(actor, "party.already-member", Placeholder.unparsed("player", shownTarget));
             case TARGET_IN_PARTY -> context.send(actor, "party.target-in-party",
                     Placeholder.unparsed("player", shownTarget));
@@ -117,48 +152,51 @@ public final class PartyService {
                 UUID invitee = target.getUniqueId();
                 context.later(() -> expire(partyId, invitee, expiresAt), Math.max(1L, expiresAt - now) + 50L,
                         TimeUnit.MILLISECONDS);
+                feed.changed(result, null, actor.getUniqueId());
             }
             default -> context.send(actor, "party.failed");
         }
+        return result(result.status());
     }
 
     private void expire(UUID partyId, UUID invitee, long expiresAt) {
-        Optional<PartyManager.Party> before = parties.party(partyId);
-        if (!parties.expire(partyId, invitee, expiresAt) || before.isEmpty()) {
+        PartyManager.Result result = parties.expire(partyId, invitee, expiresAt);
+        if (!result.ok() || result.before() == null) {
             return;
         }
-        PartyManager.Party party = before.get();
+        PartyManager.Party party = result.before();
         context.proxy().getPlayer(party.leader()).ifPresent(leader -> {
             context.send(leader, "party.invite-expired",
                     Placeholder.unparsed("player", context.shownTo(leader, invitee)));
-            if (parties.party(partyId).isEmpty()) {
+            if (result.disbanded()) {
                 context.send(leader, "party.disbanded-empty");
             }
         });
         context.proxy().getPlayer(invitee).ifPresent(player -> context.send(player, "party.invite-expired-self",
                 Placeholder.unparsed("player", context.shownTo(player, party.leader()))));
+        context.async(() -> feed.changed(result, null, null));
     }
 
-    public CompletableFuture<Void> accept(Player player, String leaderName) {
-        return context.async(() -> {
+    public CompletableFuture<SocialResult> accept(Player player, String leaderName) {
+        return context.result(() -> {
             UUID leader = null;
             if (leaderName != null) {
                 Optional<UUID> found = inviter(player, leaderName);
                 if (found.isEmpty()) {
                     context.send(player, "party.no-invite-from", Placeholder.unparsed("player", leaderName));
-                    return;
+                    return SocialResult.NO_INVITE;
                 }
                 leader = found.get();
             }
-            acceptNow(player, leader);
+            return acceptNow(player, leader);
         });
     }
 
-    public CompletableFuture<Void> accept(Player player, UUID leader) {
-        return context.async(() -> acceptNow(player, leader));
+    public CompletableFuture<SocialResult> accept(Player player, UUID leader) {
+        return context.result(() -> acceptNow(player, leader));
     }
 
-    private void acceptNow(Player player, UUID leader) {
+    private SocialResult acceptNow(Player player, UUID leader) {
         PartyManager.Result result = parties.accept(player.getUniqueId(), leader, context::partyLimit,
                 System.currentTimeMillis());
         switch (result.status()) {
@@ -166,40 +204,93 @@ public final class PartyService {
             case NO_INVITE -> context.send(player, "party.no-invite");
             case FULL -> context.send(player, "party.full",
                     Placeholder.unparsed("max", String.valueOf(context.partyLimit(result.party().leader()))));
-            case OK -> {
-                PartyManager.Party party = result.party();
-                context.send(player, "party.joined-self",
-                        Placeholder.unparsed("player", context.shownTo(player, party.leader())));
-                broadcast(party, player.getUniqueId(), "party.joined", player.getUniqueId());
-            }
+            case OK -> joined(player, result);
             default -> context.send(player, "party.failed");
         }
+        return result(result.status());
     }
 
-    public CompletableFuture<Void> deny(Player player, String leaderName) {
-        return context.async(() -> {
+    public CompletableFuture<SocialResult> join(Player player, String input) {
+        return context.result(() -> {
+            Optional<UUID> inviter = inviter(player, input);
+            if (inviter.isPresent()) {
+                return acceptNow(player, inviter.get());
+            }
+            Optional<Player> target = context.findVisible(player, context.friendsOf(player), input);
+            if (target.isEmpty()) {
+                context.send(player, "party.not-online", Placeholder.unparsed("player", input));
+                return SocialResult.NOT_FOUND;
+            }
+            return joinNow(player, target.get().getUniqueId());
+        });
+    }
+
+    public CompletableFuture<SocialResult> join(Player player, UUID member) {
+        return context.result(() -> {
+            boolean invited = parties.invitesFor(player.getUniqueId(), System.currentTimeMillis()).stream()
+                    .anyMatch(party -> party.member(member));
+            if (invited) {
+                return acceptNow(player, member);
+            }
+            if (context.proxy().getPlayer(member).filter(found -> context.visibleTo(player, found)).isEmpty()) {
+                context.send(player, "party.not-online", Placeholder.unparsed("player", context.shownTo(player, member)));
+                return SocialResult.NOT_FOUND;
+            }
+            return joinNow(player, member);
+        });
+    }
+
+    private SocialResult joinNow(Player player, UUID member) {
+        Set<UUID> friends = context.friendsEnabled() ? context.store().cached(player.getUniqueId()).friendIds()
+                : Set.of();
+        PartyManager.Result result = parties.join(player.getUniqueId(), member, friends, context::partyLimit,
+                System.currentTimeMillis());
+        String shown = context.shownTo(player, member);
+        switch (result.status()) {
+            case SELF -> context.send(player, "party.self");
+            case IN_PARTY -> context.send(player, "party.already-in-party", Placeholder.unparsed("command", command()));
+            case NO_PARTY -> context.send(player, "party.join-no-party", Placeholder.unparsed("player", shown));
+            case CLOSED -> context.send(player, "party.join-closed", Placeholder.unparsed("player", shown));
+            case FULL -> context.send(player, "party.full",
+                    Placeholder.unparsed("max", String.valueOf(context.partyLimit(result.party().leader()))));
+            case OK -> joined(player, result);
+            default -> context.send(player, "party.failed");
+        }
+        return result(result.status());
+    }
+
+    private void joined(Player player, PartyManager.Result result) {
+        PartyManager.Party party = result.party();
+        context.send(player, "party.joined-self",
+                Placeholder.unparsed("player", context.shownTo(player, party.leader())));
+        broadcast(party, player.getUniqueId(), "party.joined", player.getUniqueId());
+        feed.changed(result, null, player.getUniqueId());
+    }
+
+    public CompletableFuture<SocialResult> deny(Player player, String leaderName) {
+        return context.result(() -> {
             UUID leader = null;
             if (leaderName != null) {
                 Optional<UUID> found = inviter(player, leaderName);
                 if (found.isEmpty()) {
                     context.send(player, "party.no-invite-from", Placeholder.unparsed("player", leaderName));
-                    return;
+                    return SocialResult.NO_INVITE;
                 }
                 leader = found.get();
             }
-            denyNow(player, leader);
+            return denyNow(player, leader);
         });
     }
 
-    public CompletableFuture<Void> deny(Player player, UUID leader) {
-        return context.async(() -> denyNow(player, leader));
+    public CompletableFuture<SocialResult> deny(Player player, UUID leader) {
+        return context.result(() -> denyNow(player, leader));
     }
 
-    private void denyNow(Player player, UUID leader) {
+    private SocialResult denyNow(Player player, UUID leader) {
         PartyManager.Result result = parties.deny(player.getUniqueId(), leader, System.currentTimeMillis());
         if (!result.ok()) {
             context.send(player, "party.no-invite");
-            return;
+            return result(result.status());
         }
         PartyManager.Party party = result.party();
         context.send(player, "party.denied", Placeholder.unparsed("player", context.shownTo(player, party.leader())));
@@ -210,35 +301,45 @@ public final class PartyService {
                 context.send(online, "party.disbanded-empty");
             }
         });
+        feed.changed(result, null, player.getUniqueId());
+        return SocialResult.SUCCESS;
     }
 
-    public CompletableFuture<Void> leave(Player player) {
-        return context.async(() -> {
+    public CompletableFuture<SocialResult> leave(Player player) {
+        return context.result(() -> {
             PartyManager.Result result = parties.leave(player.getUniqueId());
             if (!result.ok()) {
                 context.send(player, "party.not-in-party");
-                return;
+                return result(result.status());
             }
             context.send(player, "party.left-self");
             departed(result, player.getUniqueId(), "party.left");
+            feed.changed(result, PartyLeftEvent.Reason.LEFT, player.getUniqueId());
+            return SocialResult.SUCCESS;
         });
     }
 
-    public CompletableFuture<Void> kick(Player actor, String input) {
-        return context.async(() -> member(actor, input, true).ifPresentOrElse(target -> kickNow(actor, target),
-                () -> context.send(actor, "party.not-member", Placeholder.unparsed("player", input))));
+    public CompletableFuture<SocialResult> kick(Player actor, String input) {
+        return context.result(() -> member(actor, input, true).map(target -> kickNow(actor, target))
+                .orElseGet(() -> notMember(actor, input)));
     }
 
-    public CompletableFuture<Void> kick(Player actor, UUID target) {
-        return context.async(() -> kickNow(actor, target));
+    public CompletableFuture<SocialResult> kick(Player actor, UUID target) {
+        return context.result(() -> kickNow(actor, target));
     }
 
-    private void kickNow(Player actor, UUID target) {
+    private SocialResult kickNow(Player actor, UUID target) {
         Optional<PartyManager.Party> before = parties.partyOf(actor.getUniqueId());
         boolean member = before.map(party -> party.member(target)).orElse(false);
         PartyManager.Result result = parties.kick(actor.getUniqueId(), target);
+        if (result.status() == PartyManager.Status.NOT_ALLOWED) {
+            boolean moderator = before.map(party -> party.role(actor.getUniqueId()) == PartyRole.MODERATOR)
+                    .orElse(false);
+            context.send(actor, moderator && member ? "party.kick-not-allowed" : "party.moderators-only");
+            return SocialResult.NOT_ALLOWED;
+        }
         if (!statusOk(actor, result, target)) {
-            return;
+            return result(result.status());
         }
         if (!member) {
             context.send(actor, "party.invite-cancelled", Placeholder.unparsed("player", context.shownTo(actor, target)));
@@ -247,65 +348,169 @@ public final class PartyService {
             if (result.disbanded()) {
                 context.send(actor, "party.disbanded-empty");
             }
-            return;
+            feed.changed(result, null, actor.getUniqueId());
+            return SocialResult.SUCCESS;
         }
         context.proxy().getPlayer(target).ifPresent(player -> context.send(player, "party.kicked-self",
                 Placeholder.unparsed("player", context.shownTo(player, actor.getUniqueId()))));
         departed(result, target, "party.kicked");
+        feed.changed(result, PartyLeftEvent.Reason.KICKED, actor.getUniqueId());
+        return SocialResult.SUCCESS;
     }
 
-    public CompletableFuture<Void> promote(Player actor, String input) {
-        return context.async(() -> member(actor, input, false).ifPresentOrElse(target -> promoteNow(actor, target),
-                () -> context.send(actor, "party.not-member", Placeholder.unparsed("player", input))));
+    public CompletableFuture<SocialResult> promote(Player actor, String input) {
+        return byName(actor, input, target -> promoteNow(actor, target));
     }
 
-    public CompletableFuture<Void> promote(Player actor, UUID target) {
-        return context.async(() -> promoteNow(actor, target));
+    public CompletableFuture<SocialResult> promote(Player actor, UUID target) {
+        return context.result(() -> promoteNow(actor, target));
     }
 
-    private void promoteNow(Player actor, UUID target) {
+    private SocialResult promoteNow(Player actor, UUID target) {
         PartyManager.Result result = parties.promote(actor.getUniqueId(), target);
-        if (!statusOk(actor, result, target)) {
-            return;
-        }
-        broadcast(result.party(), target, "party.promoted", null);
+        return roleChanged(actor, target, result, "party.already-moderator", "party.made-moderator");
     }
 
-    public CompletableFuture<Void> disband(Player actor) {
-        return context.async(() -> {
+    public CompletableFuture<SocialResult> demote(Player actor, String input) {
+        return byName(actor, input, target -> demoteNow(actor, target));
+    }
+
+    public CompletableFuture<SocialResult> demote(Player actor, UUID target) {
+        return context.result(() -> demoteNow(actor, target));
+    }
+
+    private SocialResult demoteNow(Player actor, UUID target) {
+        PartyManager.Result result = parties.demote(actor.getUniqueId(), target);
+        return roleChanged(actor, target, result, "party.not-moderator", "party.made-member");
+    }
+
+    public CompletableFuture<SocialResult> transfer(Player actor, String input) {
+        return byName(actor, input, target -> transferNow(actor, target));
+    }
+
+    public CompletableFuture<SocialResult> transfer(Player actor, UUID target) {
+        return context.result(() -> transferNow(actor, target));
+    }
+
+    private SocialResult transferNow(Player actor, UUID target) {
+        PartyManager.Result result = parties.transfer(actor.getUniqueId(), target);
+        return roleChanged(actor, target, result, "party.failed", "party.leader-changed");
+    }
+
+    private SocialResult roleChanged(Player actor, UUID target, PartyManager.Result result, String sameKey,
+                                     String broadcastKey) {
+        switch (result.status()) {
+            case OK -> {
+                broadcast(result.party(), target, broadcastKey, null);
+                feed.changed(result, null, actor.getUniqueId());
+            }
+            case NOT_ALLOWED -> context.send(actor, "party.not-leader");
+            case ALREADY_ROLE -> context.send(actor, sameKey,
+                    Placeholder.unparsed("player", context.shownTo(actor, target)));
+            default -> statusOk(actor, result, target);
+        }
+        return result(result.status());
+    }
+
+    private CompletableFuture<SocialResult> byName(Player actor, String input, Function<UUID, SocialResult> action) {
+        return context.result(() -> member(actor, input, false).map(action).orElseGet(() -> notMember(actor, input)));
+    }
+
+    private SocialResult notMember(Player actor, String input) {
+        if (parties.partyOf(actor.getUniqueId()).isEmpty()) {
+            context.send(actor, "party.not-in-party");
+            return SocialResult.NOT_IN_PARTY;
+        }
+        context.send(actor, "party.not-member", Placeholder.unparsed("player", input));
+        return SocialResult.NOT_MEMBER;
+    }
+
+    public CompletableFuture<SocialResult> disband(Player actor) {
+        return context.result(() -> {
             PartyManager.Result result = parties.disband(actor.getUniqueId());
+            if (result.status() == PartyManager.Status.NOT_ALLOWED) {
+                context.send(actor, "party.not-leader");
+                return SocialResult.NOT_ALLOWED;
+            }
             if (!statusOk(actor, result, null)) {
-                return;
+                return result(result.status());
             }
             for (UUID member : result.formerMembers()) {
                 context.sendTo(member, "party.disbanded");
             }
+            feed.changed(result, null, actor.getUniqueId());
+            return SocialResult.SUCCESS;
         });
     }
 
-    public CompletableFuture<Void> warp(Player actor) {
-        return context.async(() -> {
+    public CompletableFuture<SocialResult> configure(Player actor, Map<PartyOption, String> changes) {
+        return context.result(() -> configureNow(actor, settings -> {
+            PartySettings next = settings;
+            for (Map.Entry<PartyOption, String> change : changes.entrySet()) {
+                next = change.getKey().apply(next, change.getValue());
+            }
+            return next;
+        }));
+    }
+
+    public CompletableFuture<SocialResult> configure(Player actor, PartySettings settings) {
+        return context.result(() -> configureNow(actor, current -> settings));
+    }
+
+    private SocialResult configureNow(Player actor, UnaryOperator<PartySettings> change) {
+        PartyManager.Result result = parties.configure(actor.getUniqueId(), change);
+        switch (result.status()) {
+            case NOT_IN_PARTY -> context.send(actor, "party.not-in-party");
+            case NOT_ALLOWED -> context.send(actor, "party.settings-not-allowed");
+            case UNCHANGED -> context.send(actor, "party.settings-unchanged");
+            case OK -> {
+                PartySettings before = result.before().settings();
+                PartySettings after = result.party().settings();
+                for (PartyOption option : PartyOption.values()) {
+                    String value = option.value(after);
+                    if (value.equals(option.value(before))) {
+                        continue;
+                    }
+                    for (UUID member : result.party().members()) {
+                        context.proxy().getPlayer(member).ifPresent(online -> context.send(online,
+                                "party.setting-changed",
+                                Placeholder.unparsed("player", context.shownTo(online, actor.getUniqueId())),
+                                Placeholder.component("setting",
+                                        context.render(online, "party.setting." + option.id())),
+                                Placeholder.component("value", context.render(online, "party.value." + value))));
+                    }
+                }
+                feed.changed(result, null, actor.getUniqueId());
+            }
+            default -> context.send(actor, "party.failed");
+        }
+        return result(result.status());
+    }
+
+    public CompletableFuture<SocialResult> warp(Player actor) {
+        return context.result(() -> {
             Optional<PartyManager.Party> party = parties.partyOf(actor.getUniqueId());
             if (party.isEmpty()) {
                 context.send(actor, "party.not-in-party");
-                return;
+                return SocialResult.NOT_IN_PARTY;
             }
-            if (!party.get().leader(actor.getUniqueId())) {
+            if (!party.get().allowed(actor.getUniqueId(), PartyAction.WARP, null)) {
                 context.send(actor, "party.not-leader");
-                return;
+                return SocialResult.NOT_ALLOWED;
             }
             Optional<RegisteredServer> server = actor.getCurrentServer().map(connection -> connection.getServer());
             if (server.isEmpty()) {
-                return;
+                return SocialResult.FAILED;
             }
             String name = server.get().getServerInfo().getName();
             FollowPlan plan = move(actor.getUniqueId(), party.get(), server.get(), "party.warped");
             if (plan.move().isEmpty() && plan.noRoom().isEmpty()) {
                 context.send(actor, "party.warp-nobody");
-                return;
+                return SocialResult.UNCHANGED;
             }
             context.send(actor, "party.warp", Placeholder.unparsed("server", name),
                     Placeholder.unparsed("count", String.valueOf(plan.move().size())));
+            return SocialResult.SUCCESS;
         });
     }
 
@@ -314,7 +519,8 @@ public final class PartyService {
             return;
         }
         Optional<PartyManager.Party> party = parties.partyOf(leader.getUniqueId());
-        if (party.isEmpty() || !party.get().leader(leader.getUniqueId()) || party.get().size() < 2) {
+        if (party.isEmpty() || !party.get().leader(leader.getUniqueId()) || party.get().size() < 2
+                || !party.get().settings().follow()) {
             return;
         }
         String name = server.getServerInfo().getName();
@@ -356,28 +562,38 @@ public final class PartyService {
         return plan;
     }
 
-    public CompletableFuture<Void> chat(Player sender, String text) {
+    public CompletableFuture<SocialResult> chat(Player sender, String text) {
         Optional<PartyManager.Party> party = parties.partyOf(sender.getUniqueId());
         if (party.isEmpty()) {
             context.send(sender, "party.not-in-party");
-            return CompletableFuture.completedFuture(null);
+            return CompletableFuture.completedFuture(SocialResult.NOT_IN_PARTY);
         }
-        return context.muted(sender.getUniqueId()).thenAcceptAsync(muted -> {
+        if (!party.get().allowed(sender.getUniqueId(), PartyAction.CHAT, null)) {
+            context.send(sender, party.get().settings().chat() == PartyRole.LEADER ? "party.chat-leader-only"
+                    : "party.chat-moderators-only");
+            return CompletableFuture.completedFuture(SocialResult.NOT_ALLOWED);
+        }
+        return context.muted(sender.getUniqueId()).thenApplyAsync(muted -> {
             if (muted) {
                 context.send(sender, "party.muted");
-                return;
+                return SocialResult.NOT_ALLOWED;
             }
             PartyManager.Party current = parties.partyOf(sender.getUniqueId()).orElse(null);
             if (current == null) {
-                return;
+                return SocialResult.NOT_IN_PARTY;
             }
+            String key = switch (current.role(sender.getUniqueId())) {
+                case LEADER -> "party.chat-leader";
+                case MODERATOR -> "party.chat-moderator";
+                case MEMBER -> "party.chat";
+            };
             for (UUID member : current.members()) {
-                context.proxy().getPlayer(member).ifPresent(online -> context.send(online,
-                        current.leader(sender.getUniqueId()) ? "party.chat-leader" : "party.chat",
+                context.proxy().getPlayer(member).ifPresent(online -> context.send(online, key,
                         Placeholder.unparsed("player", context.shownTo(online, sender.getUniqueId())),
                         Placeholder.unparsed("message", text)));
             }
             spy(current, sender, text);
+            return SocialResult.SUCCESS;
         }, runnable -> context.async(runnable));
     }
 
@@ -418,19 +634,48 @@ public final class PartyService {
             context.send(player, "party.list-header",
                     Placeholder.unparsed("count", String.valueOf(current.size())),
                     Placeholder.unparsed("max", String.valueOf(context.partyLimit(current.leader()))));
-            for (UUID member : current.members()) {
-                Optional<Player> online = context.proxy().getPlayer(member)
-                        .filter(found -> context.visibleTo(player, found));
-                String shown = context.shownTo(player, member);
-                String key = current.leader(member) ? "party.list-leader" : "party.list-member";
-                if (online.isEmpty()) {
-                    key = key + "-offline";
+            for (PartyRole role : List.of(PartyRole.LEADER, PartyRole.MODERATOR, PartyRole.MEMBER)) {
+                for (UUID member : current.members()) {
+                    if (current.role(member) != role) {
+                        continue;
+                    }
+                    Optional<Player> online = context.proxy().getPlayer(member)
+                            .filter(found -> context.visibleTo(player, found));
+                    String key = "party.list-" + role.id() + (online.isEmpty() ? "-offline" : "");
+                    context.send(player, key, Placeholder.unparsed("player", context.shownTo(player, member)),
+                            Placeholder.unparsed("server", online.map(context::serverOf).orElse("-")));
                 }
-                context.send(player, key, Placeholder.unparsed("player", shown),
-                        Placeholder.unparsed("server", online.map(context::serverOf).orElse("-")));
             }
             for (UUID invited : current.invites().keySet()) {
                 context.send(player, "party.list-invited", Placeholder.unparsed("player", context.shownTo(player, invited)));
+            }
+            player.sendMessage(context.render(player, "party.list-settings",
+                            Placeholder.component("role", context.render(player,
+                                    "party.role." + current.role(player.getUniqueId()).id())))
+                    .append(Component.space())
+                    .append(context.button(player, "party.button.settings", command() + " settings")));
+        });
+    }
+
+    public CompletableFuture<Void> showSettings(Player player) {
+        return context.async(() -> {
+            Optional<PartyManager.Party> party = parties.partyOf(player.getUniqueId());
+            if (party.isEmpty()) {
+                return;
+            }
+            PartyManager.Party current = party.get();
+            boolean editable = current.allowed(player.getUniqueId(), PartyAction.SETTINGS, null);
+            context.send(player, editable ? "party.settings-header" : "party.settings-header-locked");
+            for (PartyOption option : context.settings().party().options()) {
+                String value = option.value(current.settings());
+                Component line = context.render(player, "party.settings-entry",
+                        Placeholder.component("setting", context.render(player, "party.setting." + option.id())),
+                        Placeholder.component("value", context.render(player, "party.value." + value)));
+                if (editable) {
+                    line = line.append(Component.space()).append(context.button(player, "party.button.change",
+                            command() + " settings " + option.id() + " " + option.next(value)));
+                }
+                player.sendMessage(line);
             }
         });
     }
@@ -446,6 +691,7 @@ public final class PartyService {
             PartyManager.Result result = parties.leave(uuid);
             if (result.ok()) {
                 departed(result, uuid, "party.left-offline");
+                feed.changed(result, PartyLeftEvent.Reason.DISCONNECTED, uuid);
             }
             return;
         }
@@ -455,11 +701,14 @@ public final class PartyService {
                 online.add(found.getUniqueId());
             }
         });
-        Optional<UUID> newLeader = parties.handOver(uuid, online);
+        PartyManager.Result handOver = parties.handOver(uuid, online);
         PartyManager.Party current = parties.partyOf(uuid).orElse(party.get());
         broadcast(current, uuid, "party.member-offline", uuid,
                 Placeholder.unparsed("seconds", String.valueOf(grace)));
-        newLeader.ifPresent(leader -> broadcast(current, leader, "party.promoted", null));
+        if (handOver.ok()) {
+            broadcast(current, handOver.newLeader(), "party.leader-changed", null);
+            feed.changed(handOver, null, null);
+        }
         UUID partyId = current.id();
         context.later(() -> {
             if (context.proxy().getPlayer(uuid).isPresent()) {
@@ -472,6 +721,7 @@ public final class PartyService {
             PartyManager.Result result = parties.leave(uuid);
             if (result.ok()) {
                 departed(result, uuid, "party.removed-offline");
+                context.async(() -> feed.changed(result, PartyLeftEvent.Reason.DISCONNECTED, uuid));
             }
         }, grace, TimeUnit.SECONDS);
     }
@@ -481,14 +731,22 @@ public final class PartyService {
                 broadcast(party, player.getUniqueId(), "party.member-back", player.getUniqueId()));
     }
 
+    public void arrived(Player player) {
+        feed.arrived(player, parties.partyOf(player.getUniqueId()));
+    }
+
     public List<String> memberNames(Player viewer, String prefix, boolean includeInvites) {
+        return memberNames(viewer, prefix, includeInvites, null);
+    }
+
+    public List<String> memberNames(Player viewer, String prefix, boolean includeInvites, PartyRole role) {
         Optional<PartyManager.Party> party = parties.partyOf(viewer.getUniqueId());
         if (party.isEmpty()) {
             return List.of();
         }
         List<String> names = new ArrayList<>();
         for (UUID member : party.get().members()) {
-            if (!member.equals(viewer.getUniqueId())) {
+            if (!member.equals(viewer.getUniqueId()) && (role == null || party.get().role(member) == role)) {
                 names.add(context.shownTo(viewer, member));
             }
         }
@@ -539,7 +797,7 @@ public final class PartyService {
                 return true;
             }
             case NOT_IN_PARTY -> context.send(actor, "party.not-in-party");
-            case NOT_LEADER -> context.send(actor, "party.not-leader");
+            case NOT_ALLOWED -> context.send(actor, "party.moderators-only");
             case SELF -> context.send(actor, "party.self");
             case NOT_MEMBER -> context.send(actor, "party.not-member", Placeholder.unparsed("player", shown));
             default -> context.send(actor, "party.failed");
@@ -565,7 +823,7 @@ public final class PartyService {
         }
         broadcast(party, subject, key, subject);
         if (result.newLeader() != null) {
-            broadcast(party, result.newLeader(), "party.promoted", null);
+            broadcast(party, result.newLeader(), "party.leader-changed", null);
         }
     }
 

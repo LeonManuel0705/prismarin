@@ -34,6 +34,9 @@ public final class ModerationChannel {
     public interface SocialHandler {
 
         void handle(Player player, JsonObject message);
+
+        default void query(Player carrier, JsonObject message) {
+        }
     }
 
     private final VanishRegistry vanish;
@@ -191,6 +194,9 @@ public final class ModerationChannel {
             SocialHandler socialHandler = social;
             if ("social".equals(type) && socialHandler != null && carrier.getUniqueId().equals(subject)) {
                 socialHandler.handle(carrier, message);
+            }
+            if ("social-query".equals(type) && socialHandler != null && carrier.getUniqueId().equals(subject)) {
+                socialHandler.query(carrier, message);
             }
             if ("vanish".equals(type)) {
                 vanish.update(UUID.fromString(message.get("uuid").getAsString()),

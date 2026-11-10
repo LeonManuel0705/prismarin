@@ -10,6 +10,9 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.prismarin.api.social.PartyAccess;
+import net.prismarin.api.social.PartyRole;
+import net.prismarin.api.social.PartySettings;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -100,6 +103,59 @@ class SocialSettingsTest {
         assertEquals(100, settings.party().maxSize());
         assertEquals(SocialSetting.EVERYONE, settings.defaultValue(SocialSetting.REQUESTS));
         assertEquals(6, settings.warnings().size());
+    }
+
+    @Test
+    void freshFilesGetPartyDefaults() throws IOException {
+        Path file = directory.resolve(SocialSettings.FILE_NAME);
+        SocialSettings settings = SocialSettings.load(file);
+        assertEquals(PartySettings.DEFAULT, settings.party().defaults());
+        assertEquals(List.of(PartyOption.INVITE, PartyOption.ACCESS, PartyOption.FOLLOW, PartyOption.CHAT),
+                settings.party().options());
+        String text = Files.readString(file);
+        assertTrue(text.contains("    invite: moderators"));
+        assertTrue(text.contains("    access: invite-only"));
+        assertTrue(text.contains("# Who may invite: leader, moderators or members."));
+        assertFalse(text.contains("members-can-invite"));
+    }
+
+    @Test
+    void oldFilesKeepWorkingAndMoveTheInviteSwitch() throws IOException {
+        Path file = directory.resolve(SocialSettings.FILE_NAME);
+        Files.writeString(file, """
+                party:
+                  members-can-invite: true
+                  follow:
+                    enabled: false
+                """);
+        SocialSettings settings = SocialSettings.load(file);
+        assertEquals(PartyRole.MEMBER, settings.party().defaults().invite());
+        assertFalse(settings.party().follow());
+        assertFalse(settings.party().options().contains(PartyOption.FOLLOW));
+        assertEquals(List.of(), settings.warnings());
+        String text = Files.readString(file);
+        assertTrue(text.contains("members-can-invite: true"));
+        assertTrue(text.contains("    invite: members"));
+        assertTrue(text.contains("# Replaced by party.defaults.invite."));
+        assertEquals(text, reload(file));
+    }
+
+    @Test
+    void readsOwnPartyDefaultsAndWarnsAboutBrokenOnes() throws IOException {
+        Path file = directory.resolve(SocialSettings.FILE_NAME);
+        Files.writeString(file, """
+                party:
+                  defaults:
+                    invite: leader
+                    access: Public
+                    follow: off
+                    chat: sometimes
+                """);
+        SocialSettings settings = SocialSettings.load(file);
+        assertEquals(new PartySettings(PartyRole.LEADER, PartyAccess.OPEN, false, PartyRole.MEMBER),
+                settings.party().defaults());
+        assertEquals(1, settings.warnings().size());
+        assertTrue(settings.warnings().getFirst().startsWith("party.defaults.chat"));
     }
 
     @Test

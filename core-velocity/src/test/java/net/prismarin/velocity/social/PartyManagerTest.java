@@ -6,16 +6,17 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import net.prismarin.api.social.PartyRole;
+import net.prismarin.api.social.PartySettings;
 import org.junit.jupiter.api.Test;
 
 class PartyManagerTest {
 
     private static final long EXPIRY = 60_000L;
 
-    private final PartyManager parties = new PartyManager(false);
+    private final PartyManager parties = new PartyManager(PartySettings.DEFAULT);
     private final UUID leader = UUID.randomUUID();
     private final UUID first = UUID.randomUUID();
     private final UUID second = UUID.randomUUID();
@@ -26,9 +27,11 @@ class PartyManagerTest {
         PartyManager.Result result = parties.invite(leader, first, 8, 0L, EXPIRY);
         assertTrue(result.ok());
         assertTrue(result.created());
+        assertNull(result.before());
         assertEquals(leader, result.party().leader());
         assertEquals(List.of(leader), result.party().members());
         assertEquals(EXPIRY, result.party().invites().get(first));
+        assertEquals(PartySettings.DEFAULT, result.party().settings());
         assertFalse(parties.invite(leader, second, 8, 0L, EXPIRY).created());
     }
 
@@ -39,14 +42,14 @@ class PartyManagerTest {
         assertEquals(PartyManager.Status.ALREADY_INVITED, parties.invite(leader, first, 8, 1L, EXPIRY).status());
         accept(first);
         assertEquals(PartyManager.Status.ALREADY_MEMBER, parties.invite(leader, first, 8, 1L, EXPIRY).status());
-        assertEquals(PartyManager.Status.NOT_LEADER, parties.invite(first, second, 8, 1L, EXPIRY).status());
+        assertEquals(PartyManager.Status.NOT_ALLOWED, parties.invite(first, second, 8, 1L, EXPIRY).status());
         parties.invite(second, third, 8, 1L, EXPIRY);
         assertEquals(PartyManager.Status.TARGET_IN_PARTY, parties.invite(leader, second, 8, 1L, EXPIRY).status());
     }
 
     @Test
     void membersMayInviteWhenAllowed() {
-        PartyManager open = new PartyManager(true);
+        PartyManager open = new PartyManager(PartySettings.DEFAULT.withInvite(PartyRole.MEMBER));
         open.invite(leader, first, 8, 0L, EXPIRY);
         open.accept(first, null, uuid -> 8, 1L);
         assertTrue(open.invite(first, second, 8, 2L, EXPIRY).ok());
@@ -112,19 +115,20 @@ class PartyManagerTest {
     }
 
     @Test
-    void onlyTheLeaderKicksAndPromotes() {
+    void membersCannotKickPromoteOrTransfer() {
         parties.invite(leader, first, 8, 0L, EXPIRY);
         parties.invite(leader, second, 8, 0L, EXPIRY);
         accept(first);
         accept(second);
-        assertEquals(PartyManager.Status.NOT_LEADER, parties.kick(first, second).status());
+        assertEquals(PartyManager.Status.NOT_ALLOWED, parties.kick(first, second).status());
         assertEquals(PartyManager.Status.SELF, parties.kick(leader, leader).status());
         assertEquals(PartyManager.Status.NOT_MEMBER, parties.kick(leader, third).status());
         assertTrue(parties.kick(leader, second).ok());
         assertTrue(parties.partyOf(second).isEmpty());
-        assertEquals(PartyManager.Status.NOT_LEADER, parties.promote(first, leader).status());
-        PartyManager.Result promoted = parties.promote(leader, first);
-        assertEquals(first, promoted.newLeader());
+        assertEquals(PartyManager.Status.NOT_ALLOWED, parties.promote(first, leader).status());
+        assertEquals(PartyManager.Status.NOT_ALLOWED, parties.transfer(first, leader).status());
+        PartyManager.Result transferred = parties.transfer(leader, first);
+        assertEquals(first, transferred.newLeader());
         assertEquals(first, parties.partyOf(leader).orElseThrow().leader());
     }
 
@@ -141,9 +145,10 @@ class PartyManagerTest {
     void disbandingReturnsEveryFormerMember() {
         parties.invite(leader, first, 8, 0L, EXPIRY);
         accept(first);
-        assertEquals(PartyManager.Status.NOT_LEADER, parties.disband(first).status());
+        assertEquals(PartyManager.Status.NOT_ALLOWED, parties.disband(first).status());
         PartyManager.Result result = parties.disband(leader);
         assertTrue(result.disbanded());
+        assertNull(result.after());
         assertEquals(Set.of(leader, first), Set.copyOf(result.formerMembers()));
         assertEquals(0, parties.count());
     }
@@ -152,8 +157,10 @@ class PartyManagerTest {
     void expiringTheLastInviteEndsAnEmptyParty() {
         PartyManager.Result invited = parties.invite(leader, first, 8, 0L, EXPIRY);
         UUID id = invited.party().id();
-        assertFalse(parties.expire(id, first, EXPIRY + 1));
-        assertTrue(parties.expire(id, first, EXPIRY));
+        assertFalse(parties.expire(id, first, EXPIRY + 1).ok());
+        PartyManager.Result expired = parties.expire(id, first, EXPIRY);
+        assertTrue(expired.ok());
+        assertTrue(expired.disbanded());
         assertTrue(parties.party(id).isEmpty());
     }
 
@@ -163,8 +170,8 @@ class PartyManagerTest {
         parties.invite(leader, second, 8, 0L, EXPIRY);
         accept(first);
         accept(second);
-        assertEquals(Optional.of(second), parties.handOver(leader, Set.of(second)));
-        assertEquals(Optional.empty(), parties.handOver(leader, Set.of(first)));
+        assertEquals(second, parties.handOver(leader, Set.of(second)).newLeader());
+        assertFalse(parties.handOver(leader, Set.of(first)).ok());
         assertNull(parties.leave(third).party());
     }
 

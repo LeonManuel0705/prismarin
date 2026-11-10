@@ -8,8 +8,11 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -35,6 +38,7 @@ public final class YamlLocaleService implements LocaleService {
 
     public static final String LANGUAGE_NAME = "language.name";
     public static final String LANGUAGE_ICON = "language.icon";
+    public static final String LANGUAGE_HEAD = "language.head";
 
     private static final List<String> BUNDLED_LANGUAGES = List.of("de", "en");
     private static final String DEFAULT_ICON = "PAPER";
@@ -192,13 +196,38 @@ public final class YamlLocaleService implements LocaleService {
     }
 
     private static void seedIfAbsent(Path file, String resourceName) throws IOException {
-        if (Files.exists(file)) {
-            return;
-        }
         try (InputStream resource = YamlLocaleService.class.getClassLoader().getResourceAsStream(resourceName)) {
             if (resource != null) {
-                Files.copy(resource, file);
+                seed(file, resource.readAllBytes());
             }
+        }
+    }
+
+    static boolean seed(Path file, byte[] bundled) throws IOException {
+        Path marker = file.resolveSibling("." + file.getFileName() + ".sha256");
+        String bundledHash = sha256(bundled);
+        if (Files.notExists(file)) {
+            Files.write(file, bundled);
+            Files.writeString(marker, bundledHash, StandardCharsets.UTF_8);
+            return true;
+        }
+        if (Files.notExists(marker)) {
+            return false;
+        }
+        String seededHash = Files.readString(marker, StandardCharsets.UTF_8).strip();
+        if (seededHash.equals(bundledHash) || !seededHash.equals(sha256(Files.readAllBytes(file)))) {
+            return false;
+        }
+        Files.write(file, bundled);
+        Files.writeString(marker, bundledHash, StandardCharsets.UTF_8);
+        return true;
+    }
+
+    private static String sha256(byte[] content) {
+        try {
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
         }
     }
 

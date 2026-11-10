@@ -53,6 +53,26 @@ class SocialTextsTest {
         }
     }
 
+    @Test
+    void partyMenusFindTheirRoleTexts() throws IOException {
+        for (String resource : List.of("messages_de.yml", "messages_en.yml")) {
+            Map<String, String> texts = texts(resource);
+            for (String key : List.of("party.menu.member.moderator", "party.menu.member.role", "party.menu.info.role",
+                    "party.menu.moderator.name", "party.menu.demote.name", "party.menu.transfer.name",
+                    "party.menu.transfer.yes", "party.menu.settings.title", "party.menu.settings.locked",
+                    "party.menu.setting.invite", "party.menu.setting.access", "party.menu.setting.follow",
+                    "party.menu.setting.chat", "party.menu.role.leader", "party.menu.role.moderator",
+                    "party.menu.role.member")) {
+                assertTrue(texts.containsKey(key), resource + " " + key);
+            }
+            for (String value : List.of("leader", "moderators", "members", "invite-only", "friends", "open", "on",
+                    "off")) {
+                assertTrue(texts.containsKey("party.menu.value." + value), resource + " " + value);
+            }
+            assertTrue(texts.get("friends.menu.empty.lore").contains("/friend add \\<"), resource);
+        }
+    }
+
     private static Set<String> placeholders(String text) {
         return Set.copyOf(PLACEHOLDER.matcher(text).results().map(MatchResult::group).toList());
     }

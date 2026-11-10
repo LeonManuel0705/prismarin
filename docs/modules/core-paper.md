@@ -131,3 +131,28 @@ Schalter `modules.essentials`, tritt automatisch zurück, wenn `Essentials` (Ess
 | `skull` | `/skull [name]`, fremde Köpfe werden asynchron bei Mojang nachgeschlagen | `prismarin.essentials.skull` |
 
 Das Vanilla-`/clear` bleibt unangetastet, damit Befehlsblöcke und Datenpakete weiter funktionieren. `/fly` übernimmt die Flugerlaubnis von Vanish (`VanishService.releaseFlight`), dadurch nimmt das Aufheben von Vanish einen per `/fly` gesetzten Flug nicht mehr weg. Texte unter `essentials` in den Sprachdateien. Tests: `EssentialsLogicTest`, `EssentialsSettingsTest`, `EssentialsResourcesTest` (beide Sprachen, `plugin.yml`).
+
+## Friends and parties for backend plugins
+
+`PrismarinCore` registers `net.prismarin.api.social.FriendService` and `PartyService` in the Bukkit `ServicesManager` and behind `PrismarinProvider.get().friends()` / `.parties()`. Everything works without Redis.
+
+- Parties: the proxy pushes a `party-sync` message for every change and when a member joins this server. `BackendPartyService.partyOf` and `party(id)` read this mirror without waiting, it holds every party with at least one member online on this server, including the roles of all members. `lookup(player)` asks the proxy through an online player when the mirror does not know the player.
+- Friends: with `storage.mode` `MONGO` or `MYSQL` the friend lists are read from the shared document store (collections `friends` and `presence`). With `LOCAL` or `SQLITE` the server asks the proxy through an online player instead, the list then holds at most 250 friends.
+- Actions (`invite`, `kick`, `promote`, `sendRequest`, ...) go to the proxy as the acting player, who has to be online on this server, otherwise the result is `UNAVAILABLE`. The proxy checks the role and answers with a `SocialResult`; without an answer within four seconds the result is `UNAVAILABLE`.
+- The same party events as on the proxy fire on the main thread for parties with a member or invitee on this server, the first sync after a server switch fires none.
+
+```java
+PartyService parties = Bukkit.getServicesManager().load(PartyService.class);
+parties.partyOf(player.getUniqueId()).ifPresent(party -> {
+    boolean moderator = party.role(player.getUniqueId()).orElse(PartyRole.MEMBER).atLeast(PartyRole.MODERATOR);
+    player.sendMessage(party.size() + " players, you may kick: " + moderator);
+});
+parties.invite(player.getUniqueId(), target.getUniqueId()).thenAccept(result ->
+        Bukkit.getScheduler().runTask(plugin, () -> player.sendMessage("Invite: " + result.id())));
+
+FriendService friends = PrismarinProvider.get().friends().orElseThrow();
+friends.areFriends(player.getUniqueId(), target.getUniqueId()).thenAccept(together -> { });
+prismarin.events().subscribe(PartyLeftEvent.class, event -> teams.remove(event.player()));
+```
+
+Futures complete off the main thread, switch back before touching Bukkit. Classes: `BackendFriendService`, `BackendPartyService`, `BackendSocial` (registration), `PartyMirror` (pure, tested in `PartyMirrorTest`), `SocialClient` (requests, queries, quit cleanup). The lobby party menu shows roles, a party settings menu and only the buttons the proxy allows (`SocialView.Permissions`).

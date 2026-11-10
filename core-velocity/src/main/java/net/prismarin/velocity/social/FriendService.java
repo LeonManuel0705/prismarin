@@ -14,6 +14,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.social.FriendAddedEvent;
+import net.prismarin.api.social.FriendRemovedEvent;
+import net.prismarin.api.social.FriendRequestEvent;
+import net.prismarin.api.social.SocialResult;
 import net.prismarin.shared.text.TimeAgo;
 
 public final class FriendService {
@@ -39,21 +43,18 @@ public final class FriendService {
         return "/" + context.settings().friends().commands().getFirst();
     }
 
-    public CompletableFuture<Void> add(Player sender, String input) {
-        return context.async(() -> {
+    public CompletableFuture<SocialResult> add(Player sender, String input) {
+        return context.result(() -> {
             SocialProfile own = context.store().cached(sender.getUniqueId());
             Optional<Player> online = context.findVisible(sender, own.friendIds(), input);
             if (online.isPresent()) {
                 if (context.masked(sender, own.friendIds(), online.get())) {
-                    notFound(sender, input);
-                    return;
+                    return notFound(sender, input);
                 }
-                request(sender, online.get().getUniqueId(), online.get().getUsername());
-                return;
+                return request(sender, online.get().getUniqueId(), online.get().getUsername());
             }
             if (context.nickInUse(input) || !validName(input)) {
-                notFound(sender, input);
-                return;
+                return notFound(sender, input);
             }
             Optional<UUID> found;
             try {
@@ -62,34 +63,46 @@ public final class FriendService {
                 found = Optional.empty();
             }
             if (found.isEmpty()) {
-                notFound(sender, input);
-                return;
+                return notFound(sender, input);
             }
-            request(sender, found.get(), context.nameOf(found.get()));
+            return request(sender, found.get(), context.nameOf(found.get()));
         });
     }
 
-    public CompletableFuture<Void> add(Player sender, UUID target) {
-        return context.async(() -> {
+    public CompletableFuture<SocialResult> add(Player sender, UUID target) {
+        return context.result(() -> {
             Optional<Player> online = context.proxy().getPlayer(target);
             SocialProfile own = context.store().cached(sender.getUniqueId());
             if (online.isEmpty() || !context.visibleTo(sender, online.get())
                     || context.masked(sender, own.friendIds(), online.get())) {
-                notFound(sender, online.map(Player::getUsername).orElse("?"));
-                return;
+                return notFound(sender, online.map(Player::getUsername).orElse("?"));
             }
-            request(sender, target, online.get().getUsername());
+            return request(sender, target, online.get().getUsername());
         });
     }
 
-    private void request(Player sender, UUID target, String targetName) {
+    public CompletableFuture<SocialResult> addAnywhere(Player sender, UUID target) {
+        return context.result(() -> {
+            Optional<Player> online = context.proxy().getPlayer(target);
+            if (online.isEmpty()) {
+                return request(sender, target, context.nameOf(target));
+            }
+            SocialProfile own = context.store().cached(sender.getUniqueId());
+            if (!context.visibleTo(sender, online.get()) || context.masked(sender, own.friendIds(), online.get())) {
+                return notFound(sender, online.get().getUsername());
+            }
+            return request(sender, target, online.get().getUsername());
+        });
+    }
+
+    private SocialResult request(Player sender, UUID target, String targetName) {
         long now = System.currentTimeMillis();
         long cooldown = context.settings().friends().requestCooldownSeconds() * 1000L;
         Long last = lastRequest.get(sender.getUniqueId());
         if (last != null && now - last < cooldown) {
             context.send(sender, "friends.cooldown",
                     Placeholder.unparsed("seconds", String.valueOf((cooldown - (now - last)) / 1000L + 1L)));
-            return;
+            return SocialResult.COOLDOWN;
         }
         long expiry = context.settings().friends().requestExpiryMillis();
         FriendRules.RequestOutcome outcome;
@@ -124,6 +137,7 @@ public final class FriendService {
             case ACCEPTED -> {
                 context.send(sender, "friends.accepted", Placeholder.unparsed("player", targetName));
                 context.sendTo(target, "friends.accepted", Placeholder.unparsed("player", sender.getUsername()));
+                context.publish(new FriendAddedEvent(sender.getUniqueId(), target));
             }
             case SENT -> {
                 lastRequest.put(sender.getUniqueId(), now);
@@ -134,8 +148,32 @@ public final class FriendService {
                     context.send(sender, "friends.request-sent-open", Placeholder.unparsed("player", targetName));
                 }
                 context.proxy().getPlayer(target).ifPresent(receiver -> notifyRequest(receiver, sender.getUsername()));
+                context.publish(new FriendRequestEvent(sender.getUniqueId(), target));
             }
         }
+        return result(outcome);
+    }
+
+    public static SocialResult result(FriendRules.RequestOutcome outcome) {
+        return switch (outcome) {
+            case SELF -> SocialResult.SELF;
+            case ALREADY_FRIENDS -> SocialResult.ALREADY_FRIENDS;
+            case ALREADY_SENT -> SocialResult.ALREADY_SENT;
+            case NOT_ACCEPTING -> SocialResult.NOT_ACCEPTING;
+            case SENDER_FULL -> SocialResult.LIMIT_REACHED;
+            case TARGET_FULL -> SocialResult.TARGET_FULL;
+            case ACCEPTED, SENT -> SocialResult.SUCCESS;
+        };
+    }
+
+    public static SocialResult result(FriendRules.AcceptOutcome outcome) {
+        return switch (outcome) {
+            case NO_REQUEST -> SocialResult.NO_INVITE;
+            case ALREADY_FRIENDS -> SocialResult.ALREADY_FRIENDS;
+            case SELF_FULL -> SocialResult.LIMIT_REACHED;
+            case OTHER_FULL -> SocialResult.TARGET_FULL;
+            case ACCEPTED -> SocialResult.SUCCESS;
+        };
     }
 
     private void notifyRequest(Player receiver, String senderName) {
@@ -147,17 +185,21 @@ public final class FriendService {
         receiver.sendMessage(line);
     }
 
-    public CompletableFuture<Void> accept(Player player, String input) {
-        return context.async(() -> incomingMatch(player, input).ifPresentOrElse(
-                uuid -> acceptNow(player, uuid),
-                () -> context.send(player, "friends.no-request", Placeholder.unparsed("player", input))));
+    public CompletableFuture<SocialResult> accept(Player player, String input) {
+        return context.result(() -> incomingMatch(player, input).map(uuid -> acceptNow(player, uuid))
+                .orElseGet(() -> missing(player, "friends.no-request", input, SocialResult.NO_INVITE)));
     }
 
-    public CompletableFuture<Void> accept(Player player, UUID other) {
-        return context.async(() -> acceptNow(player, other));
+    public CompletableFuture<SocialResult> accept(Player player, UUID other) {
+        return context.result(() -> acceptNow(player, other));
     }
 
-    private void acceptNow(Player player, UUID other) {
+    private SocialResult missing(Player player, String key, String input, SocialResult result) {
+        context.send(player, key, Placeholder.unparsed("player", input));
+        return result;
+    }
+
+    private SocialResult acceptNow(Player player, UUID other) {
         long now = System.currentTimeMillis();
         long expiry = context.settings().friends().requestExpiryMillis();
         FriendRules.AcceptOutcome outcome;
@@ -181,21 +223,22 @@ public final class FriendService {
             case ACCEPTED -> {
                 context.send(player, "friends.accepted", Placeholder.unparsed("player", name));
                 context.sendTo(other, "friends.accepted", Placeholder.unparsed("player", player.getUsername()));
+                context.publish(new FriendAddedEvent(player.getUniqueId(), other));
             }
         }
+        return result(outcome);
     }
 
-    public CompletableFuture<Void> deny(Player player, String input) {
-        return context.async(() -> incomingMatch(player, input).ifPresentOrElse(
-                uuid -> denyNow(player, uuid),
-                () -> context.send(player, "friends.no-request", Placeholder.unparsed("player", input))));
+    public CompletableFuture<SocialResult> deny(Player player, String input) {
+        return context.result(() -> incomingMatch(player, input).map(uuid -> denyNow(player, uuid))
+                .orElseGet(() -> missing(player, "friends.no-request", input, SocialResult.NO_INVITE)));
     }
 
-    public CompletableFuture<Void> deny(Player player, UUID other) {
-        return context.async(() -> denyNow(player, other));
+    public CompletableFuture<SocialResult> deny(Player player, UUID other) {
+        return context.result(() -> denyNow(player, other));
     }
 
-    private void denyNow(Player player, UUID other) {
+    private SocialResult denyNow(Player player, UUID other) {
         boolean had;
         synchronized (context.store().lock()) {
             SocialProfile mine = context.store().load(player.getUniqueId());
@@ -208,25 +251,25 @@ public final class FriendService {
         }
         context.send(player, had ? "friends.denied" : "friends.no-request",
                 Placeholder.unparsed("player", context.nameOf(other)));
+        return had ? SocialResult.SUCCESS : SocialResult.NO_INVITE;
     }
 
-    public CompletableFuture<Void> cancel(Player player, String input) {
-        return context.async(() -> {
+    public CompletableFuture<SocialResult> cancel(Player player, String input) {
+        return context.result(() -> {
             SocialProfile mine = context.store().cached(player.getUniqueId());
             Optional<UUID> match = match(mine.outgoing().keySet().stream().toList(), input);
             if (match.isEmpty()) {
-                context.send(player, "friends.no-outgoing", Placeholder.unparsed("player", input));
-                return;
+                return missing(player, "friends.no-outgoing", input, SocialResult.NO_INVITE);
             }
-            cancelNow(player, match.get());
+            return cancelNow(player, match.get());
         });
     }
 
-    public CompletableFuture<Void> cancel(Player player, UUID other) {
-        return context.async(() -> cancelNow(player, other));
+    public CompletableFuture<SocialResult> cancel(Player player, UUID other) {
+        return context.result(() -> cancelNow(player, other));
     }
 
-    private void cancelNow(Player player, UUID other) {
+    private SocialResult cancelNow(Player player, UUID other) {
         boolean had;
         synchronized (context.store().lock()) {
             SocialProfile mine = context.store().load(player.getUniqueId());
@@ -238,19 +281,19 @@ public final class FriendService {
         }
         context.send(player, had ? "friends.cancelled" : "friends.no-outgoing",
                 Placeholder.unparsed("player", context.nameOf(other)));
+        return had ? SocialResult.SUCCESS : SocialResult.NO_INVITE;
     }
 
-    public CompletableFuture<Void> remove(Player player, String input) {
-        return context.async(() -> friendMatch(player, input).ifPresentOrElse(
-                uuid -> removeNow(player, uuid),
-                () -> context.send(player, "friends.not-friends", Placeholder.unparsed("player", input))));
+    public CompletableFuture<SocialResult> remove(Player player, String input) {
+        return context.result(() -> friendMatch(player, input).map(uuid -> removeNow(player, uuid))
+                .orElseGet(() -> missing(player, "friends.not-friends", input, SocialResult.NOT_FRIENDS)));
     }
 
-    public CompletableFuture<Void> remove(Player player, UUID other) {
-        return context.async(() -> removeNow(player, other));
+    public CompletableFuture<SocialResult> remove(Player player, UUID other) {
+        return context.result(() -> removeNow(player, other));
     }
 
-    private void removeNow(Player player, UUID other) {
+    private SocialResult removeNow(Player player, UUID other) {
         boolean had;
         synchronized (context.store().lock()) {
             SocialProfile mine = context.store().load(player.getUniqueId());
@@ -262,39 +305,61 @@ public final class FriendService {
         }
         context.send(player, had ? "friends.removed" : "friends.not-friends",
                 Placeholder.unparsed("player", context.nameOf(other)));
+        if (had) {
+            context.publish(new FriendRemovedEvent(player.getUniqueId(), other));
+        }
+        return had ? SocialResult.SUCCESS : SocialResult.NOT_FRIENDS;
     }
 
-    public CompletableFuture<Void> jump(Player player, String input) {
-        return context.async(() -> friendMatch(player, input).ifPresentOrElse(
-                uuid -> jumpNow(player, uuid),
-                () -> context.send(player, "friends.not-friends", Placeholder.unparsed("player", input))));
+    public CompletableFuture<SocialResult> unfriend(UUID player, UUID other) {
+        return context.result(() -> {
+            boolean had;
+            synchronized (context.store().lock()) {
+                SocialProfile mine = context.store().load(player);
+                had = mine.friendsWith(other);
+                if (had) {
+                    context.store().save(mine.withoutFriend(other));
+                    context.store().save(context.store().load(other).withoutFriend(player));
+                }
+            }
+            if (!had) {
+                return SocialResult.NOT_FRIENDS;
+            }
+            context.publish(new FriendRemovedEvent(player, other));
+            return SocialResult.SUCCESS;
+        });
     }
 
-    public CompletableFuture<Void> jump(Player player, UUID other) {
-        return context.async(() -> jumpNow(player, other));
+    public CompletableFuture<SocialResult> jump(Player player, String input) {
+        return context.result(() -> friendMatch(player, input).map(uuid -> jumpNow(player, uuid))
+                .orElseGet(() -> missing(player, "friends.not-friends", input, SocialResult.NOT_FRIENDS)));
     }
 
-    private void jumpNow(Player player, UUID other) {
+    public CompletableFuture<SocialResult> jump(Player player, UUID other) {
+        return context.result(() -> jumpNow(player, other));
+    }
+
+    private SocialResult jumpNow(Player player, UUID other) {
         String name = context.nameOf(other);
         if (!context.store().cached(player.getUniqueId()).friendsWith(other)) {
             context.send(player, "friends.not-friends", Placeholder.unparsed("player", name));
-            return;
+            return SocialResult.NOT_FRIENDS;
         }
         Optional<Player> target = context.proxy().getPlayer(other).filter(found -> context.visibleTo(player, found));
         Optional<ServerConnection> server = target.flatMap(Player::getCurrentServer);
         if (server.isEmpty()) {
             context.send(player, "friends.jump-offline", Placeholder.unparsed("player", name));
-            return;
+            return SocialResult.NOT_FOUND;
         }
         if (SocialSetting.OFF.equals(context.setting(context.store().cached(other), SocialSetting.JUMP))
                 && !player.hasPermission(JUMP_BYPASS)) {
             context.send(player, "friends.jump-denied", Placeholder.unparsed("player", name));
-            return;
+            return SocialResult.NOT_ACCEPTING;
         }
         String serverName = server.get().getServerInfo().getName();
         if (player.getCurrentServer().map(own -> own.getServerInfo().getName().equals(serverName)).orElse(false)) {
             context.send(player, "friends.jump-same", Placeholder.unparsed("server", serverName));
-            return;
+            return SocialResult.UNCHANGED;
         }
         context.send(player, "friends.jumping", Placeholder.unparsed("player", name),
                 Placeholder.unparsed("server", serverName));
@@ -306,6 +371,7 @@ public final class FriendService {
             context.send(player, "friends.jump-failed", Placeholder.unparsed("server", serverName));
             return null;
         });
+        return SocialResult.SUCCESS;
     }
 
     public CompletableFuture<Void> list(Player player, int requestedPage) {
@@ -494,8 +560,9 @@ public final class FriendService {
         return Optional.empty();
     }
 
-    private void notFound(Player sender, String input) {
+    private SocialResult notFound(Player sender, String input) {
         context.send(sender, "friends.not-found", Placeholder.unparsed("player", input));
+        return SocialResult.NOT_FOUND;
     }
 
     static boolean validName(String input) {

@@ -2,14 +2,22 @@ package net.prismarin.velocity.social;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 public record SocialRequest(int id, Action action, UUID target, SocialSetting setting, String value, View view,
-                            int page) {
+                            int page, Map<PartyOption, String> options) {
 
     public static final int MAX_PAGE = 1_000;
+
+    public SocialRequest {
+        options = options == null || options.isEmpty() ? Map.of()
+                : Collections.unmodifiableMap(new EnumMap<>(options));
+    }
 
     public enum Action {
         HELLO("hello", false),
@@ -20,14 +28,19 @@ public record SocialRequest(int id, Action action, UUID target, SocialSetting se
         FRIEND_CANCEL("friend-cancel", true),
         FRIEND_REMOVE("friend-remove", true),
         FRIEND_JUMP("friend-jump", true),
+        FRIEND_REQUEST("friend-request", true),
         PARTY_INVITE("party-invite", true),
         PARTY_ACCEPT("party-accept", true),
         PARTY_DENY("party-deny", true),
+        PARTY_JOIN("party-join", true),
         PARTY_LEAVE("party-leave", false),
         PARTY_KICK("party-kick", true),
         PARTY_PROMOTE("party-promote", true),
+        PARTY_DEMOTE("party-demote", true),
+        PARTY_TRANSFER("party-transfer", true),
         PARTY_DISBAND("party-disband", false),
         PARTY_WARP("party-warp", false),
+        PARTY_SETTING("party-setting", false),
         SETTING("setting", false);
 
         private final String id;
@@ -126,10 +139,38 @@ public record SocialRequest(int id, Action action, UUID target, SocialSetting se
                 setting = found.get();
                 value = normalized.get();
             }
-            return Optional.of(new SocialRequest(id, action.get(), target, setting, value, view, page));
+            Map<PartyOption, String> options = Map.of();
+            if (action.get() == Action.PARTY_SETTING) {
+                Optional<Map<PartyOption, String>> parsed = options(message.get("options"));
+                if (parsed.isEmpty()) {
+                    return Optional.empty();
+                }
+                options = parsed.get();
+            }
+            return Optional.of(new SocialRequest(id, action.get(), target, setting, value, view, page, options));
         } catch (RuntimeException e) {
             return Optional.empty();
         }
+    }
+
+    private static Optional<Map<PartyOption, String>> options(JsonElement element) {
+        if (element == null || !element.isJsonObject()) {
+            return Optional.empty();
+        }
+        JsonObject object = element.getAsJsonObject();
+        if (object.size() == 0 || object.size() > PartyOption.values().length) {
+            return Optional.empty();
+        }
+        Map<PartyOption, String> options = new EnumMap<>(PartyOption.class);
+        for (String key : object.keySet()) {
+            Optional<PartyOption> option = PartyOption.byId(key);
+            Optional<String> value = option.flatMap(found -> text(object, key).flatMap(found::normalize));
+            if (value.isEmpty()) {
+                return Optional.empty();
+            }
+            options.put(option.get(), value.get());
+        }
+        return Optional.of(options);
     }
 
     private static Optional<String> text(JsonObject message, String field) {

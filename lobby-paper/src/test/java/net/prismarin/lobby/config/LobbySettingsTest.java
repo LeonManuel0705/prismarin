@@ -211,8 +211,8 @@ class LobbySettingsTest {
         LobbySettings settings = LobbySettings.load(file);
         assertEquals(Strategy.LEAST_PLAYERS, settings.distribution());
         assertEquals(0, settings.item(LobbySettings.NAVIGATOR_ITEM).slot());
-        assertEquals(3, settings.profile().rows());
-        assertEquals(26, settings.profile().closeSlot());
+        assertEquals(5, settings.profile().rows());
+        assertEquals(44, settings.profile().closeSlot());
         assertEquals(4, settings.warnings().size());
     }
 

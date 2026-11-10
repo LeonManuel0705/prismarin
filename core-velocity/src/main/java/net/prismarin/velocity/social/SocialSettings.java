@@ -11,8 +11,11 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
+import net.prismarin.api.social.PartyRole;
+import net.prismarin.api.social.PartySettings;
 import net.prismarin.shared.config.YamlComments;
 import org.spongepowered.configurate.CommentedConfigurationNode;
 import org.spongepowered.configurate.ConfigurateException;
@@ -41,7 +44,7 @@ public record SocialSettings(Friends friends, Party party, Messages messages,
     }
 
     public record Party(int maxSize, Map<String, Integer> sizePermissions, int inviteExpirySeconds,
-                        boolean membersCanInvite, int offlineGraceSeconds, boolean follow, boolean followIntoLobbies,
+                        PartySettings defaults, int offlineGraceSeconds, boolean follow, boolean followIntoLobbies,
                         Set<String> followSkipGroups, List<String> commands, List<String> chatCommands) {
 
         public Party {
@@ -53,6 +56,10 @@ public record SocialSettings(Friends friends, Party party, Messages messages,
 
         public long inviteExpiryMillis() {
             return inviteExpirySeconds * 1000L;
+        }
+
+        public List<PartyOption> options() {
+            return PartyOption.available(follow);
         }
     }
 
@@ -150,7 +157,11 @@ public record SocialSettings(Friends friends, Party party, Messages messages,
             changed = true;
         }
         changed |= fill(party.node("invite-expiry-seconds"), 60);
-        changed |= fill(party.node("members-can-invite"), false);
+        changed |= fill(party.node("defaults", PartyOption.INVITE.id()),
+                legacyMembersInvite(party) ? PartyOption.MEMBERS : PartyOption.MODERATORS);
+        changed |= fill(party.node("defaults", PartyOption.ACCESS.id()), PartyOption.INVITE_ONLY);
+        changed |= fill(party.node("defaults", PartyOption.FOLLOW.id()), SocialSetting.ON);
+        changed |= fill(party.node("defaults", PartyOption.CHAT.id()), PartyOption.MEMBERS);
         changed |= fill(party.node("offline-grace-seconds"), 120);
         changed |= fill(party.node("follow", "enabled"), true);
         changed |= fill(party.node("follow", "into-lobbies"), false);
@@ -183,7 +194,7 @@ public record SocialSettings(Friends friends, Party party, Messages messages,
                 range(partyNode.node("max-size"), "party.max-size", 8, 2, 100, warnings),
                 limits(partyNode.node("size-permissions"), "party.size-permissions", warnings),
                 range(partyNode.node("invite-expiry-seconds"), "party.invite-expiry-seconds", 60, 10, 3_600, warnings),
-                partyNode.node("members-can-invite").getBoolean(false),
+                partyDefaults(partyNode, warnings),
                 range(partyNode.node("offline-grace-seconds"), "party.offline-grace-seconds", 120, 0, 3_600, warnings),
                 partyNode.node("follow", "enabled").getBoolean(true),
                 partyNode.node("follow", "into-lobbies").getBoolean(false),
@@ -206,6 +217,32 @@ public record SocialSettings(Friends friends, Party party, Messages messages,
             defaults.put(setting, value);
         }
         return new SocialSettings(friends, party, messages, defaults, warnings);
+    }
+
+    private static boolean legacyMembersInvite(ConfigurationNode partyNode) {
+        ConfigurationNode legacy = partyNode.node("members-can-invite");
+        return !legacy.virtual() && legacy.getBoolean(false);
+    }
+
+    private static PartySettings partyDefaults(ConfigurationNode partyNode, List<String> warnings) {
+        PartySettings fallback = legacyMembersInvite(partyNode) ? PartySettings.DEFAULT.withInvite(PartyRole.MEMBER)
+                : PartySettings.DEFAULT;
+        PartySettings settings = fallback;
+        for (PartyOption option : PartyOption.values()) {
+            ConfigurationNode node = partyNode.node("defaults", option.id());
+            if (node.virtual()) {
+                continue;
+            }
+            String raw = node.getString("");
+            Optional<String> value = option.normalize(raw);
+            if (value.isEmpty()) {
+                warnings.add("party.defaults." + option.id() + ": '" + raw + "' is not one of " + option.options()
+                        + ", using " + option.value(fallback));
+                continue;
+            }
+            settings = option.apply(settings, value.get());
+        }
+        return settings;
     }
 
     private static int range(ConfigurationNode node, String path, int fallback, int min, int max,
@@ -319,12 +356,26 @@ public record SocialSettings(Friends friends, Party party, Messages messages,
         comments.put("party.size-permissions", List.of(
                 "Bigger parties by permission of the leader: permission: size. The highest matching size wins."));
         comments.put("party.invite-expiry-seconds", List.of("How long a party invite stays open."));
-        comments.put("party.members-can-invite", List.of("false lets only the leader invite players."));
+        comments.put("party.members-can-invite", List.of(
+                "Replaced by party.defaults.invite. Only read once to fill that key, change the new key instead."));
+        comments.put("party.defaults", List.of(
+                "Settings every new party starts with. The leader and moderators change them with",
+                "/party settings <setting> <value> or in the lobby menu.",
+                "Roles: the leader may do everything. Moderators may invite, remove members and change settings.",
+                "Members may chat, look at the party and leave."));
+        comments.put("party.defaults.invite", List.of("Who may invite: leader, moderators or members."));
+        comments.put("party.defaults.access", List.of(
+                "Who may join without an invite through /party join <player>:",
+                "invite-only, friends (friends of the leader) or open (everyone)."));
+        comments.put("party.defaults.follow", List.of(
+                "on: members follow the leader to other servers. Only works while follow.enabled is true."));
+        comments.put("party.defaults.chat", List.of("Who may write in the party chat: members, moderators or leader."));
         comments.put("party.offline-grace-seconds", List.of(
-                "Members who disconnect stay in the party this long. The leader role moves on right away.",
-                "0 removes them at once."));
+                "Members who disconnect stay in the party this long. The leader role moves on right away,",
+                "moderators first. 0 removes them at once."));
         comments.put("party.follow", List.of("Members follow the leader when the leader switches servers,",
-                "for example through the navigator or /play, as long as the server has room."));
+                "for example through the navigator or /play, as long as the server has room.",
+                "enabled: false switches following off for every party, whatever the party settings say."));
         comments.put("party.follow.into-lobbies", List.of("true also pulls members back when the leader goes to a lobby."));
         comments.put("party.follow.skip-groups", List.of("Server groups from servers.yml where members do not follow."));
         comments.put("party.chat-commands", List.of("Commands for party chat, for example /pc hello."));

@@ -1,6 +1,8 @@
 package net.prismarin.lobby.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.ArrayList;
@@ -46,13 +48,17 @@ class ProfileLayoutTest {
     }
 
     @Test
-    void defaultLayoutMatchesTheClassicProfileMenu() {
+    void defaultLayoutSpreadsTheProfileOverFiveRows() {
         ProfileLayout layout = ProfileLayout.DEFAULT;
-        assertEquals(3, layout.rows());
-        assertEquals(4, layout.headSlot());
-        assertEquals(1, layout.entryRow());
-        assertEquals(18, layout.backSlot());
-        assertEquals(26, layout.closeSlot());
+        assertEquals(5, layout.rows());
+        assertEquals(13, layout.headSlot());
+        assertEquals(2, layout.entryRow());
+        assertEquals(3, layout.actionRow());
+        assertEquals(36, layout.backSlot());
+        assertEquals(44, layout.closeSlot());
+        assertEquals(ProfileLayout.LanguageClick.MENU, layout.languageClick());
+        assertTrue(ProfileLayout.classicDefaults(3, 4, 1, 18, 26));
+        assertFalse(ProfileLayout.classicDefaults(5, 13, 2, 36, 44));
         assertEquals(List.of(ProfileLayout.Entry.Kind.CURRENCIES, ProfileLayout.Entry.Kind.LEVEL,
                 ProfileLayout.Entry.Kind.LANGUAGE), layout.entries().stream().map(ProfileLayout.Entry::kind).toList());
         assertEquals(List.of(Line.Kind.CURRENCIES, Line.Kind.LEVEL), layout.head().stream().map(Line::kind).toList());

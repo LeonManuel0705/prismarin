@@ -178,23 +178,26 @@ public final class LobbyMenus {
         if (layout.headSlot() >= 0) {
             menu.button(layout.headSlot(), kit.decoration(items.profileHead(player, playerLocale)));
         }
-        List<MenuButton> automatic = new ArrayList<>();
+        List<MenuButton> stats = new ArrayList<>();
+        List<MenuButton> actions = new ArrayList<>();
         for (ProfileLayout.Entry entry : layout.allEntries()) {
             List<MenuButton> buttons = entryButtons(player, playerLocale, profile, entry.kind());
             if (entry.automatic()) {
-                automatic.addAll(buttons);
+                (ProfileLayout.actionEntry(entry.kind()) ? actions : stats).addAll(buttons);
                 continue;
             }
             for (int i = 0; i < buttons.size() && entry.slot() + i < menu.size(); i++) {
                 menu.button(entry.slot() + i, buttons.get(i));
             }
         }
-        int count = Math.min(automatic.size(), 9);
-        if (count > 0) {
-            List<Integer> slots = MenuLayout.centeredRowSlots(layout.entryRow(), count);
-            for (int i = 0; i < count; i++) {
-                menu.button(slots.get(i), automatic.get(i));
-            }
+        if (layout.entryRow() == layout.actionRow()) {
+            stats.addAll(actions);
+            actions.clear();
+        }
+        placeRow(menu, layout.entryRow(), stats);
+        placeRow(menu, layout.actionRow(), actions);
+        if (layout.rows() >= 4) {
+            kit.accent(menu, List.of(3, 5, menu.size() - 5));
         }
         if (layout.backSlot() >= 0 && settings.enabled(LobbySettings.NAVIGATOR)) {
             menu.button(layout.backSlot(), kit.back(playerLocale, this::openNavigator));
@@ -203,6 +206,17 @@ public final class LobbyMenus {
             menu.button(layout.closeSlot(), kit.close(playerLocale));
         }
         menuService.open(player, menu);
+    }
+
+    private static void placeRow(Menu menu, int row, List<MenuButton> buttons) {
+        int count = Math.min(buttons.size(), 9);
+        if (count == 0) {
+            return;
+        }
+        List<Integer> slots = MenuLayout.centeredRowSlots(row, count);
+        for (int i = 0; i < count; i++) {
+            menu.button(slots.get(i), buttons.get(i));
+        }
     }
 
     private List<MenuButton> entryButtons(Player player, Locale playerLocale, PlayerProfile profile,
@@ -330,14 +344,14 @@ public final class LobbyMenus {
     private MenuButton languageButton(Player player, Locale playerLocale) {
         List<String> available = languages.languages();
         String current = languages.current(player);
-        Optional<String> toggle = settings.profile().languageClick() == ProfileLayout.LanguageClick.AUTO
+        Optional<String> toggle = settings.profile().languageClick() == ProfileLayout.LanguageClick.TOGGLE
                 ? Languages.toggleTarget(available, current)
                 : Optional.empty();
         Component hint = toggle
                 .map(next -> locale.render("lobby.profile.language.hint-toggle", playerLocale,
                         Placeholder.unparsed("language", languages.name(next))))
                 .orElseGet(() -> locale.render("lobby.profile.language.hint-menu", playerLocale));
-        ItemStack icon = ItemBuilder.of(Material.WRITABLE_BOOK)
+        ItemStack icon = languages.iconBuilder(current)
                 .name(locale.render("lobby.profile.language.name", playerLocale))
                 .lore(List.of(
                         locale.render("lobby.profile.language.current", playerLocale,

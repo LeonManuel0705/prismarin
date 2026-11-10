@@ -16,9 +16,39 @@ public final class SocialLayout {
     public static final int SETTINGS = 51;
     public static final int CLOSE = 53;
     public static final int EMPTY = 22;
+    public static final int PARTY_OPTIONS = 49;
+
+    public enum MemberAction {
+        PROMOTE,
+        DEMOTE,
+        TRANSFER,
+        BEFRIEND,
+        KICK
+    }
 
     private SocialLayout() {
         throw new AssertionError();
+    }
+
+    public static List<MemberAction> memberActions(boolean promote, boolean demote, boolean transfer,
+                                                   boolean befriend, boolean kick) {
+        List<MemberAction> actions = new ArrayList<>();
+        if (promote) {
+            actions.add(MemberAction.PROMOTE);
+        }
+        if (demote) {
+            actions.add(MemberAction.DEMOTE);
+        }
+        if (transfer) {
+            actions.add(MemberAction.TRANSFER);
+        }
+        if (befriend) {
+            actions.add(MemberAction.BEFRIEND);
+        }
+        if (kick) {
+            actions.add(MemberAction.KICK);
+        }
+        return List.copyOf(actions);
     }
 
     public static List<Integer> contentSlots(int count) {

@@ -78,6 +78,14 @@ public final class LanguageMenu {
                 Material.PAPER);
     }
 
+    public ItemBuilder iconBuilder(String tag) {
+        String head = locale.raw(YamlLocaleService.LANGUAGE_HEAD, Locale.forLanguageTag(tag));
+        if (head.equals(YamlLocaleService.LANGUAGE_HEAD) || head.isBlank()) {
+            return ItemBuilder.of(icon(tag));
+        }
+        return ItemBuilder.of(Material.PLAYER_HEAD).headTexture(head);
+    }
+
     public void open(Player player, Consumer<Player> back) {
         Locale playerLocale = PlayerLocales.of(player, profiles);
         List<String> languages = languages();
@@ -123,7 +131,7 @@ public final class LanguageMenu {
 
     private MenuButton button(Locale playerLocale, String tag, String current, Consumer<Player> back) {
         boolean selected = tag.equals(current);
-        ItemStack icon = ItemBuilder.of(icon(tag))
+        ItemStack icon = iconBuilder(tag)
                 .name(locale.render("lobby.profile.language.entry", playerLocale,
                         Placeholder.unparsed("language", name(tag))))
                 .lore(locale.render(selected ? "lobby.profile.language.selected" : "lobby.profile.language.select",

@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
@@ -54,6 +55,36 @@ class SocialRequestTest {
         assertTrue(SocialRequest.parse(json("{\"action\":\"setting\",\"key\":\"op\",\"value\":\"on\"}")).isEmpty());
         assertTrue(SocialRequest.parse(json("{\"action\":\"setting\",\"key\":\"jump\",\"value\":\"maybe\"}"))
                 .isEmpty());
+    }
+
+    @Test
+    void roleActionsNeedATarget() {
+        for (String action : new String[]{"party-promote", "party-demote", "party-transfer", "party-join",
+                "friend-request"}) {
+            assertTrue(SocialRequest.parse(json("{\"action\":\"" + action + "\"}")).isEmpty(), action);
+            SocialRequest request = SocialRequest.parse(json("{\"action\":\"" + action + "\",\"target\":\""
+                    + target + "\"}")).orElseThrow();
+            assertEquals(target, request.target());
+        }
+        assertEquals(SocialRequest.Action.PARTY_DEMOTE,
+                SocialRequest.parse(json("{\"action\":\"party-demote\",\"target\":\"" + target + "\"}"))
+                        .orElseThrow().action());
+    }
+
+    @Test
+    void partySettingsAreValidatedPerKey() {
+        SocialRequest request = SocialRequest.parse(json("{\"action\":\"party-setting\",\"view\":\"party\","
+                + "\"options\":{\"invite\":\"member\",\"access\":\"OPEN\",\"follow\":\"false\"}}")).orElseThrow();
+        assertEquals(Map.of(PartyOption.INVITE, PartyOption.MEMBERS, PartyOption.ACCESS, PartyOption.OPEN,
+                PartyOption.FOLLOW, SocialSetting.OFF), request.options());
+        assertTrue(SocialRequest.parse(json("{\"action\":\"party-setting\"}")).isEmpty());
+        assertTrue(SocialRequest.parse(json("{\"action\":\"party-setting\",\"options\":{}}")).isEmpty());
+        assertTrue(SocialRequest.parse(json("{\"action\":\"party-setting\",\"options\":{\"op\":\"on\"}}"))
+                .isEmpty());
+        assertTrue(SocialRequest.parse(json("{\"action\":\"party-setting\",\"options\":{\"chat\":\"maybe\"}}"))
+                .isEmpty());
+        assertTrue(SocialRequest.parse(json("{\"action\":\"party-setting\",\"options\":[\"invite\"]}")).isEmpty());
+        assertTrue(SocialRequest.parse(json("{\"action\":\"party-leave\"}")).orElseThrow().options().isEmpty());
     }
 
     private static JsonObject json(String raw) {

@@ -38,6 +38,9 @@ public final class PresenceTracker {
     public void onConnected(ServerPostConnectEvent event) {
         Player player = event.getPlayer();
         UUID uuid = player.getUniqueId();
+        if (context.partyEnabled()) {
+            context.async(() -> party.arrived(player));
+        }
         if (!context.announced(uuid)) {
             if (pending.add(uuid)) {
                 context.later(() -> announce(player), context.settings().friends().joinDelaySeconds(),

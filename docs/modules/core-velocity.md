@@ -130,3 +130,66 @@ Texte unter `punishment` in `messages_de.yml`/`messages_en.yml`: `screen.ban|tem
 Kanal `prismarin:moderation`, neu: Proxy an Spielserver `punish-menu` (`uuid`, `target`, `target-name`, `title`, `head`, `head-lore`, `templates[]` mit `id`, `icon`, `name`, `lore`, alles fertig gerenderte MiniMessage-Texte), Spielserver an Proxy `punish` (`uuid`, `target`, `template`); der Proxy nimmt es nur von einer `ServerConnection` an, wenn der Träger der Absender ist und das Menü für genau dieses Ziel und diese Vorlage in den letzten zwei Minuten geöffnet wurde. `mute` trägt zusätzlich `id` und `appeal`.
 
 Gespeicherte Strafen bleiben lesbar: `Punishment` hat die neuen Felder `template`, `note`, `addressHash`, `revokeReason`, `replacedBy`, alte Dokumente ohne sie werden mit leeren Werten gelesen.
+
+## Friends and parties: roles, settings and API
+
+### Party roles
+
+| Role | May |
+| --- | --- |
+| Leader | everything: invite, kick moderators and members, promote, demote, transfer the lead, change settings, warp, disband |
+| Moderator | invite (unless `invite` is `leader`), kick members (not moderators or the leader), take back invites, change settings |
+| Member | chat (unless `chat` says otherwise), look at members, roles and settings, leave; invite only when `invite` is `members` |
+
+The proxy checks every action again (`PartyManager` with `PartyRules` from `:api`), menus on the lobby only show what the proxy allows. When the leader leaves, the first moderator takes over, otherwise the oldest member. When the leader disconnects, the lead moves to an online moderator first and the old leader stays as moderator. `/party transfer` also keeps the old leader as moderator.
+
+Commands: `/party promote <player>` (member to moderator), `/party demote <player>`, `/party transfer <player>`, `/party join <player>` (accepts an invite or joins an open party), `/party settings [<setting> <value>]`. `/party list` and the party chat mark the leader with ♛ and moderators with ✦.
+
+| Setting | Values | Default in `social.yml` |
+| --- | --- | --- |
+| `invite` | `leader`, `moderators`, `members` | `party.defaults.invite: moderators` (filled from the old `members-can-invite` once) |
+| `access` | `invite-only`, `friends` (friends of the leader), `open` | `party.defaults.access: invite-only` |
+| `follow` | `on`, `off`, only offered while `party.follow.enabled` is true | `party.defaults.follow: on` |
+| `chat` | `members`, `moderators`, `leader` | `party.defaults.chat: members` |
+
+`/party settings` without arguments shows the party settings with change buttons for the leader and moderators, then the personal settings. Keys that are no party setting (`requests`, `party-invites`, ...) still change personal settings as before.
+
+### API for other proxy plugins
+
+`PrismarinProvider.get().friends()` and `.parties()` return `Optional<FriendService>` and `Optional<PartyService>` from `net.prismarin.api.social`; they are empty when the module is off in `config.yml`. Read models: `Party` (id, leader, members, invited, settings), `PartyMember` (uuid, real name, `PartyRole`), `PartySettings`, `FriendInfo`. `Party.can(actor, PartyAction, target)` answers role questions with the same rules the proxy uses.
+
+```java
+Prismarin prismarin = PrismarinProvider.get();
+prismarin.parties().ifPresent(parties -> {
+    parties.partyOf(player.getUniqueId()).ifPresent(party -> {
+        for (PartyMember member : party.members()) {
+            logger.info("{} is {}", member.name(), member.role().id());
+        }
+    });
+    parties.invite(leader, target).thenAccept(result -> {
+        if (!result.success()) {
+            logger.info("Invite failed: {}", result.id());
+        }
+    });
+});
+prismarin.friends().ifPresent(friends -> friends.areFriends(first, second)
+        .thenAccept(together -> logger.info("Friends: {}", together)));
+prismarin.events().subscribe(PartyJoinedEvent.class, event ->
+        logger.info("{} joined the party of {}", event.player(), event.party().leader()));
+```
+
+Actions (`invite`, `join`, `leave`, `kick`, `promote`, `demote`, `transfer`, `disband`, `warp`, `changeSettings`, `sendRequest`, `remove`) run as the acting player with the same checks and chat feedback as the commands and return a `SocialResult`. The acting player has to be online on the proxy (`UNAVAILABLE` otherwise); `FriendService.remove` also works offline. `sendRequest` respects vanish and nicks like `/friend add`. Snapshots carry real names, nicks are a display matter.
+
+Events on the `EventBus`, fired on a worker thread after the change: `FriendRequestEvent`, `FriendAddedEvent`, `FriendRemovedEvent`, `PartyCreatedEvent`, `PartyInviteEvent`, `PartyJoinedEvent`, `PartyLeftEvent` (reason `LEFT`, `KICKED`, `DISCONNECTED`), `PartyRoleChangedEvent` (also for transfers and hand overs), `PartySettingsChangedEvent`, `PartyDisbandedEvent`. A disband fires only `PartyDisbandedEvent`, a party that ends because the last other player left fires `PartyLeftEvent` first.
+
+### Channel `prismarin:moderation`
+
+| Type | Direction | Content |
+| --- | --- | --- |
+| `party-sync` | proxy to every server with a member or invitee of the changed party, and to a server a party member just joined | `cause` (`change` or `sync`), `before`, `after` (party JSON with `id`, `leader`, `members[]` with `uuid`, `name`, `role`, `invited[]`, `settings`), `dissolved`, `reason`, `actor` |
+| `social` | server to proxy | new actions `party-join`, `party-demote`, `party-transfer`, `party-setting` (with `options`: `invite`, `access`, `follow`, `chat`), `friend-request`; `party-promote` now makes a moderator |
+| `social-view` | proxy to server | now with `result` (`SocialResult` id) and in `party` the fields `role`, `can-warp`, `can-disband`, `can-settings`, `can-revoke`, `settings[]`, per member `role`, `can-kick`, `can-promote`, `can-demote`, `can-transfer` |
+| `social-query` | server to proxy | `id`, `query` (`party`, `friends`, `are-friends`), `player`, `other` |
+| `social-answer` | proxy to server | `id`, `enabled`, `party` or `friends[]` (at most 250, plus `total`) or `friends` as boolean |
+
+The proxy only accepts these from a `ServerConnection` whose player is the `uuid` of the message.

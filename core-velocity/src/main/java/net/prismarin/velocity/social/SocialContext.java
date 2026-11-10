@@ -19,7 +19,9 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.prismarin.api.event.PrismarinEvent;
 import net.prismarin.api.moderation.PunishmentType;
+import net.prismarin.api.social.SocialResult;
 import net.prismarin.shared.platform.CoreServices;
 import net.prismarin.shared.text.TimeAgo;
 import net.prismarin.velocity.admin.ModerationChannel;
@@ -81,6 +83,10 @@ public final class SocialContext {
 
     public CoreServices services() {
         return services;
+    }
+
+    public Logger logger() {
+        return logger;
     }
 
     public ProxyMessages messages() {
@@ -159,6 +165,17 @@ public final class SocialContext {
 
     public <T> CompletableFuture<T> supply(Supplier<T> task) {
         return CompletableFuture.supplyAsync(task, executor);
+    }
+
+    public CompletableFuture<SocialResult> result(Supplier<SocialResult> task) {
+        return CompletableFuture.supplyAsync(task, executor).exceptionally(error -> {
+            logger.warn("Social task failed", error);
+            return SocialResult.FAILED;
+        });
+    }
+
+    public void publish(PrismarinEvent event) {
+        services.events().publish(event);
     }
 
     public void later(Runnable task, long delay, TimeUnit unit) {

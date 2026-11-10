@@ -6,9 +6,12 @@ import com.google.gson.JsonObject;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import net.prismarin.api.social.PartyRole;
+import net.prismarin.api.social.SocialResult;
 
 public record SocialView(int id, String view, Features features, Counts counts, FriendPage friends,
-                         Requests requests, PartyView party, Candidates candidates, List<Setting> settings) {
+                         Requests requests, PartyView party, Candidates candidates, List<Setting> settings,
+                         SocialResult result) {
 
     public static final UUID NOBODY = new UUID(0L, 0L);
 
@@ -47,21 +50,33 @@ public record SocialView(int id, String view, Features features, Counts counts, 
     }
 
     public record Person(UUID uuid, UUID ref, String name, boolean masked, boolean friend, boolean online,
-                         String server, boolean leader, boolean self, int size) {
+                         String server, boolean leader, boolean self, int size, PartyRole role,
+                         Permissions permissions) {
 
         public boolean showSkin() {
             return !masked && !NOBODY.equals(uuid);
         }
     }
 
+    public record Permissions(boolean kick, boolean promote, boolean demote, boolean transfer) {
+
+        public static final Permissions NONE = new Permissions(false, false, false, false);
+
+        public boolean any() {
+            return kick || promote || demote || transfer;
+        }
+    }
+
     public record PartyView(boolean inParty, boolean canInvite, boolean friendsEnabled, UUID leader,
                             boolean leaderSelf, int max, List<Person> members, List<Person> invited,
-                            List<Person> incoming) {
+                            List<Person> incoming, PartyRole role, boolean canWarp, boolean canDisband,
+                            boolean canSettings, boolean canRevoke, List<Setting> settings) {
 
         public PartyView {
             members = List.copyOf(members);
             invited = List.copyOf(invited);
             incoming = List.copyOf(incoming);
+            settings = List.copyOf(settings);
         }
     }
 
@@ -97,7 +112,8 @@ public record SocialView(int id, String view, Features features, Counts counts, 
                 message.has("requests") ? requests(object(message, "requests")) : null,
                 message.has("party") ? party(object(message, "party")) : null,
                 message.has("candidates") ? candidates(object(message, "candidates")) : null,
-                settings(message.get("settings")));
+                settings(message.get("settings")),
+                SocialResult.byId(text(message, "result", "")).orElse(null));
     }
 
     private static FriendPage friendPage(JsonObject object) {
@@ -126,19 +142,27 @@ public record SocialView(int id, String view, Features features, Counts counts, 
     }
 
     private static PartyView party(JsonObject object) {
+        boolean leaderSelf = bool(object, "leader-self");
+        PartyRole role = PartyRole.byId(text(object, "role", ""))
+                .orElse(leaderSelf ? PartyRole.LEADER : PartyRole.MEMBER);
         return new PartyView(bool(object, "in-party"), bool(object, "can-invite"), bool(object, "friends"),
-                object.has("leader") ? uuid(object, "leader") : NOBODY, bool(object, "leader-self"),
+                object.has("leader") ? uuid(object, "leader") : NOBODY, leaderSelf,
                 integer(object, "max", 0), people(object, "members"), people(object, "invited"),
-                people(object, "incoming"));
+                people(object, "incoming"), role, bool(object, "can-warp"), bool(object, "can-disband"),
+                bool(object, "can-settings"), bool(object, "can-revoke"), settings(object.get("settings")));
     }
 
     private static List<Person> people(JsonObject object, String field) {
         List<Person> people = new ArrayList<>();
         for (JsonObject item : objects(object, field)) {
             UUID ref = item.has("ref") ? uuid(item, "ref") : uuid(item, "uuid");
+            boolean leader = bool(item, "leader");
+            PartyRole role = PartyRole.byId(text(item, "role", "")).orElse(leader ? PartyRole.LEADER : PartyRole.MEMBER);
             people.add(new Person(uuid(item, "uuid"), ref, text(item, "name", "?"), bool(item, "masked"),
-                    bool(item, "friend"), bool(item, "online"), text(item, "server", ""), bool(item, "leader"),
-                    bool(item, "self"), integer(item, "size", 0)));
+                    bool(item, "friend"), bool(item, "online"), text(item, "server", ""), leader,
+                    bool(item, "self"), integer(item, "size", 0), role,
+                    new Permissions(bool(item, "can-kick"), bool(item, "can-promote"), bool(item, "can-demote"),
+                            bool(item, "can-transfer"))));
         }
         return people;
     }

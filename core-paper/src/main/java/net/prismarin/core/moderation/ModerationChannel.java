@@ -87,6 +87,12 @@ public final class ModerationChannel implements PluginMessageListener {
                         social.get().receive(carrier, message);
                     }
                 }
+                case "social-answer" -> {
+                    if (carrier.getUniqueId().equals(uuid)) {
+                        social.get().answer(carrier, message);
+                    }
+                }
+                case "party-sync" -> social.get().party(message);
                 default -> {
                 }
             }
@@ -167,7 +173,11 @@ public final class ModerationChannel implements PluginMessageListener {
     }
 
     public void sendSocial(Player player, JsonObject message) {
-        message.addProperty("type", "social");
+        sendSocial(player, message, "social");
+    }
+
+    public void sendSocial(Player player, JsonObject message, String type) {
+        message.addProperty("type", type);
         message.addProperty("uuid", player.getUniqueId().toString());
         player.sendPluginMessage(plugin, ID, message.toString().getBytes(StandardCharsets.UTF_8));
     }

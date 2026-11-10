@@ -18,6 +18,7 @@ import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.nick.NickService;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.api.social.SocialApi;
 import net.prismarin.core.admin.PrismarinCommand;
 import net.prismarin.core.bridge.PlaceholderBridge;
 import net.prismarin.core.bridge.VaultBridge;
@@ -47,6 +48,7 @@ import net.prismarin.core.profile.ConnectionListener;
 import net.prismarin.core.rank.MissingLuckPermsCommand;
 import net.prismarin.core.rank.RankCommand;
 import net.prismarin.core.scoreboard.SidebarManager;
+import net.prismarin.core.social.BackendSocial;
 import net.prismarin.core.social.SocialClient;
 import net.prismarin.core.tablist.TablistManager;
 import net.prismarin.core.task.PeriodicSaveTask;
@@ -200,6 +202,7 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         if (nickManager != null) {
             getServer().getServicesManager().register(NickService.class, nickManager, this, ServicePriority.Normal);
         }
+        injector.getInstance(BackendSocial.class).register();
         if (modules.enabled(CoreModules.PLACEHOLDER_API) && pluginManager.getPlugin("PlaceholderAPI") != null) {
             placeholderBridge = PlaceholderBridge.enable(prismarin, nickManager, services.formatter(),
                     getPluginMeta().getVersion());
@@ -227,6 +230,7 @@ public final class PrismarinCorePlugin extends JavaPlugin {
             placeholderBridge = null;
         }
         getServer().getServicesManager().unregisterAll(this);
+        SocialApi.unregister();
         PrismarinProvider.unregister();
         CoreApi.unregister();
         for (BukkitTask task : new BukkitTask[]{heartbeatTask, statusTask}) {

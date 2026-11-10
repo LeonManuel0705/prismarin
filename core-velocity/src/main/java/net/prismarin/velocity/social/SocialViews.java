@@ -8,6 +8,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import net.prismarin.api.social.PartyAction;
+import net.prismarin.api.social.PartyRole;
+import net.prismarin.api.social.PartySettings;
+import net.prismarin.api.social.SocialResult;
 
 public final class SocialViews {
 
@@ -26,11 +30,14 @@ public final class SocialViews {
         this.party = party;
     }
 
-    public JsonObject build(Player viewer, SocialRequest request) {
+    public JsonObject build(Player viewer, SocialRequest request, SocialResult result) {
         JsonObject view = new JsonObject();
         view.addProperty("type", "social-view");
         view.addProperty("id", request.id());
         view.addProperty("view", request.view().id());
+        if (result != null) {
+            view.addProperty("result", result.id());
+        }
         JsonObject features = new JsonObject();
         features.addProperty("friends", context.friendsEnabled());
         features.addProperty("party", context.partyEnabled());
@@ -132,18 +139,30 @@ public final class SocialViews {
         object.addProperty("friends", context.friendsEnabled());
         if (current.isPresent()) {
             PartyManager.Party value = current.get();
+            UUID self = viewer.getUniqueId();
             object.addProperty("leader", value.leader().toString());
-            object.addProperty("leader-self", value.leader(viewer.getUniqueId()));
+            object.addProperty("leader-self", value.leader(self));
             object.addProperty("max", context.partyLimit(value.leader()));
+            object.addProperty("role", value.role(self).id());
+            object.addProperty("can-warp", value.allowed(self, PartyAction.WARP, null));
+            object.addProperty("can-disband", value.allowed(self, PartyAction.DISBAND, null));
+            object.addProperty("can-settings", value.allowed(self, PartyAction.SETTINGS, null));
+            object.addProperty("can-revoke", value.allowed(self, PartyAction.REVOKE, null));
+            object.add("settings", partySettings(value.settings()));
             JsonArray members = new JsonArray();
-            for (UUID member : value.members().subList(0, Math.min(MAX_MEMBERS, value.members().size()))) {
+            for (UUID member : ordered(value).subList(0, Math.min(MAX_MEMBERS, value.members().size()))) {
                 Optional<Player> online = context.proxy().getPlayer(member)
                         .filter(found -> context.visibleTo(viewer, found));
                 JsonObject item = person(viewer, viewerFriends, member);
                 item.addProperty("online", online.isPresent());
                 item.addProperty("server", online.map(context::serverOf).orElse(""));
                 item.addProperty("leader", value.leader(member));
-                item.addProperty("self", member.equals(viewer.getUniqueId()));
+                item.addProperty("self", member.equals(self));
+                item.addProperty("role", value.role(member).id());
+                item.addProperty("can-kick", value.allowed(self, PartyAction.KICK, member));
+                item.addProperty("can-promote", value.allowed(self, PartyAction.PROMOTE, member));
+                item.addProperty("can-demote", value.allowed(self, PartyAction.DEMOTE, member));
+                item.addProperty("can-transfer", value.allowed(self, PartyAction.TRANSFER, member));
                 members.add(item);
             }
             object.add("members", members);
@@ -161,6 +180,34 @@ public final class SocialViews {
         }
         object.add("incoming", incoming);
         return object;
+    }
+
+    static List<UUID> ordered(PartyManager.Party party) {
+        List<UUID> ordered = new ArrayList<>();
+        for (PartyRole role : List.of(PartyRole.LEADER, PartyRole.MODERATOR, PartyRole.MEMBER)) {
+            for (UUID member : party.members()) {
+                if (party.role(member) == role) {
+                    ordered.add(member);
+                }
+            }
+        }
+        return ordered;
+    }
+
+    private JsonArray partySettings(PartySettings settings) {
+        JsonArray array = new JsonArray();
+        for (PartyOption option : context.settings().party().options()) {
+            JsonObject item = new JsonObject();
+            String value = option.value(settings);
+            item.addProperty("key", option.id());
+            item.addProperty("value", value);
+            item.addProperty("next", option.next(value));
+            JsonArray options = new JsonArray();
+            option.options().forEach(options::add);
+            item.add("options", options);
+            array.add(item);
+        }
+        return array;
     }
 
     private JsonObject person(Player viewer, Set<UUID> viewerFriends, UUID subject) {
@@ -225,7 +272,6 @@ public final class SocialViews {
 
     private boolean canInvite(Player viewer) {
         Optional<PartyManager.Party> current = party.parties().partyOf(viewer.getUniqueId());
-        return current.isEmpty() || current.get().leader(viewer.getUniqueId())
-                || context.settings().party().membersCanInvite();
+        return current.isEmpty() || current.get().allowed(viewer.getUniqueId(), PartyAction.INVITE, null);
     }
 }
