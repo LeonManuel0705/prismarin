@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import net.prismarin.api.brand.Branding;
 import net.prismarin.api.economy.Currency;
 import org.junit.jupiter.api.Test;
@@ -92,5 +93,75 @@ class ConfigLoaderTest {
         assertTrue(config.systemEnabled("levels"));
         assertTrue(config.systemEnabled("network-status"));
         assertTrue(Files.readString(file).contains("network-status: true"));
+    }
+
+    @Test
+    void freshFileGetsSqlDefaultsOnlyOnce() throws IOException {
+        Path file = directory.resolve("config.yml");
+        CoreConfig config = ConfigLoader.load(file, List.of());
+        assertEquals(CoreConfig.StorageMode.LOCAL, config.storageMode());
+        assertEquals(SqlSettings.DEFAULT, config.sql());
+        String written = Files.readString(file);
+        assertTrue(written.contains("mysql:"));
+        assertTrue(written.contains("pool-size: 8"));
+        assertTrue(written.contains("file: prismarin.db"));
+
+        ConfigLoader.load(file, List.of());
+        assertEquals(written, Files.readString(file));
+    }
+
+    @Test
+    void mariadbIsAnAliasForMysqlAndSqlSettingsAreRead() throws IOException {
+        Path file = directory.resolve("config.yml");
+        Files.writeString(file, """
+                storage:
+                  mode: mariadb
+                  mysql:
+                    host: db.internal
+                    port: 3307
+                    database: network
+                    username: core
+                    password: "0815"
+                    pool-size: 4
+                    properties:
+                      sslMode: trust
+                      connectTimeout: 5000
+                      useCompression: true
+                  sqlite:
+                    file: data/network.db
+                """);
+        CoreConfig config = ConfigLoader.load(file, List.of());
+        assertEquals(CoreConfig.StorageMode.MYSQL, config.storageMode());
+        assertEquals(new SqlSettings("db.internal", 3307, "network", "core", "0815", 4,
+                Map.of("sslMode", "trust", "connectTimeout", "5000", "useCompression", "true"), "data/network.db"),
+                config.sql());
+    }
+
+    @Test
+    void storageModesAreCaseInsensitive() throws IOException {
+        Path file = directory.resolve("config.yml");
+        Files.writeString(file, "storage:\n  mode: SQLite\n");
+        assertEquals(CoreConfig.StorageMode.SQLITE, ConfigLoader.load(file, List.of()).storageMode());
+        Files.writeString(file, "storage:\n  mode: MySQL\n");
+        assertEquals(CoreConfig.StorageMode.MYSQL, ConfigLoader.load(file, List.of()).storageMode());
+    }
+
+    @Test
+    void unknownStorageModeIsRejectedWithTheValidModes() throws IOException {
+        Path file = directory.resolve("config.yml");
+        Files.writeString(file, "storage:\n  mode: postgres\n");
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> ConfigLoader.load(file, List.of()));
+        assertTrue(error.getMessage().contains("storage.mode"));
+        assertTrue(error.getMessage().contains("postgres"));
+    }
+
+    @Test
+    void invalidPoolSizeIsRejected() throws IOException {
+        Path file = directory.resolve("config.yml");
+        Files.writeString(file, "storage:\n  mysql:\n    pool-size: 0\n");
+        IllegalStateException error = assertThrows(IllegalStateException.class,
+                () -> ConfigLoader.load(file, List.of()));
+        assertTrue(error.getMessage().contains("storage.mysql.pool-size"));
     }
 }

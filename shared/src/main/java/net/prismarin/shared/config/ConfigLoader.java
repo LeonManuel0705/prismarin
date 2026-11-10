@@ -27,6 +27,7 @@ public final class ConfigLoader {
     private static final String DEFAULT_REDIS_HOST = "localhost";
     private static final int DEFAULT_REDIS_PORT = 6379;
     private static final String DEFAULT_LOCALE = "de";
+    private static final String MARIADB_ALIAS = "MARIADB";
     private static final List<String> DEFAULT_CURRENCIES = List.of(Currency.COINS.id(), Currency.GEMS.id());
 
     private ConfigLoader() {
@@ -74,9 +75,7 @@ public final class ConfigLoader {
         root.node("systems").childrenMap().forEach((key, node) -> systems.put(key.toString(), node.getBoolean(true)));
         return new CoreConfig(
                 root.node("server-id").getString(DEFAULT_SERVER_ID),
-                CoreConfig.StorageMode.valueOf(
-                        root.node("storage", "mode").getString(CoreConfig.StorageMode.LOCAL.name())
-                                .toUpperCase(Locale.ROOT)),
+                storageMode(root.node("storage", "mode").getString(CoreConfig.StorageMode.LOCAL.name())),
                 root.node("storage", "mongo", "uri").getString(DEFAULT_MONGO_URI),
                 root.node("storage", "mongo", "database").getString(DEFAULT_MONGO_DATABASE),
                 root.node("redis", "enabled").getBoolean(false),
@@ -89,8 +88,43 @@ public final class ConfigLoader {
                 primary,
                 modules,
                 systems,
-                root.node("compatibility", "auto-detect").getBoolean(true)
+                root.node("compatibility", "auto-detect").getBoolean(true),
+                readSql(root.node("storage"))
         );
+    }
+
+    private static CoreConfig.StorageMode storageMode(String value) {
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        if (normalized.equals(MARIADB_ALIAS)) {
+            return CoreConfig.StorageMode.MYSQL;
+        }
+        try {
+            return CoreConfig.StorageMode.valueOf(normalized);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("storage.mode must be LOCAL, MONGO, MYSQL, MARIADB or SQLITE, not '"
+                    + value + "'", e);
+        }
+    }
+
+    private static SqlSettings readSql(ConfigurationNode storage) {
+        SqlSettings fallback = SqlSettings.DEFAULT;
+        ConfigurationNode mysql = storage.node("mysql");
+        Map<String, String> properties = new LinkedHashMap<>();
+        mysql.node("properties").childrenMap().forEach((key, node) -> {
+            String value = node.getString();
+            if (value != null) {
+                properties.put(key.toString(), value);
+            }
+        });
+        return new SqlSettings(
+                mysql.node("host").getString(fallback.host()),
+                mysql.node("port").getInt(fallback.port()),
+                mysql.node("database").getString(fallback.database()),
+                mysql.node("username").getString(fallback.username()),
+                mysql.node("password").getString(fallback.password()),
+                mysql.node("pool-size").getInt(fallback.poolSize()),
+                properties,
+                storage.node("sqlite", "file").getString(fallback.sqliteFile()));
     }
 
     private static boolean fillDefaults(ConfigurationNode root, Collection<String> modules)
@@ -101,6 +135,15 @@ public final class ConfigLoader {
         changed |= setIfAbsent(root.node("storage", "mode"), CoreConfig.StorageMode.LOCAL.name());
         changed |= setIfAbsent(root.node("storage", "mongo", "uri"), DEFAULT_MONGO_URI);
         changed |= setIfAbsent(root.node("storage", "mongo", "database"), DEFAULT_MONGO_DATABASE);
+        SqlSettings sql = SqlSettings.DEFAULT;
+        changed |= setIfAbsent(root.node("storage", "mysql", "host"), sql.host());
+        changed |= setIfAbsent(root.node("storage", "mysql", "port"), sql.port());
+        changed |= setIfAbsent(root.node("storage", "mysql", "database"), sql.database());
+        changed |= setIfAbsent(root.node("storage", "mysql", "username"), sql.username());
+        changed |= setIfAbsent(root.node("storage", "mysql", "password"), sql.password());
+        changed |= setIfAbsent(root.node("storage", "mysql", "pool-size"), sql.poolSize());
+        changed |= setIfAbsent(root.node("storage", "mysql", "properties"), sql.properties());
+        changed |= setIfAbsent(root.node("storage", "sqlite", "file"), sql.sqliteFile());
         changed |= setIfAbsent(root.node("redis", "enabled"), false);
         changed |= setIfAbsent(root.node("redis", "host"), DEFAULT_REDIS_HOST);
         changed |= setIfAbsent(root.node("redis", "port"), DEFAULT_REDIS_PORT);

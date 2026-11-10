@@ -8,6 +8,9 @@ dependencies {
     api(libs.configurate.yaml)
     api(libs.lettuce.core)
     api(libs.mongodb.driver.sync)
+    api(libs.hikaricp)
+    api(libs.mariadb.java.client)
+    api(libs.sqlite.jdbc)
     compileOnly(libs.gson)
     compileOnly(libs.adventure.api)
     compileOnly(libs.adventure.minimessage)
@@ -22,5 +25,8 @@ dependencies {
     testImplementation(libs.adventure.plain)
     testImplementation(libs.testcontainers.junit.jupiter)
     testImplementation(libs.testcontainers.mongodb)
+    testImplementation(libs.testcontainers.mariadb)
+    testImplementation(libs.testcontainers.mysql)
+    testRuntimeOnly(libs.mysql.connector.j)
     testImplementation(libs.testcontainers.redis)
 }

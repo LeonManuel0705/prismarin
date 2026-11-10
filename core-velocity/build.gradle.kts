@@ -23,6 +23,13 @@ dependencies {
 tasks.shadowJar {
     archiveFileName.set("prismarin-velocity.jar")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    mergeServiceFiles()
+    filesMatching("META-INF/services/**") {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    dependencies {
+        exclude(dependency("org.slf4j:slf4j-api:.*"))
+    }
     relocate("org.spongepowered.configurate", "net.prismarin.libs.configurate")
     relocate("io.leangen.geantyref", "net.prismarin.libs.geantyref")
     relocate("net.kyori.option", "net.prismarin.libs.kyori.option")
@@ -33,4 +40,6 @@ tasks.shadowJar {
     relocate("io.netty", "net.prismarin.libs.netty")
     relocate("reactor", "net.prismarin.libs.reactor")
     relocate("org.reactivestreams", "net.prismarin.libs.reactivestreams")
+    relocate("com.zaxxer.hikari", "net.prismarin.libs.hikari")
+    relocate("org.mariadb.jdbc", "net.prismarin.libs.mariadb")
 }

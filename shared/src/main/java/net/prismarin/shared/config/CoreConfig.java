@@ -9,7 +9,7 @@ public record CoreConfig(String serverId, StorageMode storageMode, String mongoU
                          boolean redisEnabled, String redisHost, int redisPort, String redisPassword,
                          String defaultLocale, Branding branding, List<Currency> currencies,
                          Currency primaryCurrency, Map<String, Boolean> modules, Map<String, Boolean> systems,
-                         boolean autoDetectConflicts) {
+                         boolean autoDetectConflicts, SqlSettings sql) {
 
     public CoreConfig {
         currencies = List.copyOf(currencies);
@@ -34,6 +34,8 @@ public record CoreConfig(String serverId, StorageMode storageMode, String mongoU
 
     public enum StorageMode {
         LOCAL,
-        MONGO
+        MONGO,
+        MYSQL,
+        SQLITE
     }
 }

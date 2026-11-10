@@ -10,13 +10,15 @@ import java.util.Set;
 import net.prismarin.api.brand.Branding;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.shared.config.CoreConfig;
+import net.prismarin.shared.config.SqlSettings;
 import org.junit.jupiter.api.Test;
 
 class ModuleStateTest {
 
     private static CoreConfig config(Map<String, Boolean> modules, Map<String, Boolean> systems, boolean detect) {
         return new CoreConfig("lobby", CoreConfig.StorageMode.LOCAL, "", "", false, "", 0, "", "de",
-                Branding.DEFAULT, List.of(Currency.COINS), Currency.COINS, modules, systems, detect);
+                Branding.DEFAULT, List.of(Currency.COINS), Currency.COINS, modules, systems, detect,
+                SqlSettings.DEFAULT);
     }
 
     @Test
