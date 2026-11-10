@@ -27,6 +27,8 @@ public final class EssentialsCommands {
             Map.entry(EssentialsFeature.TIME, WorldCommand.class),
             Map.entry(EssentialsFeature.WEATHER, WorldCommand.class),
             Map.entry(EssentialsFeature.PING, PingCommand.class),
+            Map.entry(EssentialsFeature.PINGTEST, PingTestCommand.class),
+            Map.entry(EssentialsFeature.LIST, ListCommand.class),
             Map.entry(EssentialsFeature.HAT, HatCommand.class),
             Map.entry(EssentialsFeature.SKULL, SkullCommand.class));
 

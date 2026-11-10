@@ -549,7 +549,9 @@ public record LobbySettings(Map<String, Boolean> features, List<String> worlds, 
         comments.put("profile", List.of("What the profile head item and the profile menu show."));
         comments.put("profile.head", List.of(
                 "Lore of the profile head item, line by line: currencies, 'currency: <id>', level, rank, empty",
-                "or 'text: <text>'. Text lines may use PlaceholderAPI placeholders."));
+                "or 'text: <text>'. Text lines may use PlaceholderAPI placeholders.",
+                "Lines from other plugins: 'attribute: <key>' shows one, attributes shows all others there.",
+                "Without an attributes line they follow at the end."));
         comments.put("profile.menu", List.of("Layout of the profile menu. Slots count from 0 (top left), -1 hides."));
         comments.put("profile.menu.entry-row", List.of("Row of currencies, level and rank (0 is the top row)."));
         comments.put("profile.menu.action-row", List.of(

@@ -280,6 +280,14 @@ play:
   no-server: "%brand_prefix%✖ Gerade ist kein Server in <color:#22D3EE>%group%</color> frei.</gray>"
   connecting: "%brand_prefix%Verbinde mit %server%<gray> ...</gray>"
 vanish:
+  inspect:
+    title: "<dark_gray>Inventar</dark_gray> <dark_gray>·</dark_gray> <white>%player%</white> <dark_gray>(live)</dark_gray>"
+    info-name: "<brand_primary>%player%</brand_primary>"
+    info-health: "<gray>Leben</gray> <dark_gray>»</dark_gray> <red>%health%</red><dark_gray>/%max%</dark_gray>"
+    info-food: "<gray>Hunger</gray> <dark_gray>»</dark_gray> <gold>%food%</gold><dark_gray>/20</dark_gray>"
+    info-level: "<gray>Level</gray> <dark_gray>»</dark_gray> <green>%level%</green>"
+    info-mode: "<gray>Modus</gray> <dark_gray>»</dark_gray> <white>%mode%</white>"
+    info-world: "<gray>Welt</gray> <dark_gray>»</dark_gray> <white>%world%</white>"
   silent-title: "<dark_gray>Lautlos geöffnet</dark_gray>"
   container-changed: "%brand_prefix%✖ Der Behälter wurde inzwischen verändert, deine Änderungen wurden nicht übernommen.</gray>"
   actionbar: "<brand_accent>▶</brand_accent> <gradient:#22D3EE:#2DD4BF>Du bist unsichtbar</gradient> <brand_accent>◀</brand_accent>"
@@ -302,6 +310,14 @@ report:
     reason: "<white>%reason%</white>"
     reason-lore: "<brand_primary>» Klicke, um %player% zu melden</brand_primary>"
     cancel: "<red>Abbrechen</red>"
+staff-mode:
+  enabled: "%brand_prefix%✔ Staffmodus <color:#2DD4BF>an</color>: %parts%. Er bleibt aktiv, bis du <color:#22D3EE>/mod</color> erneut nutzt, auch nach einem Serverwechsel.</gray>"
+  disabled: "%brand_prefix%✔ Staffmodus <color:#22D3EE>aus</color>.</gray>"
+  actionbar: "<brand_accent>▶</brand_accent> <gradient:#22D3EE:#2DD4BF>Staffmodus</gradient> <brand_accent>◀</brand_accent>"
+  part-nick: "genickt"
+  part-vanish: "unsichtbar"
+  part-and: " und "
+  part-none: "ohne Nick und Vanish"
 moderation:
   muted: "%brand_prefix%✖ Du bist stummgeschaltet. Grund: <white>%reason%</white><gray>, noch</gray> <white>%remaining%</white><gray>.</gray>"
 admin:
@@ -404,6 +420,17 @@ essentials:
     sun: "%brand_prefix%✔ In <color:#22D3EE>%world%</color> scheint jetzt die Sonne.</gray>"
     rain: "%brand_prefix%✔ In <color:#22D3EE>%world%</color> regnet es jetzt.</gray>"
     thunder: "%brand_prefix%✔ In <color:#22D3EE>%world%</color> gewittert es jetzt.</gray>"
+  pingtest:
+    usage: "%brand_prefix%Verwendung: <color:#22D3EE>/pingtest [\\<Spieler>]</color></gray>"
+    running: "%brand_prefix%✖ Es läuft schon ein Pingtest.</gray>"
+    started: "%brand_prefix%Messe den Ping von <color:#22D3EE>%player%</color> für <white>%seconds% s</white> ...</gray>"
+    gone: "%brand_prefix%✖ <color:#22D3EE>%player%</color> ist offline gegangen, der Pingtest wurde abgebrochen.</gray>"
+    progress: "<gray>Pingtest</gray> %bar% <white>%elapsed%/%seconds% s</white> <dark_gray>·</dark_gray> <gray>jetzt</gray> <white>%ping% ms</white>"
+    result: "%brand_prefix%Pingtest von <color:#22D3EE>%player%</color> <dark_gray>(%seconds% s)</dark_gray><newline> <gray>Durchschnitt</gray> %average% <dark_gray>·</dark_gray> <gray>niedrigster</gray> %lowest% <dark_gray>·</dark_gray> <gray>Spitze</gray> %peak% <dark_gray>·</dark_gray> <gray>Schwankung</gray> <white>%spread% ms</white></gray>"
+    note: " <dark_gray>Minecraft meldet den Ping etwa alle 15 Sekunden neu, längere Tests sind genauer.</dark_gray>"
+  list:
+    here: "%brand_prefix%Online auf diesem Server: <color:#22D3EE>%count%</color><dark_gray>/%max%</dark_gray></gray>"
+    network: " <gray>Im ganzen Netzwerk:</gray> <color:#22D3EE>%count%</color> <gray>Spieler</gray>"
   ping:
     usage: "%brand_prefix%Verwendung: <color:#22D3EE>/ping \\<Spieler></color></gray>"
     self: "%brand_prefix%Dein Ping: %ping%</gray>"

@@ -35,6 +35,11 @@ public final class NickRankFormatProvider implements RankFormatProvider {
     }
 
     @Override
+    public Component ownPrefix(Player player) {
+        return real.prefix(player);
+    }
+
+    @Override
     public Component suffix(Player player) {
         return registry.nicked(player.getUniqueId()) ? Component.empty() : real.suffix(player);
     }

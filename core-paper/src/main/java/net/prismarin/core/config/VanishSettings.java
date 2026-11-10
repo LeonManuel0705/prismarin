@@ -12,9 +12,9 @@ import org.spongepowered.configurate.yaml.NodeStyle;
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 
 public record VanishSettings(boolean silentContainers, boolean silentBlocks, boolean flight, boolean invincible,
-                             boolean noHunger, boolean mobsIgnore) {
+                             boolean noHunger, boolean mobsIgnore, boolean inspectInventories) {
 
-    public static final VanishSettings DEFAULT = new VanishSettings(true, true, true, true, true, true);
+    public static final VanishSettings DEFAULT = new VanishSettings(true, true, true, true, true, true, true);
 
     public static VanishSettings load(Path file) {
         try {
@@ -32,6 +32,7 @@ public record VanishSettings(boolean silentContainers, boolean silentBlocks, boo
             values.put("invincible", true);
             values.put("no-hunger", true);
             values.put("mobs-ignore", true);
+            values.put("inspect-inventories", true);
             boolean changed = false;
             for (Map.Entry<String, Boolean> entry : values.entrySet()) {
                 changed |= fill(vanish.node(entry.getKey()), entry.getValue());
@@ -42,7 +43,7 @@ public record VanishSettings(boolean silentContainers, boolean silentBlocks, boo
             }
             return new VanishSettings(values.get("silent-containers"), values.get("silent-blocks"),
                     values.get("flight"), values.get("invincible"), values.get("no-hunger"),
-                    values.get("mobs-ignore"));
+                    values.get("mobs-ignore"), values.get("inspect-inventories"));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

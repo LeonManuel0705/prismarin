@@ -57,4 +57,31 @@ class YamlCommentsTest {
         List<String> annotated = YamlComments.annotate(lines, List.of(), Map.of("servers.bw-1.motd", List.of("Text")));
         assertEquals(List.of("servers:", "  \"bw-1\":", "    # Text", "    motd: \"Hello: world\""), annotated);
     }
+
+    @Test
+    void replacesAnOlderVersionOfTheSameCommentButKeepsOwnNotes() {
+        List<String> lines = List.of(
+                "# my own note",
+                "# Templates",
+                "# old second line",
+                "templates:",
+                "  # Unrelated",
+                "  chat: 1");
+        List<String> annotated = YamlComments.annotate(lines, List.of(), Map.of(
+                "templates", List.of("Templates", "new second line", "third line"),
+                "templates.chat", List.of("Chat")));
+        assertEquals(List.of(
+                "# my own note",
+                "",
+                "# Templates",
+                "# new second line",
+                "# third line",
+                "templates:",
+                "  # Unrelated",
+                "  # Chat",
+                "  chat: 1"), annotated);
+        assertEquals(annotated, YamlComments.annotate(annotated, List.of(), Map.of(
+                "templates", List.of("Templates", "new second line", "third line"),
+                "templates.chat", List.of("Chat"))));
+    }
 }

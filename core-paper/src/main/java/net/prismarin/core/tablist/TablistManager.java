@@ -88,7 +88,7 @@ public final class TablistManager {
     public void refreshAll() {
         Component frame = title.next();
         for (Player viewer : plugin.getServer().getOnlinePlayers()) {
-            String online = String.valueOf(vanish.visibleCount(viewer));
+            String online = String.valueOf(vanish.visibleCount(null));
             snapshots.refresh(viewer);
             viewer.sendPlayerListHeaderAndFooter(
                     locale.render("tablist.header", PlayerLocales.of(viewer, profiles), viewer.getUniqueId(),

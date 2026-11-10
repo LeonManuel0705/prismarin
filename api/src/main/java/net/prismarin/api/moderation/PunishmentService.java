@@ -24,6 +24,10 @@ public interface PunishmentService {
 
     CompletableFuture<List<Punishment>> history(UUID target);
 
+    default CompletableFuture<List<Punishment>> inForce(PunishmentType type) {
+        return CompletableFuture.completedFuture(List.of());
+    }
+
     CompletableFuture<Optional<Punishment>> revoke(UUID target, PunishmentType type, String actor);
 
     default CompletableFuture<Optional<Punishment>> revoke(UUID target, PunishmentType type, String actor,

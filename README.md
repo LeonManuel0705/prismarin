@@ -23,7 +23,7 @@ The point of the architecture is that a game mode never talks to a database. It 
 | Network overview | `/network` opens a live inventory with status, players, ping, version, TPS, memory and uptime per server |
 | Events | `ProfileLoadedEvent`, `ProfileUnloadedEvent`, `BalanceChangedEvent`, `PunishmentIssuedEvent` and `PunishmentRevokedEvent` on proxy and backends |
 | Vault | Registers as the Vault economy for the classic API and the multi currency VaultUnlocked API, so every shop or game plugin pays out network currency |
-| PlaceholderAPI | `%prismarin_balance%`, `%prismarin_group_online_bedwars%` and more for other plugins, and PlaceholderAPI placeholders inside PRISMARIN's own tablist, sidebar and chat |
+| PlaceholderAPI | `%prismarin_balance%`, `%prismarin_group_online_bedwars%`, `%prismarin_rank_prefix%`, `%prismarin_language%`, `%prismarin_data_<key>%` for attributes of other plugins and more, and PlaceholderAPI placeholders inside PRISMARIN's own tablist, sidebar and chat |
 | Compatibility | Switches its own tablist, sidebar or chat format off when TAB, a scoreboard plugin or a chat plugin is installed |
 | Systems and modules | Whole systems (economy, levels, network status) and single features (chat, tablist, sidebar, join messages, commands, proxy features, lobby parts) can each be switched off |
 | Lobby | An optional ready made lobby with navigator, lobby selector for several lobby worlds or servers with premium lobbies, profile menu, language menu, nick tool, silent lobby, player hider, double jump, void teleport and custom hotbar items with click actions |
@@ -43,7 +43,7 @@ core-velocity  core-paper
 
 | Module | Purpose |
 |:---|:---|
-| `:api` | The contract for other plugins. `Prismarin`, profiles, economy, events, locale, messaging, server directory, status, game states, the connector and punishments. |
+| `:api` | The contract for other plugins. `Prismarin`, players (names, nicks, language, server, world, viewer rules and an attribute registry), profiles, economy, events, locale, messaging, server directory, status, game states, the connector and punishments. |
 | `:shared` | The implementations. Config loading, JSON, SQLite, MySQL/MariaDB and MongoDB storage, local and Redis message bus, YAML locales, the text formatter, server list ping, heartbeats, server selection, punishments, reports and the audit log. |
 | `:core-paper` | Core plugin for Paper backends. Chat format with rank prefixes, tablist, sidebar and menu frameworks, economy commands, network overview. |
 | `:core-velocity` | Core plugin for the proxy. MOTD, maintenance mode, `/hub`, `/sendall`, lobby fallback when a backend drops a player. |
@@ -65,7 +65,24 @@ prismarin.events().subscribe(BalanceChangedEvent.class,
 List<NetworkServer> bedwars = prismarin.servers().byGroup("bedwars");
 ```
 
-On Paper the same instance is registered in the Bukkit services manager. On Velocity, depend on `prismarin-core`.
+Everything PRISMARIN knows about a player sits behind `players()`, with nicks, vanish and the chosen language already applied, so a game plugin does not rebuild any of it:
+
+```java
+PlayerService players = prismarin.players();
+
+String shown = players.displayName(viewer.getUniqueId(), target.getUniqueId());
+Locale language = players.locale(target.getUniqueId());
+players.online(target.getUniqueId()).ifPresent(player -> log(player.server() + " / " + player.world()));
+players.resolve(viewer.getUniqueId(), typedName).thenAccept(found -> { });
+players.find(friendUuid).thenAccept(found -> { });
+
+prismarin.events().subscribe(ServerChangedEvent.class, event -> { });
+players.attributes().register(PlayerAttribute.of("bedwars_wins", player -> wins(player.uuid())));
+```
+
+`displayName` shows the real name only to the player himself and to staff with `prismarin.nick.realname`, `resolve` finds a player by what someone typed without leaking a real name. Registered attributes show up as `%prismarin_data_<key>%` and in the lobby profile. Details in `docs/modules/core-paper.md` and `docs/modules/core-velocity.md`.
+
+On Paper the same instances are registered in the Bukkit services manager (`Prismarin`, `PlayerService`, `FriendService`, `PartyService`). On Velocity, depend on `prismarin-core`.
 
 ## Configuration
 

@@ -13,7 +13,7 @@ import net.prismarin.api.moderation.PunishmentType;
 import net.prismarin.shared.moderation.Durations;
 
 public record PunishmentTemplate(String id, Map<String, String> names, String icon, String permission,
-                                 List<Step> steps, Duration forgetAfter) {
+                                 List<Step> steps, Duration forgetAfter, Map<String, String> descriptions) {
 
     private static final Set<String> PERMANENT_WORDS = Set.of("permanent", "perm", "forever", "never");
 
@@ -47,24 +47,38 @@ public record PunishmentTemplate(String id, Map<String, String> names, String ic
         if (forgetAfter != null && (forgetAfter.isZero() || forgetAfter.isNegative())) {
             forgetAfter = null;
         }
+        descriptions = descriptions == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(descriptions));
+    }
+
+    public PunishmentTemplate(String id, Map<String, String> names, String icon, String permission, List<Step> steps,
+                              Duration forgetAfter) {
+        this(id, names, icon, permission, steps, forgetAfter, Map.of());
     }
 
     public String name(Locale locale) {
+        return localized(names, locale).orElse(id);
+    }
+
+    public String description(Locale locale) {
+        return localized(descriptions, locale).orElse("");
+    }
+
+    private static Optional<String> localized(Map<String, String> texts, Locale locale) {
         if (locale != null) {
-            String exact = names.get(locale.toLanguageTag().toLowerCase(Locale.ROOT));
+            String exact = texts.get(locale.toLanguageTag().toLowerCase(Locale.ROOT));
             if (exact != null) {
-                return exact;
+                return Optional.of(exact);
             }
-            String language = names.get(locale.getLanguage().toLowerCase(Locale.ROOT));
+            String language = texts.get(locale.getLanguage().toLowerCase(Locale.ROOT));
             if (language != null) {
-                return language;
+                return Optional.of(language);
             }
         }
-        String english = names.get("en");
+        String english = texts.get("en");
         if (english != null) {
-            return english;
+            return Optional.of(english);
         }
-        return names.values().stream().findFirst().orElse(id);
+        return texts.values().stream().findFirst();
     }
 
     public Step step(int previousOffences) {

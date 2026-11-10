@@ -42,6 +42,17 @@ net.prismarin.api
 ├── messaging
 │   ├── MessageBus           publish/subscribe/close/serverId, JSON-Payloads
 │   └── NetworkMessage       Record-Envelope
+├── player
+│   ├── PlayerService        players(): online, find, findAll, findByRealName, locale, displayName, rank, canSee,
+│   │                        resolve, resolveOnline, suggestions, attributes, party/friend links
+│   ├── NetworkPlayer        snapshot: real name, nick, locale, server, world, online, vanished, rank, realRank, level
+│   ├── RankDisplay          label, prefix, suffix, nameColor, chatColor, weight, NONE
+│   ├── ViewerRules          pure nick and vanish rules for names, ranks, resolution and suggestions
+│   ├── PlayerAttribute      extension point for per player data of other plugins
+│   ├── PlayerAttributes     registry: register -> Subscription, value(s), profileLine(s)
+│   ├── PlayerApi            holder behind Prismarin.players()
+│   ├── ServerChangedEvent   player switched or joined a server
+│   └── LocaleChangedEvent   chosen language changed
 ├── profile
 │   ├── PlayerProfile        uuid, name, firstJoin, lastSeen, locale, balances je Currency, level, xp, settings
 │   ├── ProfileService       load/getCached/save/unload/modify
@@ -64,4 +75,4 @@ Laufen synchron auf dem Thread, der sie auslöst; für Profile und Economy ist d
 
 ## Tests
 
-`PlayerProfileTest`, `CurrencyTest`, `BrandingTest`.
+`PlayerProfileTest`, `CurrencyTest`, `BrandingTest`, `ViewerRulesTest`, `NetworkPlayerTest`, `PlayerAttributesTest`.

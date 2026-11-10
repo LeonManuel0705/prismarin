@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import net.prismarin.api.PrismarinProvider;
+import net.prismarin.api.moderation.ModerationApi;
 import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.shared.config.ConfigComments;
@@ -43,6 +44,8 @@ import net.prismarin.velocity.admin.ModerationChannel;
 import net.prismarin.velocity.admin.ModerationListener;
 import net.prismarin.velocity.admin.OperatorRegistry;
 import net.prismarin.velocity.admin.ProxyInfoCommand;
+import net.prismarin.velocity.admin.ProxyPunishmentTemplates;
+import net.prismarin.velocity.admin.ProxyReportApi;
 import net.prismarin.velocity.admin.PunishmentCommands;
 import net.prismarin.velocity.admin.PunishmentFlow;
 import net.prismarin.velocity.admin.PunishmentSettings;
@@ -61,6 +64,7 @@ import net.prismarin.velocity.listener.PingListener;
 import net.prismarin.velocity.locale.PlayerLocaleRegistry;
 import net.prismarin.velocity.locale.ProxyMessages;
 import net.prismarin.velocity.motd.MotdBuilder;
+import net.prismarin.velocity.player.ProxyPlayers;
 import net.prismarin.velocity.server.LobbyBalancer;
 import net.prismarin.velocity.server.ProxyConnectorTransport;
 import net.prismarin.velocity.server.ProxyServerDirectory;
@@ -139,6 +143,7 @@ public final class PrismarinVelocityPlugin {
         AdminContext admin = new AdminContext(proxy, services, messages, vanish, moderationChannel, connector,
                 directory, networkStatus, AdminSettings.load(dataDirectory.resolve("admin.yml")));
         registerAdmin(coreConfig, admin);
+        ProxyPlayers.register(this, admin, executor);
         SocialModule.register(this, logger, coreConfig, admin, executor, dataDirectory);
         logger.info("PRISMARIN proxy core enabled as '{}' with {}, systems {} and modules {}",
                 coreConfig.serverId(), services.messageBus().getClass().getSimpleName(),
@@ -150,7 +155,7 @@ public final class PrismarinVelocityPlugin {
         CommandManager commands = proxy.getCommandManager();
         Map<String, Map.Entry<List<String>, SimpleCommand>> available = new LinkedHashMap<>();
         available.put(ProxyModules.STAFF_CHAT, Map.entry(List.of("sc", "staffchat"), StaffCommands.staffChat(context)));
-        available.put(ProxyModules.STAFF_LIST, Map.entry(List.of("team", "staff"), StaffCommands.team(context)));
+        available.put(ProxyModules.STAFF_LIST, Map.entry(List.of("team", "stafflist"), StaffCommands.team(context)));
         available.put(ProxyModules.FIND, Map.entry(List.of("find"), StaffCommands.find(context)));
         available.put(ProxyModules.SEND, Map.entry(List.of("send"), StaffCommands.send(context)));
         available.put(ProxyModules.GOTO, Map.entry(List.of("goto"), StaffCommands.goTo(context)));
@@ -171,12 +176,15 @@ public final class PrismarinVelocityPlugin {
             }
             ReportFlow reportFlow = new ReportFlow(context, chatHistory);
             proxy.getEventManager().register(this, reportFlow);
+            ModerationApi.registerReports(new ProxyReportApi(context, reportFlow));
+            proxy.getScheduler().buildTask(this, reportFlow::releaseIdle).repeat(1, TimeUnit.MINUTES).schedule();
             register(commands, List.of("report"), ReportCommands.report(context, reportFlow));
             register(commands, List.of("reports"), ReportCommands.reports(context, reportFlow));
         }
         if (config.moduleEnabled(ProxyModules.PUNISHMENTS)) {
             PunishmentFlow punishments = new PunishmentFlow(context,
                     PunishmentSettings.load(dataDirectory.resolve(PunishmentSettings.FILE_NAME)));
+            ModerationApi.registerTemplates(new ProxyPunishmentTemplates(punishments));
             proxy.getEventManager().register(this, new ModerationListener(context, punishments));
             PunishmentCommands.all(context, punishments).forEach((names, command) -> register(commands, names, command));
         } else {
@@ -215,6 +223,7 @@ public final class PrismarinVelocityPlugin {
     @Subscribe
     public void onProxyShutdown(ProxyShutdownEvent event) {
         PrismarinProvider.unregister();
+        ModerationApi.unregister();
         if (services != null) {
             services.close();
             services = null;

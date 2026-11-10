@@ -337,7 +337,7 @@ public final class LobbyMenus {
         return ItemBuilder.of(Material.NAME_TAG)
                 .name(locale.render("lobby.profile.rank.name", playerLocale))
                 .lore(locale.render("lobby.profile.rank.lore", playerLocale, player.getUniqueId(),
-                        Placeholder.component("rank", ranks.prefix(player))))
+                        Placeholder.component("rank", ranks.ownPrefix(player))))
                 .build();
     }
 

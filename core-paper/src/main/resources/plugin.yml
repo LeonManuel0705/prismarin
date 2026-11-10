@@ -24,6 +24,10 @@ commands:
   prismarin:
     description: Shows the PRISMARIN status or moves data between storages.
     permission: prismarin.admin.info
+  mod:
+    description: Turns the staff mode on or off (nick and or vanish, see staff-mode in config.yml).
+    aliases: [staff, staffmode]
+    permission: prismarin.staff.mode
   level:
     description: Shows or changes the level of a player.
     permission: prismarin.admin.level
@@ -126,6 +130,14 @@ commands:
     description: Shows your ping or the ping of another player.
     usage: /ping [player]
     permission: prismarin.essentials.ping
+  pingtest:
+    description: Measures the ping over a longer time and shows lowest, average and peak.
+    usage: /pingtest [player]
+    permission: prismarin.essentials.pingtest
+  list:
+    description: Lists the players on this server, vanished staff stay hidden.
+    aliases: [online, who]
+    permission: prismarin.essentials.list
   hat:
     description: Puts the item in your hand on your head.
     permission: prismarin.essentials.hat
@@ -150,6 +162,8 @@ permissions:
     default: true
   prismarin.admin.info:
     default: op
+  prismarin.staff.mode:
+    default: op
   prismarin.admin.level:
     default: op
   prismarin.admin.rank:
@@ -159,6 +173,8 @@ permissions:
   prismarin.vanish.others:
     default: op
   prismarin.vanish.see:
+    default: op
+  prismarin.vanish.inspect:
     default: op
   prismarin.nick.use:
     default: op
@@ -213,6 +229,12 @@ permissions:
   prismarin.essentials.weather:
     default: op
   prismarin.essentials.ping:
+    default: true
+  prismarin.essentials.pingtest:
+    default: true
+  prismarin.essentials.pingtest.others:
+    default: op
+  prismarin.essentials.list:
     default: true
   prismarin.essentials.ping.others:
     default: true

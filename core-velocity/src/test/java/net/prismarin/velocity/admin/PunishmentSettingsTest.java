@@ -86,4 +86,62 @@ class PunishmentSettingsTest {
         assertFalse(settings.broadcast().covers(PunishmentKind.BAN));
         assertEquals(6, settings.problems().size(), settings.problems().toString());
     }
+
+    @Test
+    void templatesCanBeReorderedRemovedAndExtended() throws IOException {
+        Path file = directory.resolve(PunishmentSettings.FILE_NAME);
+        Files.writeString(file, String.join("\n",
+                "templates:",
+                "  teaming:",
+                "    name: {de: Teaming, en: Teaming}",
+                "    type: ban",
+                "    steps: [warn, \"mute 1h\", 1d, 3d, 7d, 30d, permanent]",
+                "  hacking:",
+                "    name: {en: Hacking}",
+                "    description: {de: \"Nur mit Beweis\", en: \"Only with proof\"}",
+                "    type: ban",
+                "    steps: [permanent]",
+                "  caps:",
+                "    name: Caps",
+                "    description: \"Too many capitals\"",
+                "    type: mute",
+                "    steps: [warn, 10m]",
+                ""));
+        PunishmentSettings settings = PunishmentSettings.load(file);
+        assertEquals(List.of(), settings.problems());
+        assertEquals(List.of("teaming", "hacking", "caps"),
+                settings.templates().stream().map(PunishmentTemplate::id).toList());
+        PunishmentTemplate teaming = settings.templates().getFirst();
+        assertEquals(7, teaming.steps().size());
+        assertEquals(PunishmentKind.WARN, teaming.step(0).kind());
+        assertEquals(PunishmentKind.TEMPMUTE, teaming.step(1).kind());
+        assertEquals(PunishmentKind.BAN, teaming.step(99).kind());
+        assertEquals("Nur mit Beweis", settings.template("hacking").orElseThrow()
+                .description(java.util.Locale.GERMAN));
+        assertEquals("Too many capitals", settings.template("caps").orElseThrow()
+                .description(java.util.Locale.GERMAN));
+        assertEquals("", teaming.description(java.util.Locale.ENGLISH));
+        String text = Files.readString(file);
+        assertTrue(text.contains("# description: optional short note"), text);
+        assertFalse(text.contains("evasion"), text);
+    }
+
+    @Test
+    void anEmptyTemplateSectionStaysEmpty() throws IOException {
+        Path file = directory.resolve(PunishmentSettings.FILE_NAME);
+        Files.writeString(file, "templates: {}\n");
+        assertEquals(List.of(), PunishmentSettings.load(file).templates());
+        assertEquals(List.of(), PunishmentSettings.load(file).templates());
+    }
+
+    @Test
+    void outdatedTemplateCommentsAreReplaced() throws IOException {
+        Path file = directory.resolve(PunishmentSettings.FILE_NAME);
+        PunishmentSettings.load(file);
+        String fresh = Files.readString(file);
+        String old = fresh.replace("# Every key below is one template id.", "# steps: one entry per offence.");
+        Files.writeString(file, old);
+        PunishmentSettings.load(file);
+        assertEquals(fresh, Files.readString(file));
+    }
 }

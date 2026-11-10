@@ -15,6 +15,8 @@ import net.prismarin.api.event.EventBus;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.messaging.MessageBus;
 import net.prismarin.api.nick.NickService;
+import net.prismarin.api.player.PlayerService;
+import net.prismarin.api.player.RankSources;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
@@ -29,7 +31,9 @@ import net.prismarin.core.nick.NickRegistry;
 import net.prismarin.core.nick.NickSettings;
 import net.prismarin.core.nick.NickStore;
 import net.prismarin.core.permission.PermissionSnapshots;
+import net.prismarin.core.player.PaperPlayerService;
 import net.prismarin.core.rank.DefaultRankFormatProvider;
+import net.prismarin.core.rank.ExternalRankFormatProvider;
 import net.prismarin.core.rank.LuckPermsRankFormatProvider;
 import net.prismarin.core.rank.RankFormatProvider;
 import net.prismarin.shared.config.ConfigLoader;
@@ -54,6 +58,7 @@ public final class CoreModule extends AbstractModule {
     protected void configure() {
         bind(PrismarinCorePlugin.class).toInstance(plugin);
         bind(NickService.class).to(NickManager.class);
+        bind(PlayerService.class).to(PaperPlayerService.class);
     }
 
     @Provides
@@ -193,9 +198,10 @@ public final class CoreModule extends AbstractModule {
                                           ModuleState modules, NickRegistry nicks,
                                           Provider<FakeRankFormat> fakeRank) {
         DefaultRankFormatProvider fallback = new DefaultRankFormatProvider(localeService, snapshots, profiles);
-        RankFormatProvider real = plugin.getServer().getPluginManager().getPlugin("LuckPerms") != null
+        RankFormatProvider base = plugin.getServer().getPluginManager().getPlugin("LuckPerms") != null
                 ? new LuckPermsRankFormatProvider(services.formatter(), fallback)
                 : fallback;
+        RankFormatProvider real = new ExternalRankFormatProvider(base, RankSources.global());
         return modules.enabled(CoreModules.NICK) ? new NickRankFormatProvider(real, nicks, fakeRank) : real;
     }
 

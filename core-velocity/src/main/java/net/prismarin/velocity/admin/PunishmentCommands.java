@@ -43,6 +43,9 @@ public final class PunishmentCommands {
         commands.put(List.of("unmute"), revoke(context, flow, PunishmentType.MUTE));
         commands.put(List.of("history"), history(context, flow));
         commands.put(List.of("check"), check(context, flow));
+        PunishmentLists lists = new PunishmentLists(context, flow);
+        commands.put(List.of("banlist"), lists.command(PunishmentType.BAN));
+        commands.put(List.of("mutelist"), lists.command(PunishmentType.MUTE));
         return commands;
     }
 
@@ -63,7 +66,7 @@ public final class PunishmentCommands {
                     return;
                 }
                 PunishmentArguments.Parsed parsed = PunishmentArguments.parse(command, invocation.arguments(),
-                        id -> flow.settings().template(id).isPresent());
+                        id -> flow.template(id).isPresent());
                 switch (parsed) {
                     case PunishmentArguments.Usage usage ->
                             context.send(source, "punishment.usage." + command.label());

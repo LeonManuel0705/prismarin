@@ -99,6 +99,18 @@ public final class DocumentPunishmentService implements PunishmentService {
     }
 
     @Override
+    public CompletableFuture<List<Punishment>> inForce(PunishmentType type) {
+        return CompletableFuture.supplyAsync(() -> {
+            long now = clock.millis();
+            return documents.findBy(COLLECTION, "type", type.name()).stream()
+                    .map(json -> gson.fromJson(json, Punishment.class))
+                    .filter(punishment -> punishment.type() == type && punishment.inForce(now))
+                    .sorted(Comparator.comparingLong(Punishment::createdAt).reversed())
+                    .toList();
+        }, executor);
+    }
+
+    @Override
     public CompletableFuture<Optional<Punishment>> revoke(UUID target, PunishmentType type, String actor) {
         return revoke(target, type, actor, "");
     }

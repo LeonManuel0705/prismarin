@@ -77,6 +77,7 @@ public final class YamlComments {
                 List<String> block = comment.stream()
                         .map(text -> text.isEmpty() ? pad + "#" : pad + COMMENT + text).toList();
                 if (!endsWith(out, block)) {
+                    dropOutdated(out, block, indent);
                     if (indent == 0 && !out.isEmpty() && !out.getLast().isBlank()) {
                         out.add("");
                     }
@@ -105,6 +106,23 @@ public final class YamlComments {
             return null;
         }
         return trimmed.substring(0, colon);
+    }
+
+    private static void dropOutdated(List<String> out, List<String> block, int indent) {
+        int start = out.size();
+        while (start > 0) {
+            String line = out.get(start - 1);
+            if (!line.strip().startsWith("#") || line.length() - line.stripLeading().length() != indent) {
+                break;
+            }
+            start--;
+        }
+        for (int index = start; index < out.size(); index++) {
+            if (out.get(index).equals(block.getFirst())) {
+                out.subList(index, out.size()).clear();
+                return;
+            }
+        }
     }
 
     private static boolean startsWith(List<String> lines, List<String> prefix) {

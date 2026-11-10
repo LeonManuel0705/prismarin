@@ -33,7 +33,9 @@ class EssentialsResourcesTest {
             "invsee.view-only", "enderchest.opened", "enderchest.view-only", "world.usage", "world.unknown",
             "world.day", "world.night", "world.sun", "world.rain", "world.thunder", "ping.usage", "ping.self",
             "ping.other", "ping.good", "ping.fair", "ping.poor", "hat.empty", "hat.done", "skull.usage",
-            "skull.invalid", "skull.loading", "skull.unknown", "skull.given");
+            "skull.invalid", "skull.loading", "skull.unknown", "skull.given", "pingtest.usage", "pingtest.running",
+            "pingtest.started", "pingtest.gone", "pingtest.progress", "pingtest.result", "pingtest.note",
+            "list.here", "list.network");
 
     @Test
     void bothLanguagesShareTheEssentialsTexts() throws IOException {

@@ -12,6 +12,7 @@ import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import net.prismarin.shared.player.PlayerWire;
 import net.prismarin.velocity.locale.PlayerLocaleRegistry;
 
 public final class ModerationChannel {
@@ -28,7 +29,19 @@ public final class ModerationChannel {
         void choose(Player staff, UUID target, String template);
     }
 
+    public interface PlayerHandler {
+
+        void state(Player carrier, String server, JsonObject message);
+
+        void query(Player carrier, JsonObject message);
+    }
+
     public record PunishMenuEntry(String id, String icon, String name, List<String> lore) {
+    }
+
+    public interface MenuHandler {
+
+        void click(Player staff, int session, String action);
     }
 
     public interface SocialHandler {
@@ -45,6 +58,8 @@ public final class ModerationChannel {
     private volatile ReportHandler reports;
     private volatile PunishHandler punishments;
     private volatile SocialHandler social;
+    private volatile PlayerHandler players;
+    private volatile MenuHandler reportsMenu;
 
     public ModerationChannel(VanishRegistry vanish, PlayerLocaleRegistry locales) {
         this.vanish = vanish;
@@ -57,6 +72,16 @@ public final class ModerationChannel {
 
     public void handlePunishments(PunishHandler punishments) {
         this.punishments = punishments;
+    }
+
+    public void handleReportsMenu(MenuHandler reportsMenu) {
+        this.reportsMenu = reportsMenu;
+    }
+
+    public void sendReportsMenu(Player staff, JsonObject menu) {
+        menu.addProperty("type", "reports-menu");
+        menu.addProperty("uuid", staff.getUniqueId().toString());
+        send(staff, menu);
     }
 
     public void sendPunishMenu(Player staff, UUID target, String targetName, String title, String head,
@@ -86,6 +111,10 @@ public final class ModerationChannel {
         JsonArray array = new JsonArray();
         values.forEach(array::add);
         return array;
+    }
+
+    public void handlePlayers(PlayerHandler players) {
+        this.players = players;
     }
 
     public void handleSocial(SocialHandler social) {
@@ -191,12 +220,24 @@ public final class ModerationChannel {
                 punish.choose(carrier, UUID.fromString(message.get("target").getAsString()),
                         message.get("template").getAsString());
             }
+            MenuHandler menuHandler = reportsMenu;
+            if ("reports-click".equals(type) && menuHandler != null && carrier.getUniqueId().equals(subject)) {
+                menuHandler.click(carrier, message.get("session").getAsInt(), message.get("action").getAsString());
+            }
             SocialHandler socialHandler = social;
             if ("social".equals(type) && socialHandler != null && carrier.getUniqueId().equals(subject)) {
                 socialHandler.handle(carrier, message);
             }
             if ("social-query".equals(type) && socialHandler != null && carrier.getUniqueId().equals(subject)) {
                 socialHandler.query(carrier, message);
+            }
+            PlayerHandler playerHandler = players;
+            if (playerHandler != null && carrier.getUniqueId().equals(subject)) {
+                if (PlayerWire.STATE.equals(type)) {
+                    playerHandler.state(carrier, connection.getServerInfo().getName(), message);
+                } else if (PlayerWire.QUERY.equals(type)) {
+                    playerHandler.query(carrier, message);
+                }
             }
             if ("vanish".equals(type)) {
                 vanish.update(UUID.fromString(message.get("uuid").getAsString()),

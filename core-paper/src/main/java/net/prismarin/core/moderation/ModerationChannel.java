@@ -13,6 +13,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.BiConsumer;
 import net.prismarin.core.PrismarinCorePlugin;
 import net.prismarin.core.network.ArrivalTracker;
 import net.prismarin.core.social.SocialClient;
@@ -36,16 +37,21 @@ public final class ModerationChannel implements PluginMessageListener {
     private final ArrivalTracker arrivals;
     private final Provider<PunishMenu> punishMenu;
     private final Provider<SocialClient> social;
+    private final Provider<ReportsMenu> reportsMenu;
     private final Map<UUID, Mute> mutes = new ConcurrentHashMap<>();
+    private volatile BiConsumer<Player, JsonObject> playerAnswers;
+    private volatile BiConsumer<Player, Locale> localeReports;
 
     @Inject
     public ModerationChannel(PrismarinCorePlugin plugin, Provider<ReportMenu> reportMenu, ArrivalTracker arrivals,
-                             Provider<PunishMenu> punishMenu, Provider<SocialClient> social) {
+                             Provider<PunishMenu> punishMenu, Provider<SocialClient> social,
+                             Provider<ReportsMenu> reportsMenu) {
         this.plugin = plugin;
         this.reportMenu = reportMenu;
         this.arrivals = arrivals;
         this.punishMenu = punishMenu;
         this.social = social;
+        this.reportsMenu = reportsMenu;
     }
 
     @Override
@@ -82,6 +88,11 @@ public final class ModerationChannel implements PluginMessageListener {
                         openPunishMenu(carrier, message);
                     }
                 }
+                case "reports-menu" -> {
+                    if (carrier.getUniqueId().equals(uuid)) {
+                        reportsMenu.get().open(carrier, ReportsView.parse(message));
+                    }
+                }
                 case "social-view" -> {
                     if (carrier.getUniqueId().equals(uuid)) {
                         social.get().receive(carrier, message);
@@ -93,6 +104,12 @@ public final class ModerationChannel implements PluginMessageListener {
                     }
                 }
                 case "party-sync" -> social.get().party(message);
+                case "player-answer" -> {
+                    BiConsumer<Player, JsonObject> handler = playerAnswers;
+                    if (handler != null && carrier.getUniqueId().equals(uuid)) {
+                        handler.accept(carrier, message);
+                    }
+                }
                 default -> {
                 }
             }
@@ -146,7 +163,19 @@ public final class ModerationChannel implements PluginMessageListener {
         player.sendPluginMessage(plugin, ID, message.toString().getBytes(StandardCharsets.UTF_8));
     }
 
+    public void handlePlayerAnswers(BiConsumer<Player, JsonObject> handler) {
+        this.playerAnswers = handler;
+    }
+
+    public void onLocaleReport(BiConsumer<Player, Locale> listener) {
+        this.localeReports = listener;
+    }
+
     public void sendLocale(Player player, Locale locale) {
+        BiConsumer<Player, Locale> listener = localeReports;
+        if (listener != null) {
+            listener.accept(player, locale);
+        }
         JsonObject message = new JsonObject();
         message.addProperty("type", "locale");
         message.addProperty("uuid", player.getUniqueId().toString());
@@ -169,6 +198,15 @@ public final class ModerationChannel implements PluginMessageListener {
         message.addProperty("uuid", staff.getUniqueId().toString());
         message.addProperty("target", target.toString());
         message.addProperty("template", template);
+        staff.sendPluginMessage(plugin, ID, message.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    public void sendReportsClick(Player staff, int session, String action) {
+        JsonObject message = new JsonObject();
+        message.addProperty("type", "reports-click");
+        message.addProperty("uuid", staff.getUniqueId().toString());
+        message.addProperty("session", session);
+        message.addProperty("action", action);
         staff.sendPluginMessage(plugin, ID, message.toString().getBytes(StandardCharsets.UTF_8));
     }
 

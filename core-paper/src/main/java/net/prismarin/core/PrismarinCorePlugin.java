@@ -44,6 +44,7 @@ import net.prismarin.core.nick.NickListener;
 import net.prismarin.core.nick.NickManager;
 import net.prismarin.core.nick.RealnameCommand;
 import net.prismarin.core.nick.UnnickCommand;
+import net.prismarin.core.player.PaperPlayers;
 import net.prismarin.core.profile.ConnectionListener;
 import net.prismarin.core.rank.MissingLuckPermsCommand;
 import net.prismarin.core.rank.RankCommand;
@@ -52,6 +53,9 @@ import net.prismarin.core.social.BackendSocial;
 import net.prismarin.core.social.SocialClient;
 import net.prismarin.core.tablist.TablistManager;
 import net.prismarin.core.task.PeriodicSaveTask;
+import net.prismarin.core.staff.StaffModeCommand;
+import net.prismarin.core.staff.StaffModeService;
+import net.prismarin.core.vanish.InventoryInspector;
 import net.prismarin.core.vanish.VanishCommand;
 import net.prismarin.core.vanish.VanishListener;
 import net.prismarin.shared.config.ConfigLoader;
@@ -136,6 +140,7 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         if (modules.enabled(CoreModules.VANISH)) {
             vanishListener = injector.getInstance(VanishListener.class);
             pluginManager.registerEvents(vanishListener, this);
+            pluginManager.registerEvents(injector.getInstance(InventoryInspector.class), this);
             vanishListener.start();
             registerCommand("vanish", injector.getInstance(VanishCommand.class));
         } else {
@@ -160,6 +165,12 @@ public final class PrismarinCorePlugin extends JavaPlugin {
             registerCommand("play", injector.getInstance(PlayCommand.class));
         } else {
             removeCommand("play");
+        }
+        if (modules.enabled(CoreModules.STAFF_MODE)) {
+            pluginManager.registerEvents(injector.getInstance(StaffModeService.class), this);
+            registerCommand("mod", injector.getInstance(StaffModeCommand.class));
+        } else {
+            removeCommand("mod");
         }
         if (modules.enabled(CoreModules.LEVEL_COMMANDS) && config.systemEnabled(PrismarinSystems.LEVELS)) {
             registerCommand("level", injector.getInstance(LevelCommand.class));
@@ -203,6 +214,7 @@ public final class PrismarinCorePlugin extends JavaPlugin {
             getServer().getServicesManager().register(NickService.class, nickManager, this, ServicePriority.Normal);
         }
         injector.getInstance(BackendSocial.class).register();
+        injector.getInstance(PaperPlayers.class).enable();
         if (modules.enabled(CoreModules.PLACEHOLDER_API) && pluginManager.getPlugin("PlaceholderAPI") != null) {
             placeholderBridge = PlaceholderBridge.enable(prismarin, nickManager, services.formatter(),
                     getPluginMeta().getVersion());
@@ -231,6 +243,9 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         }
         getServer().getServicesManager().unregisterAll(this);
         SocialApi.unregister();
+        if (injector != null) {
+            injector.getInstance(PaperPlayers.class).disable();
+        }
         PrismarinProvider.unregister();
         CoreApi.unregister();
         for (BukkitTask task : new BukkitTask[]{heartbeatTask, statusTask}) {

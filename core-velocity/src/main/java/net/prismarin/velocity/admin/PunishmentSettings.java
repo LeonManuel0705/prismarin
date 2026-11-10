@@ -83,12 +83,19 @@ public record PunishmentSettings(String appealUrl, ZoneId zone, boolean showActo
             Map.entry("public-broadcast.kinds", List.of("ban, tempban, ipban, mute, tempmute, kick, warn")),
             Map.entry("templates", List.of("/punish <player> <template> and /ban <player> <template> pick the next step",
                     "from the previous offences of that template. Without a template /punish <player> opens a menu.",
+                    "Every key below is one template id. Add a block to add a template, delete a block to remove it",
+                    "and move blocks to change their order in the menu and in the suggestions.",
+                    "templates: {} keeps no template at all, deleting the whole section brings the defaults back.",
                     "name: one name per language tag, the first one is used when a language is missing.",
+                    "description: optional short note per language tag, shown in the punish menu.",
                     "icon: item shown in the menu. type: ban, mute, kick or warn for steps without a type.",
-                    "steps: one entry per offence, the last one repeats. A duration such as 30m, 12h, 7d, 1w or 1y,",
-                    "permanent, or a type with a duration: \"mute 2h\", \"ban 7d\", \"ban permanent\", \"warn\", \"kick\".",
+                    "steps: as many levels as you need, one entry per offence, the last one repeats.",
+                    "A step is a duration such as 30m, 12h, 7d, 1w or 1y, permanent, or a type with a duration:",
+                    "\"mute 2h\", \"ban 7d\", \"ban permanent\", \"warn\", \"kick\". One template may mix types,",
+                    "for example [warn, \"mute 1h\", \"ban 1d\", \"ban permanent\"].",
                     "permission: optional extra permission needed to use the template.",
-                    "forget-after: offences older than this no longer count, empty keeps them forever.")));
+                    "forget-after: offences older than this no longer count, empty keeps them forever.",
+                    "Removed or renamed templates stay in the history of old punishments.")));
 
     public Optional<PunishmentTemplate> template(String id) {
         if (id == null) {
@@ -192,18 +199,7 @@ public record PunishmentSettings(String appealUrl, ZoneId zone, boolean showActo
             problems.add("templates." + id + " has no valid step and is skipped");
             return Optional.empty();
         }
-        Map<String, String> names = new LinkedHashMap<>();
-        ConfigurationNode name = node.node("name");
-        if (name.isMap()) {
-            name.childrenMap().forEach((language, text) -> {
-                String value = text.getString();
-                if (value != null && !value.isBlank()) {
-                    names.put(language.toString().toLowerCase(Locale.ROOT), value);
-                }
-            });
-        } else if (name.getString() != null && !name.getString().isBlank()) {
-            names.put("en", name.getString());
-        }
+        Map<String, String> names = texts(node.node("name"));
         String forgetText = node.node("forget-after").getString("").trim();
         Duration forgetAfter = null;
         if (!forgetText.isEmpty()) {
@@ -213,7 +209,22 @@ public record PunishmentSettings(String appealUrl, ZoneId zone, boolean showActo
             }
         }
         return Optional.of(new PunishmentTemplate(id, names, node.node("icon").getString("PAPER"),
-                node.node("permission").getString(""), steps, forgetAfter));
+                node.node("permission").getString(""), steps, forgetAfter, texts(node.node("description"))));
+    }
+
+    private static Map<String, String> texts(ConfigurationNode node) {
+        Map<String, String> texts = new LinkedHashMap<>();
+        if (node.isMap()) {
+            node.childrenMap().forEach((language, text) -> {
+                String value = text.getString();
+                if (value != null && !value.isBlank()) {
+                    texts.put(language.toString().toLowerCase(Locale.ROOT), value);
+                }
+            });
+        } else if (node.getString() != null && !node.getString().isBlank()) {
+            texts.put("en", node.getString());
+        }
+        return texts;
     }
 
     private static boolean setIfAbsent(ConfigurationNode node, Object value) throws SerializationException {

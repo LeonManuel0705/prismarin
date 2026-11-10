@@ -280,6 +280,14 @@ play:
   no-server: "%brand_prefix%✖ No server in <color:#22D3EE>%group%</color> is free right now.</gray>"
   connecting: "%brand_prefix%Connecting to %server%<gray> ...</gray>"
 vanish:
+  inspect:
+    title: "<dark_gray>Inventory</dark_gray> <dark_gray>·</dark_gray> <white>%player%</white> <dark_gray>(live)</dark_gray>"
+    info-name: "<brand_primary>%player%</brand_primary>"
+    info-health: "<gray>Health</gray> <dark_gray>»</dark_gray> <red>%health%</red><dark_gray>/%max%</dark_gray>"
+    info-food: "<gray>Food</gray> <dark_gray>»</dark_gray> <gold>%food%</gold><dark_gray>/20</dark_gray>"
+    info-level: "<gray>Level</gray> <dark_gray>»</dark_gray> <green>%level%</green>"
+    info-mode: "<gray>Mode</gray> <dark_gray>»</dark_gray> <white>%mode%</white>"
+    info-world: "<gray>World</gray> <dark_gray>»</dark_gray> <white>%world%</white>"
   silent-title: "<dark_gray>Opened silently</dark_gray>"
   container-changed: "%brand_prefix%✖ The container changed in the meantime, your changes were not saved.</gray>"
   actionbar: "<brand_accent>▶</brand_accent> <gradient:#22D3EE:#2DD4BF>You are vanished</gradient> <brand_accent>◀</brand_accent>"
@@ -302,6 +310,14 @@ report:
     reason: "<white>%reason%</white>"
     reason-lore: "<brand_primary>» Click to report %player%</brand_primary>"
     cancel: "<red>Cancel</red>"
+staff-mode:
+  enabled: "%brand_prefix%✔ Staff mode <color:#2DD4BF>on</color>: %parts%. It stays on until you use <color:#22D3EE>/mod</color> again, also after a server switch.</gray>"
+  disabled: "%brand_prefix%✔ Staff mode <color:#22D3EE>off</color>.</gray>"
+  actionbar: "<brand_accent>▶</brand_accent> <gradient:#22D3EE:#2DD4BF>Staff mode</gradient> <brand_accent>◀</brand_accent>"
+  part-nick: "nicked"
+  part-vanish: "vanished"
+  part-and: " and "
+  part-none: "without nick and vanish"
 moderation:
   muted: "%brand_prefix%✖ You are muted. Reason: <white>%reason%</white><gray>, remaining</gray> <white>%remaining%</white><gray>.</gray>"
 admin:
@@ -404,6 +420,17 @@ essentials:
     sun: "%brand_prefix%✔ The sun shines in <color:#22D3EE>%world%</color> now.</gray>"
     rain: "%brand_prefix%✔ It rains in <color:#22D3EE>%world%</color> now.</gray>"
     thunder: "%brand_prefix%✔ A thunderstorm rolls over <color:#22D3EE>%world%</color> now.</gray>"
+  pingtest:
+    usage: "%brand_prefix%Usage: <color:#22D3EE>/pingtest [\\<player>]</color></gray>"
+    running: "%brand_prefix%✖ A ping test is already running.</gray>"
+    started: "%brand_prefix%Measuring the ping of <color:#22D3EE>%player%</color> for <white>%seconds% s</white> ...</gray>"
+    gone: "%brand_prefix%✖ <color:#22D3EE>%player%</color> went offline, the ping test stopped.</gray>"
+    progress: "<gray>Ping test</gray> %bar% <white>%elapsed%/%seconds% s</white> <dark_gray>·</dark_gray> <gray>now</gray> <white>%ping% ms</white>"
+    result: "%brand_prefix%Ping test of <color:#22D3EE>%player%</color> <dark_gray>(%seconds% s)</dark_gray><newline> <gray>Average</gray> %average% <dark_gray>·</dark_gray> <gray>lowest</gray> %lowest% <dark_gray>·</dark_gray> <gray>peak</gray> %peak% <dark_gray>·</dark_gray> <gray>spread</gray> <white>%spread% ms</white></gray>"
+    note: " <dark_gray>Minecraft reports a new ping about every 15 seconds, longer tests are more accurate.</dark_gray>"
+  list:
+    here: "%brand_prefix%Online on this server: <color:#22D3EE>%count%</color><dark_gray>/%max%</dark_gray></gray>"
+    network: " <gray>In the whole network:</gray> <color:#22D3EE>%count%</color> <gray>players</gray>"
   ping:
     usage: "%brand_prefix%Usage: <color:#22D3EE>/ping \\<player></color></gray>"
     self: "%brand_prefix%Your ping: %ping%</gray>"

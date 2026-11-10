@@ -6,6 +6,7 @@ import java.lang.management.ManagementFactory;
 import java.util.concurrent.ExecutorService;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.prismarin.core.PrismarinCorePlugin;
+import net.prismarin.core.vanish.VanishService;
 import net.prismarin.core.config.GameStateSettings;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.status.GameStateParser;
@@ -27,11 +28,13 @@ public final class HeartbeatTask implements Runnable {
     private final SimpleGameStateService gameState;
     private final GameStateSettings settings;
     private final TextFormatter formatter;
+    private final VanishService vanish;
 
     @Inject
     public HeartbeatTask(PrismarinCorePlugin plugin, NetworkStatusService status, CoreConfig config,
                          ExecutorService executor, SimpleGameStateService gameState, GameStateSettings settings,
-                         TextFormatter formatter) {
+                         TextFormatter formatter, VanishService vanish) {
+        this.vanish = vanish;
         this.plugin = plugin;
         this.status = status;
         this.config = config;
@@ -48,7 +51,7 @@ public final class HeartbeatTask implements Runnable {
         Runtime runtime = Runtime.getRuntime();
         Heartbeat heartbeat = new Heartbeat(
                 config.serverId(),
-                server.getOnlinePlayers().size(),
+                vanish.visibleCount(null),
                 server.getMaxPlayers(),
                 Math.min(20D, server.getTPS()[0]),
                 server.getAverageTickTime(),

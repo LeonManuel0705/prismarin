@@ -27,6 +27,7 @@ import net.prismarin.api.moderation.Punishment;
 import net.prismarin.api.moderation.PunishmentRequest;
 import net.prismarin.api.moderation.PunishmentType;
 import net.prismarin.shared.admin.Report;
+import net.prismarin.shared.text.LegacyColors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +56,7 @@ public final class PunishmentFlow {
     private final AddressKeys addresses;
     private final Map<UUID, Pending> menus = new ConcurrentHashMap<>();
     private final Map<String, DateTimeFormatter> formats = new ConcurrentHashMap<>();
+    private final Map<String, PunishmentTemplate> added = new LinkedHashMap<>();
 
     public PunishmentFlow(AdminContext context, PunishmentSettings settings) {
         this.context = context;
@@ -87,7 +89,83 @@ public final class PunishmentFlow {
     }
 
     public List<PunishmentTemplate> usableTemplates(CommandSource source) {
-        return settings.templates().stream().filter(template -> mayUse(source, template)).toList();
+        return templates().stream().filter(template -> mayUse(source, template)).toList();
+    }
+
+    public List<PunishmentTemplate> templates() {
+        synchronized (added) {
+            List<PunishmentTemplate> all = new ArrayList<>(settings.templates());
+            all.addAll(added.values());
+            return List.copyOf(all);
+        }
+    }
+
+    public Optional<PunishmentTemplate> template(String id) {
+        if (id == null) {
+            return Optional.empty();
+        }
+        String key = id.toLowerCase(Locale.ROOT);
+        return templates().stream().filter(template -> template.id().equals(key)).findFirst();
+    }
+
+    public void register(PunishmentTemplate template) {
+        if (settings.template(template.id()).isPresent()) {
+            throw new IllegalArgumentException("the template " + template.id() + " already comes from "
+                    + PunishmentSettings.FILE_NAME);
+        }
+        synchronized (added) {
+            added.put(template.id(), template);
+        }
+    }
+
+    public void unregister(String id) {
+        synchronized (added) {
+            added.remove(id.toLowerCase(Locale.ROOT));
+        }
+    }
+
+    public CompletableFuture<Escalation.Outcome> preview(UUID target, String templateId) {
+        Optional<PunishmentTemplate> template = template(templateId);
+        if (template.isEmpty()) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("unknown template " + templateId));
+        }
+        return context.services().punishments().history(target).thenApply(history ->
+                Escalation.next(template.get(), history, now(), settings.countLifted()));
+    }
+
+    public CompletableFuture<Punishment> punish(UUID target, String templateId, String actor, String note) {
+        Optional<PunishmentTemplate> template = template(templateId);
+        if (template.isEmpty()) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("unknown template " + templateId));
+        }
+        Optional<Player> online = context.proxy().getPlayer(target);
+        CompletableFuture<Optional<Subject>> subject = online.isPresent()
+                ? CompletableFuture.completedFuture(Optional.of(new Subject(target, online.get().getUsername(),
+                        online.get())))
+                : context.services().profiles().find(target).thenApply(profile -> profile.map(value ->
+                        new Subject(target, value.getName(), null)));
+        String cleanNote = note == null ? "" : note.trim();
+        return subject.thenCompose(found -> {
+            if (found.isEmpty()) {
+                return CompletableFuture.<Punishment>failedFuture(new IllegalArgumentException(target
+                        + " never joined"));
+            }
+            return context.services().punishments().history(target).thenCompose(history -> {
+                Escalation.Outcome outcome = Escalation.next(template.get(), history, now(), settings.countLifted());
+                PunishmentRequest request = request(found.get(), template.get(), outcome.step(), actor, cleanNote);
+                return issue(context.proxy().getConsoleCommandSource(), found.get(), request, outcome)
+                        .thenApply(issued -> issued.orElseThrow(() -> new IllegalStateException(found.get().name()
+                                + " already has a longer punishment")));
+            });
+        });
+    }
+
+    private PunishmentRequest request(Subject subject, PunishmentTemplate template, PunishmentTemplate.Step step,
+                                      String actor, String note) {
+        String name = template.name(context.messages().fallback());
+        String reason = note.isBlank() ? name : name + ": " + note;
+        return PunishmentRequest.of(subject.uuid(), subject.name(), step.type(), reason, actor, step.duration())
+                .withTemplate(template.id(), note);
     }
 
     CompletableFuture<Optional<Subject>> resolve(String input) {
@@ -136,7 +214,7 @@ public final class PunishmentFlow {
     }
 
     void template(CommandSource source, String input, String templateId, String note) {
-        Optional<PunishmentTemplate> template = settings.template(templateId);
+        Optional<PunishmentTemplate> template = template(templateId);
         if (template.isEmpty()) {
             unknownTemplate(source, templateId);
             return;
@@ -159,10 +237,7 @@ public final class PunishmentFlow {
         context.services().punishments().history(subject.uuid()).thenAccept(history -> {
             Escalation.Outcome outcome = Escalation.next(template, history, now(), settings.countLifted());
             PunishmentTemplate.Step step = outcome.step();
-            String name = template.name(context.messages().fallback());
-            String reason = note.isBlank() ? name : name + ": " + note.trim();
-            PunishmentRequest request = PunishmentRequest.of(subject.uuid(), subject.name(), step.type(), reason,
-                    AdminContext.actor(source), step.duration()).withTemplate(template.id(), note.trim());
+            PunishmentRequest request = request(subject, template, step, AdminContext.actor(source), note.trim());
             if (step.type() == PunishmentType.KICK && subject.online() == null) {
                 context.send(source, KEY + "kick-offline", Placeholder.unparsed("player", subject.name()));
             }
@@ -189,19 +264,27 @@ public final class PunishmentFlow {
         }).exceptionally(error -> failed(source, error));
     }
 
-    private void issue(CommandSource source, Subject subject, PunishmentRequest request,
-                       Escalation.Outcome outcome) {
+    private CompletableFuture<Optional<Punishment>> issue(CommandSource source, Subject subject,
+                                                          PunishmentRequest request, Escalation.Outcome outcome) {
         CompletableFuture<Optional<Punishment>> current = request.type().lasting()
                 ? context.services().punishments().active(subject.uuid(), request.type())
                 : CompletableFuture.<Optional<Punishment>>completedFuture(Optional.empty());
-        current.thenCompose(active -> {
+        CompletableFuture<Optional<Punishment>> result = current.thenCompose(active -> {
             if (active.isPresent() && outlasts(active.get(), request)) {
                 context.send(source, KEY + "already-longer", resolvers(source, active.get(), false));
-                return CompletableFuture.<Void>completedFuture(null);
+                return CompletableFuture.<Optional<Punishment>>completedFuture(Optional.empty());
             }
-            return context.services().punishments().punish(request).thenAccept(punishment ->
-                    issued(source, subject, punishment, outcome, active.orElse(null)));
-        }).exceptionally(error -> failed(source, error));
+            return context.services().punishments().punish(request).thenApply(punishment -> {
+                issued(source, subject, punishment, outcome, active.orElse(null));
+                return Optional.of(punishment);
+            });
+        });
+        result.whenComplete((issued, error) -> {
+            if (error != null) {
+                failed(source, error);
+            }
+        });
+        return result;
     }
 
     static boolean outlasts(Punishment active, PunishmentRequest request) {
@@ -221,7 +304,7 @@ public final class PunishmentFlow {
                         Punishment replaced) {
         PunishmentKind kind = PunishmentKind.of(punishment);
         enforce(punishment);
-        context.services().audit().record(AdminContext.actor(source), kind.key(), punishment.targetName(),
+        context.services().audit().record(punishment.actor(), kind.key(), punishment.targetName(),
                 auditDetails(punishment, outcome));
         Component step = Component.empty();
         String nick = subject.online() == null ? null : nicks.shownNick(subject.online()).orElse(null);
@@ -435,7 +518,7 @@ public final class PunishmentFlow {
                 Placeholder.unparsed("total", String.valueOf(history.size())),
                 Placeholder.unparsed("reports", String.valueOf(reports.size())));
         Locale locale = context.messages().localeOf(source);
-        for (PunishmentTemplate template : settings.templates()) {
+        for (PunishmentTemplate template : templates()) {
             Escalation.Outcome outcome = Escalation.next(template, history, now, settings.countLifted());
             if (outcome.previous() == 0) {
                 continue;
@@ -537,29 +620,35 @@ public final class PunishmentFlow {
             Set<String> ids = new LinkedHashSet<>();
             for (PunishmentTemplate template : templates) {
                 Escalation.Outcome outcome = Escalation.next(template, history, now, settings.countLifted());
-                List<String> lore = new ArrayList<>();
-                lore.add(mini.serialize(context.messages().render(staff, KEY + "menu.next",
-                        Placeholder.unparsed("next", stepText(staff, outcome.step())))));
-                lore.add(mini.serialize(context.messages().render(staff, KEY + "menu.previous",
-                        Placeholder.unparsed("count", String.valueOf(outcome.previous())))));
-                lore.add(mini.serialize(ladder(staff, outcome)));
-                lore.add(mini.serialize(context.messages().render(staff, KEY + "menu.click",
-                        Placeholder.unparsed("player", subject.name()))));
+                List<Component> lore = new ArrayList<>();
+                lore.add(context.messages().render(staff, KEY + "menu.next",
+                        Placeholder.unparsed("next", stepText(staff, outcome.step()))));
+                lore.add(context.messages().render(staff, KEY + "menu.previous",
+                        Placeholder.unparsed("count", String.valueOf(outcome.previous()))));
+                String description = template.description(locale);
+                if (!description.isBlank()) {
+                    lore.add(context.messages().render(staff, KEY + "menu.description",
+                            Placeholder.component("description",
+                                    mini.deserialize(LegacyColors.toMiniMessage(description)))));
+                }
+                lore.add(Component.empty());
+                lore.add(context.messages().render(staff, KEY + "menu.click",
+                        Placeholder.unparsed("player", subject.name())));
                 entries.add(new ModerationChannel.PunishMenuEntry(template.id(), template.icon(),
                         mini.serialize(context.messages().render(staff, KEY + "menu.template",
-                                Placeholder.unparsed("template", template.name(locale)))), lore));
+                                Placeholder.unparsed("template", template.name(locale)))), wrapped(lore)));
                 ids.add(template.id());
             }
-            List<String> headLore = new ArrayList<>();
+            List<Component> headLore = new ArrayList<>();
             for (PunishmentType type : List.of(PunishmentType.BAN, PunishmentType.MUTE)) {
                 history.stream().filter(entry -> entry.type() == type && entry.inForce(now))
                         .max(Comparator.comparingLong(Punishment::createdAt))
-                        .ifPresent(active -> headLore.add(mini.serialize(context.messages().render(staff,
-                                KEY + "menu.active", resolvers(staff, active, false)))));
+                        .ifPresent(active -> headLore.add(context.messages().render(staff,
+                                KEY + "menu.active", resolvers(staff, active, false))));
             }
-            headLore.add(mini.serialize(context.messages().render(staff, KEY + "menu.record",
+            headLore.add(context.messages().render(staff, KEY + "menu.record",
                     Placeholder.unparsed("total", String.valueOf(history.size())),
-                    Placeholder.unparsed("reports", String.valueOf(reports)))));
+                    Placeholder.unparsed("reports", String.valueOf(reports))));
             menus.put(staff.getUniqueId(), new Pending(subject.uuid(), subject.name(), Set.copyOf(ids),
                     System.currentTimeMillis() + MENU_TIMEOUT_MILLIS));
             context.channel().sendPunishMenu(staff, subject.uuid(), subject.name(),
@@ -567,7 +656,7 @@ public final class PunishmentFlow {
                             Placeholder.unparsed("player", subject.name()))),
                     mini.serialize(context.messages().render(staff, KEY + "menu.target",
                             Placeholder.unparsed("player", subject.name()))),
-                    headLore, entries);
+                    wrapped(headLore), entries);
             return;
         }
         context.send(source, KEY + "menu.chat-header", Placeholder.unparsed("player", subject.name()),
@@ -583,6 +672,11 @@ public final class PunishmentFlow {
                     .clickEvent(ClickEvent.suggestCommand("/punish " + subject.name() + " " + template.id()))
                     .hoverEvent(HoverEvent.showText(ladder(source, outcome))));
         }
+    }
+
+    private static List<String> wrapped(List<Component> lore) {
+        MiniMessage mini = MiniMessage.miniMessage();
+        return LoreWrap.wrapAll(lore, LoreWrap.WIDTH).stream().map(mini::serialize).toList();
     }
 
     private Component ladder(CommandSource viewer, Escalation.Outcome outcome) {
@@ -609,7 +703,7 @@ public final class PunishmentFlow {
             context.send(staff, "general.no-permission");
             return;
         }
-        Optional<PunishmentTemplate> template = settings.template(templateId);
+        Optional<PunishmentTemplate> template = template(templateId);
         if (template.isEmpty() || !mayUse(staff, template.get())) {
             return;
         }
@@ -639,7 +733,7 @@ public final class PunishmentFlow {
     String reason(CommandSource viewer, Punishment punishment) {
         Locale locale = context.messages().localeOf(viewer);
         Optional<PunishmentTemplate> template = punishment.fromTemplate()
-                ? settings.template(punishment.template()) : Optional.empty();
+                ? template(punishment.template()) : Optional.empty();
         if (template.isPresent()) {
             String name = template.get().name(locale);
             return punishment.note().isBlank() ? name : name + ": " + punishment.note();
@@ -661,7 +755,7 @@ public final class PunishmentFlow {
         Component appealLine = appeal.isEmpty() ? Component.empty()
                 : context.messages().render(viewer, KEY + "appeal-line", Placeholder.unparsed("appeal", appeal));
         Optional<PunishmentTemplate> template = punishment.fromTemplate()
-                ? settings.template(punishment.template()) : Optional.empty();
+                ? template(punishment.template()) : Optional.empty();
         Map<String, TagResolver> placeholders = new LinkedHashMap<>();
         put(placeholders, "player", punishment.targetName());
         put(placeholders, "type", typeName(viewer, PunishmentKind.of(punishment)));

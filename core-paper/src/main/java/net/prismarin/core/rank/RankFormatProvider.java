@@ -13,6 +13,10 @@ public interface RankFormatProvider {
 
     NamedTextColor nameColor(Player player);
 
+    default Component ownPrefix(Player player) {
+        return prefix(player);
+    }
+
     default Component suffix(Player player) {
         return Component.empty();
     }

@@ -99,3 +99,4 @@ Anzeige-Keys (`lobby.join.*`, `lobby.item.*`, `lobby.navigator.*`, `lobby.profil
 - Neue Menüs über das Core-Framework (`Menu`, `PagedMenu`, `MenuService`); `MenuLayout.centeredRowSlots` für symmetrische Layouts.
 - `LobbySidebarProvider` ist austauschbar — ein anderes Modul kann einen eigenen `SidebarProvider` registrieren.
 - `ServerConnector` ist der einzige Serverwechsel-Pfad; ein späterer Wechsel auf MessageBus-basierte Moves ersetzt nur diese Klasse.
+- Lines in the profile head from other plugins: register a `PlayerAttribute` with a `profileLine` through `PrismarinProvider.get().players().attributes()` (see the player section in `core-paper.md`). The lines follow the configured `profile.head` lines; `attribute: <key>` places one attribute, `attributes` places all that are not placed elsewhere. Parsing is tested in `ProfileAttributeLinesTest`.

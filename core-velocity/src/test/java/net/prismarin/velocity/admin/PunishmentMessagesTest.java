@@ -29,7 +29,8 @@ class PunishmentMessagesTest {
             "time.separator", "time.year", "time.years", "time.day", "time.days", "time.hour", "time.hours",
             "time.minute", "time.minutes", "time.second", "time.seconds",
             "usage.ban", "usage.tempban", "usage.ipban", "usage.mute", "usage.tempmute", "usage.kick", "usage.warn",
-            "usage.punish", "usage.unban", "usage.unmute", "usage.history", "usage.check",
+            "usage.punish", "usage.unban", "usage.unmute", "usage.history", "usage.check", "usage.banlist",
+            "usage.mutelist",
             "invalid-duration", "unknown-template", "template-locked", "no-templates", "self", "exempt",
             "already-longer", "no-address", "kick-offline", "nothing-active", "failed",
             "notice.warn", "notice.unmuted", "screen.kick",
@@ -41,7 +42,9 @@ class PunishmentMessagesTest {
             "history.entry-lifted", "history.entry-replaced", "history.previous", "history.next",
             "menu.title", "menu.target", "menu.active", "menu.record", "menu.template", "menu.next",
             "menu.previous", "menu.ladder", "menu.ladder-step", "menu.ladder-current", "menu.ladder-separator",
-            "menu.click", "menu.chat-header", "menu.chat-entry");
+            "menu.click", "menu.chat-header", "menu.chat-entry", "menu.description",
+            "list.ban-header", "list.mute-header", "list.ban-empty", "list.mute-empty", "list.entry", "list.hover",
+            "list.hover-check", "list.unban", "list.unban-hover", "list.unmute", "list.unmute-hover");
 
     private static Set<String> expected() {
         Set<String> keys = new HashSet<>(USED);
@@ -86,7 +89,7 @@ class PunishmentMessagesTest {
         return Set.copyOf(PLACEHOLDER.matcher(text).results().map(MatchResult::group).toList());
     }
 
-    private static Map<String, String> texts(String resource, String section) throws IOException {
+    static Map<String, String> texts(String resource, String section) throws IOException {
         try (InputStream stream = PunishmentMessagesTest.class.getClassLoader().getResourceAsStream(resource)) {
             assertNotNull(stream, resource);
             BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));

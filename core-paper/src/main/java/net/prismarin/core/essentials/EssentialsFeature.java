@@ -18,6 +18,8 @@ public enum EssentialsFeature {
     TIME(List.of("day", "night")),
     WEATHER(List.of("sun", "rain", "thunder")),
     PING(List.of("ping")),
+    PINGTEST(List.of("pingtest")),
+    LIST(List.of("list")),
     HAT(List.of("hat")),
     SKULL(List.of("skull"));
 

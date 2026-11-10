@@ -121,7 +121,7 @@ Ein Grund, der mit einer Vorlagen-ID beginnt, wendet die Vorlage an; der Rest wi
 | `escalation.count-lifted` | `false` | aufgehobene Strafen zählen nicht als Verstoß |
 | `public-broadcast.enabled` | `false` | Meldung an alle ohne `prismarin.staff`, mit Nick, nie bei Unsichtbaren |
 | `public-broadcast.kinds` | `[ban, tempban, ipban]` | `ban`, `tempban`, `ipban`, `mute`, `tempmute`, `kick`, `warn` |
-| `templates.<id>` | hacking, chat, spam, name, teaming, bugusing, evasion | `name.<sprache>`, `icon`, `type`, `steps`, `permission`, `forget-after` |
+| `templates.<id>` | hacking, chat, spam, name, teaming, bugusing, evasion | `name.<sprache>`, `description.<sprache>` (optional, kurze Notiz im Menü), `icon`, `type`, `steps`, `permission`, `forget-after`; Reihenfolge im File = Reihenfolge im Menü, `templates: {}` = keine Vorlage, fehlender Abschnitt = Defaults |
 
 Schritte: eine Dauer (`30m`, `12h`, `7d`, `1w`, `1y`) oder `permanent` im Typ der Vorlage, oder mit eigenem Typ (`mute 2h`, `ban 7d`, `ban permanent`, `warn`, `kick`). Der letzte Schritt wiederholt sich. Gezählt werden frühere Strafen derselben Vorlage, ersetzte zählen mit, Einträge älter als `forget-after` nicht.
 
@@ -193,3 +193,116 @@ Events on the `EventBus`, fired on a worker thread after the change: `FriendRequ
 | `social-answer` | proxy to server | `id`, `enabled`, `party` or `friends[]` (at most 250, plus `total`) or `friends` as boolean |
 
 The proxy only accepts these from a `ServerConnection` whose player is the `uuid` of the message.
+
+## Players for proxy plugins
+
+`PrismarinProvider.get().players()` returns the same `PlayerService` as on Paper (see the player section in `core-paper.md` for the read model, the viewer rules and the attribute registry), filled from what the proxy knows:
+
+| Field | Source on the proxy |
+| --- | --- |
+| `realName` | the Velocity username |
+| `nick` | reported by the backend the player is on (`player-state`), so it is exactly what that server shows. Until the first report after a server switch the stored nick claim (collection `nick-claims`, read in the background every five seconds) is used |
+| `locale` | the language the backend reported (`ProxyMessages.localeOf`), otherwise the client language |
+| `server`, `world` | current server, world as reported by the backend |
+| `vanished` | `VanishRegistry` |
+| `level` | profile, loaded on login and after every server switch |
+| `rank`, `realRank` | not rendered on the proxy, always `RankDisplay.NONE` |
+
+`online`, `onlinePlayers`, `displayName`, `resolveOnline` and `suggestions` cover every player on the network and never block. `find` and `findByRealName` add offline players from the profile storage, `resolve` additionally resolves real names of offline players. The proxy answers `player-query` messages from backends with the same data.
+
+```java
+PlayerService players = PrismarinProvider.get().players();
+players.resolve(sender.getUniqueId(), args[0]).thenAccept(found -> found.filter(NetworkPlayer::online)
+        .ifPresentOrElse(target -> sender.sendMessage(Component.text(
+                        players.displayName(sender.getUniqueId(), target) + " is on " + target.server())),
+                () -> sender.sendMessage(Component.text("Not online"))));
+
+prismarin.events().subscribe(ServerChangedEvent.class, event ->
+        logger.info("{} went from {} to {}", event.player(), event.previousServer(), event.currentServer()));
+prismarin.events().subscribe(LocaleChangedEvent.class, event -> cache.invalidate(event.player()));
+
+players.attributes().register(PlayerAttribute.of("queue", player -> queues.position(player.uuid())));
+```
+
+Events on the proxy: `ServerChangedEvent` after every `ServerPostConnectEvent` (`previousServer` is empty on login), `LocaleChangedEvent` when a backend reports a different language. Attributes registered on the proxy are visible to other proxy plugins; they are not sent to backends.
+
+Classes: `ProxyPlayerService` (service, channel handler, listeners), `ProxyNickClaims`, `ProxyPlayers` (registration). `PlayerLocaleRegistry.onChange` notifies about language changes. Tests: `ProxyPlayerRulesTest`, `PlayerLocaleRegistryTest`.
+
+## Reports, ban lists and the moderation API
+
+### `/reports` as a staff menu
+
+On a PRISMARIN backend `/reports` opens a six row menu, everywhere else (console, other backends) it prints the chat list. Every open case is a head of the reported player: amount = number of reporters, glowing when urgent (`reports.priority-reporters`), lore with coloured reasons, reporters, server, age, attached chat and the claim state. The bottom row pages (28 cases per page), switches the order (`urgent first`, `newest first`, `oldest first`) and the view (`all`, `free`, `mine`, `with chat`), the book on top shows the counts and refreshes. A click opens the case view: target head (nick, online state, record, reports in total, client), every reporter with reason and age, claim state, chat preview, the action buttons (go there, record, punish, configured and plugin actions), Done, Unfounded, back.
+
+Opening a case claims it for that staff member (`ReportClaimedEvent`), every action on it refreshes the claim. After `reports.claim-minutes` (default `10`, `0` never) without any action the case is free again; a task releases idle claims every minute (`ReportReleasedEvent`). A case held by someone else shows a take over button. The chat list and new reports show the same state (`reports.status.*`).
+
+| Command | Effect | Permission |
+| --- | --- | --- |
+| `/reports` | menu on PRISMARIN backends, chat list elsewhere | `prismarin.staff.reports` |
+| `/reports list [page]` | chat list, 10 per page, clickable buttons per case | `prismarin.staff.reports` |
+| `/reports claim <id>` | takes the case, also from someone else | `prismarin.staff.reports` |
+| `/reports chat <id>` | prints the attached chat and refreshes your claim | `prismarin.staff.reports` |
+| `/reports close <id> [invalid]` | done or unfounded | `prismarin.staff.reports` |
+| `/reports action <id> <action>` | runs a configured or plugin action | `prismarin.staff.reports` plus the action permission |
+| `/banlist [page]`, `/mutelist [page]` | active bans or mutes from the PRISMARIN store, newest first, 8 per page, with player, type, remaining time, reason, staff, case id; click runs `/check`, the button puts `/unban` or `/unmute` into the chat | `prismarin.staff.banlist` or `.ban` or `.history` or `prismarin.banlist` (mute list the same with `mute`) |
+
+Viewers without `prismarin.staff` see the nick of a nicked player, never the real name, and `%actor%` follows `show-actor-to-player`; they get no `/check` click and no unban button. The proxy registers `/banlist`, so the vanilla list of the backend is no longer reached through the proxy.
+
+### `admin.yml`
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `reports.reasons.<id>.color` | hacking `red`, chat `gold`, spam `yellow`, name `aqua`, teaming `light_purple`, bugusing `orange`, other `gray` | colour of the reason in the report menu, chat and `/reports`; a name, `#RRGGBB`, `&c` or `<red>`; missing colours of the bundled ids are added to existing files |
+| `reports.reasons.<id>.name.<language>` | as before | now accepts MiniMessage and `&` codes; reports store the plain text, staff see the reason in their own language |
+| `reports.claim-minutes` | `10` | minutes without action until a claimed case is free again, `0` keeps it until it is closed |
+| `reports.menu-actions.<id>` | `{}` | extra buttons: `icon`, `name.<language>`, `command` (`%player%`, `%uuid%`, `%id%`, `%server%`, `%staff%`), `permission`, `console` (run as proxy console), `close` (close the menu, default `true`) |
+
+Proxy commands of an action run directly, other commands are sent to the server of the staff member as chat input.
+
+Texts in `messages_*.yml`: `reports.menu.*`, `reports.status.*`, `reports.action.custom*`, `reports.still-yours`, `reports.unknown-action`, `reports.list-previous|next`, `punishment.list.*`, `punishment.usage.banlist|mutelist`, `punishment.menu.description`. The punish menu lore is now next level, previous offences, the optional template description and the click hint, wrapped at 34 characters by `LoreWrap`; the full ladder stays in the hover of the chat fallback.
+
+### Channel `prismarin:moderation`
+
+| Type | Direction | Content |
+| --- | --- | --- |
+| `reports-menu` | proxy to server | `uuid`, `session`, `title`, `rows`, `items[]` with `slot`, `icon`, `name`, `lore[]` (rendered MiniMessage), optional `skull` (UUID), `amount`, `glow`, `action`, `close` |
+| `reports-click` | server to proxy | `uuid`, `session`, `action` |
+| `report-menu` | proxy to server | reason `name` is now a coloured MiniMessage text |
+
+The proxy only takes `reports-click` from a `ServerConnection` whose player is the `uuid`, only for the latest menu it sent to that player (15 minutes), only with an action that menu contained, and checks `prismarin.staff.reports` and the action permissions again.
+
+### API for other proxy plugins
+
+`PrismarinProvider.get().reports()` returns `Optional<ReportService>`, `.punishmentTemplates()` returns `Optional<PunishmentTemplates>` (package `net.prismarin.api.moderation`); both are empty when the module is off. `PunishmentService.inForce(type)` lists every punishment of a type that is in force, newest first.
+
+| Type | Purpose |
+| --- | --- |
+| `ReportService` | `reasons()`, `registerReason`, `unregisterReason`, `actions()`, `registerAction`, `unregisterAction`, `claimTimeout()`, `open()`, `openAgainst(uuid)`, `find(id)`, `file(reporter, reporterName, target, reason)`, `claim(id, staff)`, `release(id)`, `close(id, staff, verdict)` |
+| `Report` | snapshot: id, target, real and shown name, server, client context, `reporters()` (`Reporter` with uuid, name, reason, time), chat, created, `holder` (empty when free), claimed at, open, closed by and at, `verdict` (null while open, `closedAs()`) |
+| `ReportReason` | id, icon, names per language, colour (`#RRGGBB` or empty) |
+| `ReportAction` | id, icon, names, permission, `closeMenu`, `Handler.run(staff, staffName, report)`; console runs use `ReportAction.CONSOLE` |
+| `ReportVerdict` | `VALID`, `INVALID`, `PUNISHED` |
+| `ReportSubmission`, `ReportOutcome` | result of `file`: `FILED`, `MERGED`, `DUPLICATE` |
+| `PunishmentTemplates` | `templates()`, `template(id)`, `register`, `unregister`, `preview(target, id)`, `punish(target, id, actor[, note])` |
+| `PunishmentTemplate`, `PunishmentTemplate.Step`, `PunishmentPreview` | template read model and the next step for a player (previous offences, level, levels, step) |
+
+Events on the `EventBus`: `ReportFiledEvent(report)`, `ReportMergedEvent(report, reporter)`, `ReportClaimedEvent(report, staff, previous)` (new claim or take over, not on refreshes), `ReportReleasedEvent(report, staff)` (idle or `release`), `ReportClosedEvent(report, staff, verdict)` (also `PUNISHED` when a punishment closes the cases). Reasons, actions and templates from plugins come after the configured ones and cannot replace an id from `admin.yml` or `punishments.yml` (`IllegalArgumentException`); registering an id again replaces the plugin entry. `file` takes a reason id (plus details after a space) or free text and fails for players who never joined; chat is attached when the reason id is listed in `reports.chat-evidence.reasons` (or that list is empty). Action handlers and event listeners usually run on a worker thread: do not block in them. `punish` applies the next step like `/punish` with the actor name, fails for unknown templates, unknown players or when a longer punishment of that kind is active.
+
+```java
+Prismarin prismarin = PrismarinProvider.get();
+prismarin.reports().ifPresent(reports -> {
+    reports.registerReason(new ReportReason("xray", "DIAMOND_ORE",
+            Map.of("de", "X-Ray", "en", "X-ray"), "#55FFFF"));
+    reports.registerAction(new ReportAction("freeze", "ICE", Map.of("de", "Einfrieren", "en", "Freeze"),
+            "myplugin.freeze", true, (staff, staffName, report) -> freezer.freeze(report.target())));
+    reports.file(anticheatId, "AntiCheat", suspect, "hacking Reach 4.2").thenAccept(result ->
+            logger.info("Report {} is {}", result.report().id(), result.outcome()));
+});
+prismarin.events().subscribe(ReportClosedEvent.class, event ->
+        logger.info("{} closed #{} as {}", event.staff(), event.report().id(), event.verdict().id()));
+prismarin.punishmentTemplates().ifPresent(templates -> templates.preview(suspect, "hacking")
+        .thenCompose(next -> next.previousOffences() > 2
+                ? templates.punish(suspect, "hacking", "AntiCheat", "automatic")
+                : CompletableFuture.completedFuture(null)));
+```
+

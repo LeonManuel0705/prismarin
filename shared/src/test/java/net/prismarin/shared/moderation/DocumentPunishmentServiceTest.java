@@ -154,4 +154,26 @@ class DocumentPunishmentServiceTest {
         now.addAndGet(Duration.ofDays(2).toMillis());
         assertTrue(service.activeForAddress("abc123").join().isEmpty());
     }
+
+    @Test
+    void listsEveryPunishmentInForceNewestFirst() {
+        UUID alex = UUID.randomUUID();
+        UUID anna = UUID.randomUUID();
+        service.punish(player, "Steve", PunishmentType.BAN, "a", "Leon", Duration.ofHours(1)).join();
+        now.addAndGet(1000L);
+        service.punish(alex, "Alex", PunishmentType.BAN, "b", "Leon", null).join();
+        now.addAndGet(1000L);
+        service.punish(anna, "Anna", PunishmentType.BAN, "c", "Leon", null).join();
+        service.revoke(anna, PunishmentType.BAN, "Leon").join();
+        service.punish(anna, "Anna", PunishmentType.MUTE, "d", "Leon", null).join();
+        service.punish(anna, "Anna", PunishmentType.WARN, "e", "Leon", null).join();
+        assertEquals(List.of("Alex", "Steve"), service.inForce(PunishmentType.BAN).join().stream()
+                .map(Punishment::targetName).toList());
+        assertEquals(List.of("Anna"), service.inForce(PunishmentType.MUTE).join().stream()
+                .map(Punishment::targetName).toList());
+        now.addAndGet(Duration.ofHours(2).toMillis());
+        assertEquals(List.of("Alex"), service.inForce(PunishmentType.BAN).join().stream()
+                .map(Punishment::targetName).toList());
+        assertTrue(service.inForce(PunishmentType.WARN).join().isEmpty());
+    }
 }

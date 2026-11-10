@@ -3,11 +3,13 @@ package net.prismarin.lobby.config;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRow, int actionRow, int backSlot,
                             int closeSlot, List<Entry> entries, LanguageClick languageClick, List<Entry> social) {
@@ -72,7 +74,9 @@ public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRo
             LEVEL,
             RANK,
             EMPTY,
-            TEXT
+            TEXT,
+            ATTRIBUTE,
+            ATTRIBUTES
         }
 
         public Line {
@@ -95,12 +99,15 @@ public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRo
                 case "rank" -> Kind.RANK;
                 case "empty", "blank" -> Kind.EMPTY;
                 case "text" -> Kind.TEXT;
+                case "attribute" -> Kind.ATTRIBUTE;
+                case "attributes" -> Kind.ATTRIBUTES;
                 default -> throw new IllegalArgumentException("unknown profile line '" + trimmed + "'");
             };
-            if ((kind == Kind.CURRENCY || kind == Kind.TEXT) && argument.isEmpty()) {
+            if ((kind == Kind.CURRENCY || kind == Kind.TEXT || kind == Kind.ATTRIBUTE) && argument.isEmpty()) {
                 throw new IllegalArgumentException("profile line '" + name + "' needs a value after the colon");
             }
-            return new Line(kind, kind == Kind.CURRENCY ? argument.toLowerCase(Locale.ROOT) : argument);
+            boolean lowered = kind == Kind.CURRENCY || kind == Kind.ATTRIBUTE;
+            return new Line(kind, lowered ? argument.toLowerCase(Locale.ROOT) : argument);
         }
     }
 
@@ -159,6 +166,16 @@ public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRo
                 return Optional.of(slot);
             }
         }
+    }
+
+    public static Set<String> placedAttributes(List<Line> head) {
+        Set<String> placed = new LinkedHashSet<>();
+        head.stream().filter(line -> line.kind() == Line.Kind.ATTRIBUTE).forEach(line -> placed.add(line.argument()));
+        return Set.copyOf(placed);
+    }
+
+    public static boolean listsAttributes(List<Line> head) {
+        return head.stream().anyMatch(line -> line.kind() == Line.Kind.ATTRIBUTES);
     }
 
     public static List<Line> parseHead(List<String> raws, List<String> warnings) {

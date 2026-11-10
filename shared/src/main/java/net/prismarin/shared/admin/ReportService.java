@@ -41,6 +41,18 @@ public final class ReportService {
     public record Submission(Report report, Outcome outcome) {
     }
 
+    public enum ClaimOutcome {
+        CLAIMED,
+        KEPT,
+        HELD
+    }
+
+    public record Claim(Report report, ClaimOutcome outcome, String previous) {
+    }
+
+    public record Release(Report report, String staff) {
+    }
+
     private final DocumentStore documents;
     private final Executor executor;
     private final Clock clock;
@@ -85,7 +97,7 @@ public final class ReportService {
                 Report report = new Report(Integer.toString(ThreadLocalRandom.current().nextInt(10_000, 99_999)),
                         draft.reporter(), draft.reporterName(), draft.target(), draft.targetName(), draft.reason(),
                         draft.server(), now, true, "", 0L, draft.chat(), List.of(), "", draft.context(), "",
-                        draft.shownName());
+                        draft.shownName(), 0L);
                 store(report);
                 return new Submission(report, Outcome.NEW);
             }
@@ -93,8 +105,7 @@ public final class ReportService {
     }
 
     public CompletableFuture<List<Report>> open() {
-        return CompletableFuture.supplyAsync(() -> all().stream()
-                .filter(Report::open)
+        return CompletableFuture.supplyAsync(() -> openNow().stream()
                 .sorted(Comparator.comparingInt(Report::reporters).reversed()
                         .thenComparingLong(Report::createdAt))
                 .toList(), executor);
@@ -115,18 +126,75 @@ public final class ReportService {
     }
 
     public CompletableFuture<Optional<Report>> claim(String id, String by) {
+        return claim(id, by, 0L, true).thenApply(claim -> claim.map(Claim::report));
+    }
+
+    public CompletableFuture<Optional<Claim>> claim(String id, String by, long timeoutMillis, boolean force) {
+        return CompletableFuture.supplyAsync(() -> {
+            synchronized (lock) {
+                long now = clock.millis();
+                return documents.find(COLLECTION, id)
+                        .map(json -> gson.fromJson(json, Report.class))
+                        .filter(Report::open)
+                        .map(report -> {
+                            ClaimOutcome outcome = decide(report, by, now, timeoutMillis, force);
+                            String previous = report.holder(now, timeoutMillis).orElse("");
+                            if (outcome == ClaimOutcome.HELD) {
+                                return new Claim(report, outcome, previous);
+                            }
+                            Report claimed = report.claim(outcome == ClaimOutcome.KEPT ? report.claimedBy() : by,
+                                    now);
+                            store(claimed);
+                            return new Claim(claimed, outcome, previous);
+                        });
+            }
+        }, executor);
+    }
+
+    public CompletableFuture<Optional<Release>> release(String id) {
         return CompletableFuture.supplyAsync(() -> {
             synchronized (lock) {
                 return documents.find(COLLECTION, id)
                         .map(json -> gson.fromJson(json, Report.class))
                         .filter(Report::open)
-                        .map(report -> {
-                            Report claimed = report.claim(by);
-                            store(claimed);
-                            return claimed;
-                        });
+                        .map(this::free);
             }
         }, executor);
+    }
+
+    public CompletableFuture<List<Release>> releaseIdle(long timeoutMillis) {
+        if (timeoutMillis <= 0L) {
+            return CompletableFuture.completedFuture(List.of());
+        }
+        return CompletableFuture.supplyAsync(() -> {
+            synchronized (lock) {
+                long now = clock.millis();
+                return openNow().stream()
+                        .filter(report -> !report.claimedBy().isEmpty() && report.holder(now, timeoutMillis).isEmpty())
+                        .map(this::free)
+                        .toList();
+            }
+        }, executor);
+    }
+
+    private Release free(Report report) {
+        if (report.claimedBy().isEmpty()) {
+            return new Release(report, "");
+        }
+        Report released = report.claim("", 0L);
+        store(released);
+        return new Release(released, report.claimedBy());
+    }
+
+    public static ClaimOutcome decide(Report report, String by, long now, long timeoutMillis, boolean force) {
+        Optional<String> holder = report.holder(now, timeoutMillis);
+        if (holder.isPresent() && holder.get().equalsIgnoreCase(by)) {
+            return ClaimOutcome.KEPT;
+        }
+        if (holder.isPresent() && !force) {
+            return ClaimOutcome.HELD;
+        }
+        return ClaimOutcome.CLAIMED;
     }
 
     public CompletableFuture<Optional<Report>> close(String id, String by) {
@@ -191,8 +259,11 @@ public final class ReportService {
                 .toList();
     }
 
-    private List<Report> all() {
-        return documents.findAll(COLLECTION).stream().map(json -> gson.fromJson(json, Report.class)).toList();
+    private List<Report> openNow() {
+        return documents.findBy(COLLECTION, "open", "true").stream()
+                .map(json -> gson.fromJson(json, Report.class))
+                .filter(Report::open)
+                .toList();
     }
 
     private void store(Report report) {

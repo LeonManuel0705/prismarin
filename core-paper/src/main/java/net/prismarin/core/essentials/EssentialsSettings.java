@@ -21,6 +21,23 @@ public record EssentialsSettings(Map<EssentialsFeature, Boolean> commands) {
         return commands.getOrDefault(feature, true);
     }
 
+    public static final int DEFAULT_PINGTEST_SECONDS = 30;
+
+    public static int pingTestSeconds(Path file) {
+        try {
+            YamlConfigurationLoader loader = YamlConfigurationLoader.builder()
+                    .path(file)
+                    .nodeStyle(NodeStyle.BLOCK)
+                    .indent(2)
+                    .build();
+            CommentedConfigurationNode root = Files.exists(file) ? loader.load() : loader.createNode();
+            int seconds = root.node("essentials", "pingtest-seconds").getInt(DEFAULT_PINGTEST_SECONDS);
+            return Math.max(5, Math.min(300, seconds));
+        } catch (IOException e) {
+            return DEFAULT_PINGTEST_SECONDS;
+        }
+    }
+
     public static EssentialsSettings load(Path file) {
         try {
             YamlConfigurationLoader loader = YamlConfigurationLoader.builder()
@@ -39,6 +56,11 @@ public record EssentialsSettings(Map<EssentialsFeature, Boolean> commands) {
                     changed = true;
                 }
                 commands.put(feature, node.getBoolean(true));
+            }
+            ConfigurationNode pingTest = root.node("essentials", "pingtest-seconds");
+            if (pingTest.virtual()) {
+                pingTest.set(DEFAULT_PINGTEST_SECONDS);
+                changed = true;
             }
             if (changed) {
                 loader.save(root);

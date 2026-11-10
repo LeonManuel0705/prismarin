@@ -9,6 +9,7 @@ import java.util.UUID;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
@@ -74,7 +75,7 @@ public final class ReportMenu {
             Material material = Material.matchMaterial(reason.icon());
             ItemStack icon = ItemBuilder.of(material != null && material.isItem() ? material : Material.PAPER)
                     .name(locale.render("report.menu.reason", viewerLocale,
-                            Placeholder.unparsed("reason", reason.name())))
+                            Placeholder.component("reason", MiniMessage.miniMessage().deserialize(reason.name()))))
                     .lore(locale.render("report.menu.reason-lore", viewerLocale,
                             Placeholder.unparsed("player", targetName)))
                     .build();

@@ -3,11 +3,13 @@ package net.prismarin.velocity.locale;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.DisconnectEvent;
 import com.velocitypowered.api.proxy.Player;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public final class PlayerLocaleRegistry {
 
@@ -15,12 +17,26 @@ public final class PlayerLocaleRegistry {
     }
 
     private final Map<UUID, Entry> entries = new ConcurrentHashMap<>();
+    private final List<ChangeListener> listeners = new CopyOnWriteArrayList<>();
+
+    public interface ChangeListener {
+
+        void changed(UUID player, Locale previous, Locale current);
+    }
+
+    public void onChange(ChangeListener listener) {
+        listeners.add(listener);
+    }
 
     public void update(UUID player, String languageTag, String server) {
         if (languageTag == null || languageTag.isBlank()) {
             return;
         }
-        entries.put(player, new Entry(Locale.forLanguageTag(languageTag.replace('_', '-')), server));
+        Entry current = new Entry(Locale.forLanguageTag(languageTag.replace('_', '-')), server);
+        Entry previous = entries.put(player, current);
+        if (previous != null && !previous.locale().equals(current.locale())) {
+            listeners.forEach(listener -> listener.changed(player, previous.locale(), current.locale()));
+        }
     }
 
     public Optional<Locale> locale(UUID player) {

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Logger;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -16,6 +17,9 @@ import net.prismarin.api.PrismarinSystems;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.nick.NickService;
+import net.prismarin.api.player.NetworkPlayer;
+import net.prismarin.api.player.PlayerApi;
+import net.prismarin.api.player.PlayerService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.gui.ItemBuilder;
@@ -250,7 +254,12 @@ public final class LobbyItems {
         Optional<PlayerProfile> profile = profiles.getCached(player.getUniqueId());
         TagResolver name = Placeholder.unparsed("player", player.getName());
         List<Component> lore = new ArrayList<>();
-        for (ProfileLayout.Line line : settings.profile().head()) {
+        List<ProfileLayout.Line> head = settings.profile().head();
+        Set<String> placed = ProfileLayout.placedAttributes(head);
+        Optional<PlayerService> players = PlayerApi.service();
+        Optional<NetworkPlayer> self = players.filter(service -> !service.attributes().all().isEmpty())
+                .flatMap(service -> service.online(player.getUniqueId()));
+        for (ProfileLayout.Line line : head) {
             switch (line.kind()) {
                 case CURRENCIES -> currencies.shown().forEach(currency -> lore.add(currencyLine(profile, currency,
                         playerLocale)));
@@ -264,10 +273,18 @@ public final class LobbyItems {
                     }
                 }
                 case RANK -> lore.add(locale.render("lobby.item.profile.lore.rank", playerLocale,
-                        player.getUniqueId(), Placeholder.component("rank", ranks.prefix(player))));
+                        player.getUniqueId(), Placeholder.component("rank", ranks.ownPrefix(player))));
                 case EMPTY -> lore.add(Component.empty());
                 case TEXT -> lore.add(texts.render(line.argument(), playerLocale, player.getUniqueId(), name));
+                case ATTRIBUTE -> self.flatMap(target -> players.get().attributes().profileLine(line.argument(),
+                        player.getUniqueId(), target, playerLocale)).ifPresent(lore::add);
+                case ATTRIBUTES -> self.ifPresent(target -> lore.addAll(players.get().attributes()
+                        .profileLines(player.getUniqueId(), target, playerLocale, placed)));
             }
+        }
+        if (!ProfileLayout.listsAttributes(head)) {
+            self.ifPresent(target -> lore.addAll(players.get().attributes()
+                    .profileLines(player.getUniqueId(), target, playerLocale, placed)));
         }
         return lore;
     }
