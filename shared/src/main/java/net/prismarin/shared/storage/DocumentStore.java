@@ -1,6 +1,7 @@
 package net.prismarin.shared.storage;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface DocumentStore extends AutoCloseable {
@@ -10,6 +11,8 @@ public interface DocumentStore extends AutoCloseable {
     Optional<String> find(String collection, String id);
 
     List<String> findAll(String collection);
+
+    Map<String, String> entries(String collection);
 
     List<String> findBy(String collection, String field, String value);
 

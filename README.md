@@ -14,7 +14,7 @@ The point of the architecture is that a game mode never talks to a database. It 
 | Text | MiniMessage, `&` colour codes, `&#RRGGBB` and `&x&R&R&G&G&B&B` hex, placeholders written as `%name%` |
 | Servers | A directory with groups and properties per server, used by the navigator and by plugins |
 | Game servers | Game states (waiting, starting, running, ending, full) from the API or from a placeholder of any game plugin, visible to lobbies even without Redis, plus `/play <group>` and `connectToGroup` that pick the best free server |
-| Admin | Staff chat, staff list, `/find`, `/send`, `/goto`, bans and mutes with durations, kicks, warnings, history, reports, broadcasts, maintenance per server or group, player records, an audit log, outage alerts with Discord webhook, `/netexec` and a SuperVanish style vanish |
+| Admin | Staff chat, staff list, `/find`, `/send`, `/goto`, bans and mutes with durations, kicks, warnings, history, reports, broadcasts, maintenance per server or group, player records, an audit log, outage alerts with Discord webhook, `/netexec`, a SuperVanish style vanish with silent containers, and `/prismarin migrate` to move all data between storage backends |
 | Network overview | `/network` opens a live inventory with status, players, ping, version, TPS, memory and uptime per server |
 | Events | `ProfileLoadedEvent`, `ProfileUnloadedEvent`, `BalanceChangedEvent`, `PunishmentIssuedEvent` and `PunishmentRevokedEvent` on proxy and backends |
 | Vault | Registers as the Vault economy for the classic API and the multi currency VaultUnlocked API, so every shop or game plugin pays out network currency |
@@ -142,7 +142,7 @@ servers:
 
 ## Status
 
-Version 0.3.0 adds game server adapters with automatic server selection, SQL storage and a cross server admin system on top of 0.2.0, which turned the former single network into a framework with configurable branding and currencies, a public API, switchable systems and modules, the network overview and bridges to Vault and PlaceholderAPI. Next on the roadmap is publishing: a Maven package, releases and documentation. See `ROADMAP.md`.
+Version 0.4.0 adds storage migration, silent containers in vanish and an optional bridge that gives backend operators PRISMARIN permissions on the proxy. Version 0.3.0 added game server adapters with automatic server selection, SQL storage and a cross server admin system on top of 0.2.0, which turned the former single network into a framework with configurable branding and currencies, a public API, switchable systems and modules, the network overview and bridges to Vault and PlaceholderAPI. Next on the roadmap is publishing: a Maven package, releases and documentation. See `ROADMAP.md`.
 
 ## License
 

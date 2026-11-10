@@ -11,7 +11,7 @@ import org.spongepowered.configurate.yaml.NodeStyle;
 import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 
 public record AdminSettings(String discordWebhook, int reportCooldownSeconds, int alertIntervalSeconds,
-                            double lowTps) {
+                            double lowTps, boolean trustBackendOperators) {
 
     public static AdminSettings load(Path file) {
         try {
@@ -25,6 +25,7 @@ public record AdminSettings(String discordWebhook, int reportCooldownSeconds, in
             changed |= setIfAbsent(root.node("alerts", "interval-seconds"), 15);
             changed |= setIfAbsent(root.node("alerts", "low-tps"), 15.0);
             changed |= setIfAbsent(root.node("reports", "cooldown-seconds"), 60);
+            changed |= setIfAbsent(root.node("permissions", "trust-backend-operators"), false);
             if (changed) {
                 loader.save(root);
             }
@@ -32,7 +33,8 @@ public record AdminSettings(String discordWebhook, int reportCooldownSeconds, in
                     root.node("alerts", "discord-webhook").getString(""),
                     root.node("reports", "cooldown-seconds").getInt(60),
                     Math.max(5, root.node("alerts", "interval-seconds").getInt(15)),
-                    root.node("alerts", "low-tps").getDouble(15.0));
+                    root.node("alerts", "low-tps").getDouble(15.0),
+                    root.node("permissions", "trust-backend-operators").getBoolean(false));
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

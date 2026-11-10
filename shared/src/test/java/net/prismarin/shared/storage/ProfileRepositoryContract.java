@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -273,5 +274,15 @@ abstract class ProfileRepositoryContract {
 
         assertEquals(100, succeeded.get());
         assertEquals(0L, repository().find(uuid).orElseThrow().balance(Currency.COINS));
+    }
+
+    @Test
+    void idsListEveryStoredProfile() {
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        repository().save(sampleProfile(first));
+        repository().save(sampleProfile(second));
+
+        assertTrue(repository().ids().containsAll(List.of(first, second)));
     }
 }

@@ -11,6 +11,7 @@ import net.prismarin.api.Prismarin;
 import net.prismarin.api.PrismarinProvider;
 import net.prismarin.api.PrismarinSystems;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.core.admin.PrismarinCommand;
 import net.prismarin.core.bridge.PlaceholderBridge;
 import net.prismarin.core.bridge.VaultBridge;
 import net.prismarin.core.chat.AsyncChatListener;
@@ -20,6 +21,7 @@ import net.prismarin.core.gui.MenuService;
 import net.prismarin.core.moderation.ModerationChannel;
 import net.prismarin.core.moderation.MuteListener;
 import net.prismarin.core.moderation.NetExecListener;
+import net.prismarin.core.moderation.OperatorReporter;
 import net.prismarin.core.network.GameStateMotdListener;
 import net.prismarin.core.network.HeartbeatTask;
 import net.prismarin.core.network.NetworkCommand;
@@ -101,6 +103,8 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         getServer().getMessenger().registerOutgoingPluginChannel(this, ModerationChannel.ID);
         getServer().getMessenger().registerIncomingPluginChannel(this, ModerationChannel.ID,
                 injector.getInstance(ModerationChannel.class));
+        pluginManager.registerEvents(injector.getInstance(OperatorReporter.class), this);
+        registerCommand("prismarin", injector.getInstance(PrismarinCommand.class));
         if (modules.enabled(CoreModules.MUTE_ENFORCEMENT)) {
             pluginManager.registerEvents(injector.getInstance(MuteListener.class), this);
         }

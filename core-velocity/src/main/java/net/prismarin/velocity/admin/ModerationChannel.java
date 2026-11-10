@@ -15,9 +15,14 @@ public final class ModerationChannel {
     public static final MinecraftChannelIdentifier ID = MinecraftChannelIdentifier.from("prismarin:moderation");
 
     private final VanishRegistry vanish;
+    private volatile OperatorRegistry operators;
 
     public ModerationChannel(VanishRegistry vanish) {
         this.vanish = vanish;
+    }
+
+    public void trustOperators(OperatorRegistry operators) {
+        this.operators = operators;
     }
 
     public void sendMute(Player player, long until, String reason) {
@@ -53,7 +58,12 @@ public final class ModerationChannel {
         try {
             JsonObject message = JsonParser.parseString(new String(event.getData(), StandardCharsets.UTF_8))
                     .getAsJsonObject();
-            if ("vanish".equals(message.get("type").getAsString())) {
+            String type = message.get("type").getAsString();
+            OperatorRegistry registry = operators;
+            if ("operator".equals(type) && registry != null) {
+                registry.update(UUID.fromString(message.get("uuid").getAsString()), message.get("op").getAsBoolean());
+            }
+            if ("vanish".equals(type)) {
                 vanish.update(UUID.fromString(message.get("uuid").getAsString()),
                         message.get("vanished").getAsBoolean(), message.has("level")
                                 ? message.get("level").getAsInt() : 1);

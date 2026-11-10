@@ -149,6 +149,8 @@ play:
   no-server: "%brand_prefix%✖ No server in <color:#22D3EE>%group%</color> is free right now.</gray>"
   connecting: "%brand_prefix%Connecting to %server%<gray> ...</gray>"
 vanish:
+  silent-title: "<dark_gray>Opened silently</dark_gray>"
+  container-changed: "%brand_prefix%✖ The container changed in the meantime, your changes were not saved.</gray>"
   reminder: "<color:#2DD4BF>● You are vanished</color>"
   enabled: "%brand_prefix%✔ You are now <color:#2DD4BF>vanished</color>.</gray>"
   disabled: "%brand_prefix%✔ You are <color:#22D3EE>visible</color> again.</gray>"
@@ -156,3 +158,16 @@ vanish:
   disabled-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> is visible again.</gray>"
 moderation:
   muted: "%brand_prefix%✖ You are muted. Reason: <white>%reason%</white><gray>, remaining</gray> <white>%remaining%</white><gray>.</gray>"
+admin:
+  info-header: "%brand_prefix%PRISMARIN <white>%version%</white> on <color:#22D3EE>%server%</color></gray>"
+  info-storage: " <gray>Storage</gray> <white>%storage%</white> <dark_gray>·</dark_gray> <gray>Bus</gray> <white>%bus%</white>"
+  info-systems: " <gray>Systems:</gray> <white>%systems%</white>"
+  info-modules: " <gray>Modules on:</gray> <white>%modules%</white>"
+  info-off: " <dark_gray>off:</dark_gray> <gray>%module%</gray> <dark_gray>(%reason%)</dark_gray>"
+  info-players: " <gray>Players here</gray> <white>%players%</white> <dark_gray>·</dark_gray> <gray>known servers</gray> <white>%servers%</white>"
+  migrate-usage: "%brand_prefix%Usage: <color:#22D3EE>/prismarin migrate from to</color> <dark_gray>(%modes%)</dark_gray></gray>"
+  migrate-console: "%brand_prefix%✖ Migration only runs from the console.</gray>"
+  migrate-same: "%brand_prefix%✖ Source and target are the same.</gray>"
+  migrate-start: "%brand_prefix%Moving data from <color:#22D3EE>%from%</color> to <color:#22D3EE>%to%</color> ...</gray>"
+  migrate-done: "%brand_prefix%✔ Done: <white>%profiles%</white> profiles, <white>%balances%</white> balances, <white>%documents%</white> documents. Now set <color:#22D3EE>storage.mode: %to%</color> and restart.</gray>"
+  migrate-failed: "%brand_prefix%✖ Migration stopped: <white>%reason%</white></gray>"

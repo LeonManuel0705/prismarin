@@ -18,6 +18,7 @@ import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.core.config.GameStateSettings;
 import net.prismarin.core.config.MenuSettings;
+import net.prismarin.core.config.VanishSettings;
 import net.prismarin.core.network.PaperConnectorTransport;
 import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.rank.DefaultRankFormatProvider;
@@ -126,6 +127,12 @@ public final class CoreModule extends AbstractModule {
     @Singleton
     GameStateSettings gameStateSettings(CoreConfig config) {
         return GameStateSettings.load(configPath());
+    }
+
+    @Provides
+    @Singleton
+    VanishSettings vanishSettings(CoreConfig config) {
+        return VanishSettings.load(configPath());
     }
 
     @Provides

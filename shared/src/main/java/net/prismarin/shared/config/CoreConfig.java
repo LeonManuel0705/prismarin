@@ -24,6 +24,11 @@ public record CoreConfig(String serverId, StorageMode storageMode, String mongoU
         }
     }
 
+    public CoreConfig withStorageMode(StorageMode mode) {
+        return new CoreConfig(serverId, mode, mongoUri, mongoDatabase, redisEnabled, redisHost, redisPort, redisPassword,
+                defaultLocale, branding, currencies, primaryCurrency, modules, systems, autoDetectConflicts, sql);
+    }
+
     public boolean moduleEnabled(String module) {
         return modules.getOrDefault(module, true);
     }

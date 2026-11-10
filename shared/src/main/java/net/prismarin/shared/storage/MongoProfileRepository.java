@@ -8,6 +8,7 @@ import com.mongodb.client.model.ReturnDocument;
 import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +26,14 @@ public final class MongoProfileRepository implements ProfileRepository {
 
     public MongoProfileRepository(MongoDatabase database) {
         this.collection = database.getCollection("profiles");
+    }
+
+    @Override
+    public List<UUID> ids() {
+        List<UUID> ids = new ArrayList<>();
+        collection.find().projection(new Document("_id", 1))
+                .forEach(document -> ids.add(UUID.fromString(document.getString("_id"))));
+        return ids;
     }
 
     @Override

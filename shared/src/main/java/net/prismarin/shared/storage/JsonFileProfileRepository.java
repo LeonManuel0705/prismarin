@@ -9,10 +9,12 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Stream;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.economy.EconomyResult;
 import net.prismarin.api.profile.PlayerProfile;
@@ -34,6 +36,25 @@ public final class JsonFileProfileRepository implements ProfileRepository {
         }
         for (int i = 0; i < STRIPES; i++) {
             locks[i] = new ReentrantLock();
+        }
+    }
+
+    @Override
+    public List<UUID> ids() {
+        try (Stream<Path> files = Files.list(directory)) {
+            return files.map(file -> file.getFileName().toString())
+                    .filter(name -> name.endsWith(".json"))
+                    .map(name -> name.substring(0, name.length() - ".json".length()))
+                    .flatMap(name -> {
+                        try {
+                            return Stream.of(UUID.fromString(name));
+                        } catch (IllegalArgumentException e) {
+                            return Stream.empty();
+                        }
+                    })
+                    .toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 

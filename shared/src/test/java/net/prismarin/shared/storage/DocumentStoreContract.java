@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import org.junit.jupiter.api.Test;
@@ -167,5 +168,15 @@ abstract class DocumentStoreContract {
             assertThrows(IllegalArgumentException.class, () -> store().find(collection, invalid));
             assertThrows(IllegalArgumentException.class, () -> store().delete(collection, invalid));
         }
+    }
+
+    @Test
+    void entriesReturnIdsWithBodies() {
+        store().save(collection, "b", "{\"v\":2}");
+        store().save(collection, "a", "{\"v\":1}");
+        store().save(otherCollection, "c", "{\"v\":3}");
+
+        assertEquals(Map.of("a", "{\"v\":1}", "b", "{\"v\":2}"), store().entries(collection));
+        assertTrue(store().entries(collection + "_none").isEmpty());
     }
 }

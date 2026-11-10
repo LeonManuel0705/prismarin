@@ -12,6 +12,7 @@ import com.mongodb.client.model.Projections;
 import com.mongodb.client.model.ReplaceOptions;
 import com.mongodb.client.model.Sorts;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -56,6 +57,14 @@ public final class MongoDocumentStore implements DocumentStore {
     @Override
     public List<String> findAll(String collection) {
         return bodies(collectionFor(collection).find());
+    }
+
+    @Override
+    public Map<String, String> entries(String collection) {
+        Map<String, String> entries = new LinkedHashMap<>();
+        collectionFor(collection).find().sort(Sorts.ascending("_id"))
+                .forEach(document -> entries.put(document.getString("_id"), document.getString(BODY)));
+        return entries;
     }
 
     @Override

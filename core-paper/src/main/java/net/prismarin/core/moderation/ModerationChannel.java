@@ -65,6 +65,14 @@ public final class ModerationChannel implements PluginMessageListener {
         mutes.remove(player);
     }
 
+    public void sendOperator(Player player) {
+        JsonObject message = new JsonObject();
+        message.addProperty("type", "operator");
+        message.addProperty("uuid", player.getUniqueId().toString());
+        message.addProperty("op", player.isOp());
+        player.sendPluginMessage(plugin, ID, message.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
     public void sendVanish(Player player, boolean vanished, int level) {
         JsonObject message = new JsonObject();
         message.addProperty("type", "vanish");

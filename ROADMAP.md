@@ -20,7 +20,7 @@ Grundregeln für alles, was hier entsteht:
 | 2 | Brücken: Vault, PlaceholderAPI, Konflikterkennung | fertig (0.2.0) |
 | 3 | Spielserver-Adapter: Status fremder Plugins, Connect- und Queue-API | fertig (0.3.0) |
 | 4 | Speicher: MySQL/MariaDB, SQLite | fertig (0.3.0) |
-| 5 | Admin-System über alle Server | fertig (0.3.0), das meiste ohne Redis |
+| 5 | Admin-System über alle Server | fertig (0.3.0, Ergänzungen 0.4.0), das meiste ohne Redis |
 | 6 | Veröffentlichen: Maven-Paket, Releases, Doku, Beispiel-Plugin | offen |
 | 7 | Baukasten für Spielmodi (ehemals Game-Engine) | offen |
 
@@ -74,7 +74,7 @@ Grundregeln für alles, was hier entsteht:
 
 - MySQL/MariaDB und SQLite neben JSON und MongoDB, atomare Buchungen in der Datenbank.
 - Allgemeiner Dokumentenspeicher für Strafen, Reports, Audit-Log und Namen, in allen vier Speicherarten.
-- Offen: Migration zwischen den Speichern per Befehl.
+- Umzug zwischen den Speichern: `/prismarin migrate <von> <nach>` auf dem Spielserver und `/prismarinproxy migrate` auf dem Proxy, aus der Konsole oder per RCON. Kopiert Profile, Kontostände, Namen, Strafen, Reports, Audit-Log und Wartungsziele (0.4.0).
 
 ## Stufe 5: Admin-System (fertig)
 
@@ -89,7 +89,9 @@ Fast alles läuft im Proxy-Plugin und braucht deshalb kein Redis. Jedes Werkzeug
 - Warnungen bei Ausfall und niedriger TPS (TPS nur mit Redis) im Spiel und per Discord-Webhook aus `admin.yml`.
 - `/netexec <all|server|group:x> <befehl>` über Redis.
 - Vanish wie SuperVanish: `/vanish`, Sichtbarkeit über `prismarin.vanish.see` und Stufen `prismarin.vanish.level.<n>`, weg aus Tab, Serverliste und Spielerzahlen, kein Aufsammeln, keine Mobs, keine Druckplatten und Sculk-Sensoren, kein Schlafen-Zählen, keine Fortschritts-Meldungen, Zustand bleibt beim Serverwechsel.
-- Offen: lautloses Öffnen von Truhen und das Verbergen von Blockabbau-Effekten im Vanish.
+- Lautlose Behälter (0.4.0): Unsichtbare öffnen Truhen, Fässer und Shulker als Kopie ohne Deckel und Geräusch, Änderungen werden beim Schließen übernommen, wenn sich der Behälter inzwischen nicht verändert hat. Lautloser Abbau ohne Partikel und Geräusch. Beides unter `vanish.silent-containers` und `vanish.silent-blocks` abschaltbar. Offen: die Riss-Animation beim Abbauen und das Platzier-Geräusch sehen und hören andere weiterhin.
+- OPs vom Spielserver auf dem Proxy (0.4.0): Mit `permissions.trust-backend-operators: true` in der `admin.yml` des Proxys bekommen Spieler, die auf ihrem aktuellen Spielserver OP sind, alle `prismarin.*`-Rechte auf dem Proxy. Gedacht für kleine Netzwerke ohne LuckPerms auf dem Proxy, standardmäßig aus.
+- `/prismarin` und `/prismarinproxy` zeigen Version, Speicher, Bus, Systeme, Module und warum ein Modul aus ist.
 
 ## Stufe 6: Veröffentlichen
 

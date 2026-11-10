@@ -23,6 +23,9 @@ commands:
   play:
     description: Sends you to a free server of a group.
     permission: prismarin.command.play
+  prismarin:
+    description: Shows the PRISMARIN status or moves data between storages.
+    permission: prismarin.admin.info
   vanish:
     description: Makes you invisible to players without permission.
     aliases: [v]
@@ -40,6 +43,8 @@ permissions:
     default: op
   prismarin.command.play:
     default: true
+  prismarin.admin.info:
+    default: op
   prismarin.vanish.use:
     default: op
   prismarin.vanish.others:

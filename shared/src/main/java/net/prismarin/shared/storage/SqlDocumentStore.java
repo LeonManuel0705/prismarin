@@ -5,7 +5,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -15,6 +17,7 @@ public final class SqlDocumentStore implements DocumentStore {
     private static final Pattern PREFILTERABLE = Pattern.compile("[A-Za-z0-9._:-]+");
     private static final String FIND = "SELECT body FROM prismarin_documents WHERE collection = ? AND id = ?";
     private static final String FIND_ALL = "SELECT body FROM prismarin_documents WHERE collection = ? ORDER BY id";
+    private static final String ENTRIES = "SELECT id, body FROM prismarin_documents WHERE collection = ? ORDER BY id";
     private static final String FIND_CONTAINING = "SELECT body FROM prismarin_documents WHERE collection = ? "
             + "AND body LIKE ? ESCAPE '!' ORDER BY id";
     private static final String DELETE = "DELETE FROM prismarin_documents WHERE collection = ? AND id = ?";
@@ -74,6 +77,23 @@ public final class SqlDocumentStore implements DocumentStore {
     @Override
     public List<String> findAll(String collection) {
         return bodies(FIND_ALL, DocumentKeys.collection(collection), null);
+    }
+
+    @Override
+    public Map<String, String> entries(String collection) {
+        String name = DocumentKeys.collection(collection);
+        return database.execute(connection -> {
+            Map<String, String> entries = new LinkedHashMap<>();
+            try (PreparedStatement statement = connection.prepareStatement(ENTRIES)) {
+                statement.setString(1, name);
+                try (ResultSet rows = statement.executeQuery()) {
+                    while (rows.next()) {
+                        entries.put(new String(rows.getBytes(1), StandardCharsets.UTF_8), rows.getString(2));
+                    }
+                }
+            }
+            return entries;
+        });
     }
 
     @Override

@@ -9,7 +9,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -62,6 +64,20 @@ public final class SqlProfileRepository implements ProfileRepository {
                 statement.execute(balances);
             }
             return null;
+        });
+    }
+
+    @Override
+    public List<UUID> ids() {
+        return database.execute(connection -> {
+            List<UUID> ids = new ArrayList<>();
+            try (Statement statement = connection.createStatement();
+                 ResultSet rows = statement.executeQuery("SELECT uuid FROM prismarin_profiles")) {
+                while (rows.next()) {
+                    ids.add(UUID.fromString(rows.getString(1)));
+                }
+            }
+            return ids;
         });
     }
 

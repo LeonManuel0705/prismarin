@@ -149,6 +149,8 @@ play:
   no-server: "%brand_prefix%✖ Gerade ist kein Server in <color:#22D3EE>%group%</color> frei.</gray>"
   connecting: "%brand_prefix%Verbinde mit %server%<gray> ...</gray>"
 vanish:
+  silent-title: "<dark_gray>Lautlos geöffnet</dark_gray>"
+  container-changed: "%brand_prefix%✖ Der Behälter wurde inzwischen verändert, deine Änderungen wurden nicht übernommen.</gray>"
   reminder: "<color:#2DD4BF>● Du bist unsichtbar</color>"
   enabled: "%brand_prefix%✔ Du bist jetzt <color:#2DD4BF>unsichtbar</color>.</gray>"
   disabled: "%brand_prefix%✔ Du bist wieder <color:#22D3EE>sichtbar</color>.</gray>"
@@ -156,3 +158,16 @@ vanish:
   disabled-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> ist wieder sichtbar.</gray>"
 moderation:
   muted: "%brand_prefix%✖ Du bist stummgeschaltet. Grund: <white>%reason%</white><gray>, noch</gray> <white>%remaining%</white><gray>.</gray>"
+admin:
+  info-header: "%brand_prefix%PRISMARIN <white>%version%</white> auf <color:#22D3EE>%server%</color></gray>"
+  info-storage: " <gray>Speicher</gray> <white>%storage%</white> <dark_gray>·</dark_gray> <gray>Bus</gray> <white>%bus%</white>"
+  info-systems: " <gray>Systeme:</gray> <white>%systems%</white>"
+  info-modules: " <gray>Module an:</gray> <white>%modules%</white>"
+  info-off: " <dark_gray>aus:</dark_gray> <gray>%module%</gray> <dark_gray>(%reason%)</dark_gray>"
+  info-players: " <gray>Spieler hier</gray> <white>%players%</white> <dark_gray>·</dark_gray> <gray>bekannte Server</gray> <white>%servers%</white>"
+  migrate-usage: "%brand_prefix%Verwendung: <color:#22D3EE>/prismarin migrate Von Nach</color> <dark_gray>(%modes%)</dark_gray></gray>"
+  migrate-console: "%brand_prefix%✖ Der Umzug läuft nur über die Konsole.</gray>"
+  migrate-same: "%brand_prefix%✖ Quelle und Ziel sind gleich.</gray>"
+  migrate-start: "%brand_prefix%Ziehe Daten von <color:#22D3EE>%from%</color> nach <color:#22D3EE>%to%</color> um ...</gray>"
+  migrate-done: "%brand_prefix%✔ Fertig: <white>%profiles%</white> Profile, <white>%balances%</white> Kontostände, <white>%documents%</white> Dokumente. Stell jetzt <color:#22D3EE>storage.mode: %to%</color> ein und starte neu.</gray>"
+  migrate-failed: "%brand_prefix%✖ Umzug abgebrochen: <white>%reason%</white></gray>"

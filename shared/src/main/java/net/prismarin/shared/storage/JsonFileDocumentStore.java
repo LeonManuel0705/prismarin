@@ -13,7 +13,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -66,6 +68,29 @@ public final class JsonFileDocumentStore implements DocumentStore {
             return documents;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    @Override
+    public synchronized Map<String, String> entries(String collection) {
+        Path folder = folderFor(collection);
+        if (Files.notExists(folder)) {
+            return Map.of();
+        }
+        try (Stream<Path> files = Files.list(folder)) {
+            Map<String, String> entries = new LinkedHashMap<>();
+            files.filter(file -> file.getFileName().toString().endsWith(SUFFIX))
+                    .sorted()
+                    .forEach(file -> {
+                        String name = file.getFileName().toString();
+                        String stem = name.substring(0, name.length() - SUFFIX.length());
+                        if (!stem.startsWith("h")) {
+                            entries.put(new String(HexFormat.of().parseHex(stem), StandardCharsets.UTF_8), read(file));
+                        }
+                    });
+            return entries;
+        } catch (IOException | IllegalArgumentException e) {
+            throw new IllegalStateException("could not list documents in " + collection, e);
         }
     }
 

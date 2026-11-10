@@ -40,6 +40,8 @@ import net.prismarin.velocity.admin.InfoCommands;
 import net.prismarin.velocity.admin.ModerationChannel;
 import net.prismarin.velocity.admin.ModerationCommands;
 import net.prismarin.velocity.admin.ModerationListener;
+import net.prismarin.velocity.admin.OperatorRegistry;
+import net.prismarin.velocity.admin.ProxyInfoCommand;
 import net.prismarin.velocity.admin.ReportCommands;
 import net.prismarin.velocity.admin.ServerMaintenance;
 import net.prismarin.velocity.admin.StaffCommands;
@@ -57,7 +59,7 @@ import net.prismarin.velocity.server.ProxyConnectorTransport;
 import net.prismarin.velocity.server.ProxyServerDirectory;
 import org.slf4j.Logger;
 
-@Plugin(id = "prismarin-core", name = "PrismarinCore", version = "0.3.0", authors = {"Leon"})
+@Plugin(id = "prismarin-core", name = "PrismarinCore", version = "0.4.0", authors = {"Leon"})
 public final class PrismarinVelocityPlugin {
 
     private final ProxyServer proxy;
@@ -166,6 +168,16 @@ public final class PrismarinVelocityPlugin {
                 }
             });
         }
+        OperatorRegistry operators = null;
+        if (context.settings().trustBackendOperators()) {
+            operators = new OperatorRegistry();
+            proxy.getEventManager().register(this, operators);
+            context.channel().trustOperators(operators);
+            logger.info("Backend operators get all prismarin.* permissions on the proxy");
+        }
+        register(commands, List.of("prismarinproxy", "pproxy"), new ProxyInfoCommand(context, dataDirectory,
+                proxy.getPluginManager().fromInstance(this).flatMap(container -> container.getDescription().getVersion())
+                        .orElse("?"), operators));
         if (config.moduleEnabled(ProxyModules.NETWORK_ALERTS)) {
             proxy.getScheduler().buildTask(this, new AlertMonitor(context))
                     .delay(30, TimeUnit.SECONDS)
