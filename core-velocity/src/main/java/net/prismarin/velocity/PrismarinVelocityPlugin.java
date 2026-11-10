@@ -2,7 +2,9 @@ package net.prismarin.velocity;
 
 import com.google.inject.Inject;
 import com.velocitypowered.api.command.CommandManager;
+import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.event.Subscribe;
+import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Plugin;
@@ -13,16 +15,35 @@ import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import net.prismarin.api.PrismarinProvider;
+import net.prismarin.api.moderation.PunishmentType;
+import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.shared.config.ConfigLoader;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.platform.CoreServices;
 import net.prismarin.shared.server.YamlServerDirectory;
 import net.prismarin.shared.status.NetworkStatusService;
+import net.prismarin.shared.status.SelectingConnector;
+import net.prismarin.shared.status.SimpleGameStateService;
+import net.prismarin.velocity.admin.AdminContext;
+import net.prismarin.velocity.admin.AdminSettings;
+import net.prismarin.velocity.admin.AlertMonitor;
+import net.prismarin.velocity.admin.InfoCommands;
+import net.prismarin.velocity.admin.ModerationChannel;
+import net.prismarin.velocity.admin.ModerationCommands;
+import net.prismarin.velocity.admin.ModerationListener;
+import net.prismarin.velocity.admin.ReportCommands;
+import net.prismarin.velocity.admin.ServerMaintenance;
+import net.prismarin.velocity.admin.StaffCommands;
+import net.prismarin.velocity.admin.VanishRegistry;
 import net.prismarin.velocity.command.HubCommand;
 import net.prismarin.velocity.command.MaintenanceCommand;
 import net.prismarin.velocity.command.SendAllCommand;
@@ -32,10 +53,11 @@ import net.prismarin.velocity.listener.MaintenanceLoginListener;
 import net.prismarin.velocity.listener.PingListener;
 import net.prismarin.velocity.locale.ProxyMessages;
 import net.prismarin.velocity.motd.MotdBuilder;
+import net.prismarin.velocity.server.ProxyConnectorTransport;
 import net.prismarin.velocity.server.ProxyServerDirectory;
 import org.slf4j.Logger;
 
-@Plugin(id = "prismarin-core", name = "PrismarinCore", version = "0.2.0", authors = {"Leon"})
+@Plugin(id = "prismarin-core", name = "PrismarinCore", version = "0.3.0", authors = {"Leon"})
 public final class PrismarinVelocityPlugin {
 
     private final ProxyServer proxy;
@@ -59,6 +81,11 @@ public final class PrismarinVelocityPlugin {
         services = CoreServices.start(coreConfig, dataDirectory, executor);
         ProxyMessages messages = new ProxyMessages(services.locale(), Locale.forLanguageTag(coreConfig.defaultLocale()));
         ProxyConfigStore configStore = new ProxyConfigStore(dataDirectory.resolve("proxy.yml"), executor, logger);
+        VanishRegistry vanish = new VanishRegistry();
+        ModerationChannel moderationChannel = new ModerationChannel(vanish);
+        proxy.getChannelRegistrar().register(ModerationChannel.ID);
+        proxy.getEventManager().register(this, vanish);
+        proxy.getEventManager().register(this, moderationChannel);
         ServerDirectory directory = new ProxyServerDirectory(proxy,
                 new YamlServerDirectory(dataDirectory.resolve("servers.yml")), configStore.config().lobbyServer());
 
@@ -78,18 +105,80 @@ public final class PrismarinVelocityPlugin {
             commands.register(commands.metaBuilder("sendall").plugin(this).build(),
                     new SendAllCommand(proxy, messages));
         }
+        ServerMaintenance serverMaintenance = coreConfig.moduleEnabled(ProxyModules.SERVER_MAINTENANCE)
+                ? new ServerMaintenance(services.documents(), directory, messages) : null;
+        if (serverMaintenance != null) {
+            proxy.getEventManager().register(this, serverMaintenance);
+        }
         if (coreConfig.moduleEnabled(ProxyModules.MAINTENANCE)) {
             proxy.getEventManager().register(this, new MaintenanceLoginListener(configStore, messages));
             commands.register(commands.metaBuilder("maintenance").plugin(this).build(),
-                    new MaintenanceCommand(configStore, messages));
+                    new MaintenanceCommand(configStore, messages, serverMaintenance));
         }
 
         NetworkStatusService networkStatus = new NetworkStatusService(directory, services.messageBus(), executor);
-        PrismarinProvider.register(services.prismarin(directory, networkStatus));
+        NetworkConnector connector = new SelectingConnector(directory, networkStatus, new ProxyConnectorTransport(proxy));
+        PrismarinProvider.register(services.prismarin(directory, networkStatus, new SimpleGameStateService(),
+                connector));
+        registerAdmin(coreConfig, new AdminContext(proxy, services, messages, vanish, moderationChannel, connector,
+                directory, networkStatus, AdminSettings.load(dataDirectory.resolve("admin.yml"))));
         logger.info("PRISMARIN proxy core enabled as '{}' with {}, systems {} and modules {}",
                 coreConfig.serverId(), services.messageBus().getClass().getSimpleName(),
                 services.enabledSystems().stream().sorted().toList(),
                 ProxyModules.ALL.stream().filter(coreConfig::moduleEnabled).toList());
+    }
+
+    private void registerAdmin(CoreConfig config, AdminContext context) {
+        CommandManager commands = proxy.getCommandManager();
+        Map<String, Map.Entry<List<String>, SimpleCommand>> available = new LinkedHashMap<>();
+        available.put(ProxyModules.STAFF_CHAT, Map.entry(List.of("sc", "staffchat"), StaffCommands.staffChat(context)));
+        available.put(ProxyModules.STAFF_LIST, Map.entry(List.of("team", "staff"), StaffCommands.team(context)));
+        available.put(ProxyModules.FIND, Map.entry(List.of("find"), StaffCommands.find(context)));
+        available.put(ProxyModules.SEND, Map.entry(List.of("send"), StaffCommands.send(context)));
+        available.put(ProxyModules.GOTO, Map.entry(List.of("goto"), StaffCommands.goTo(context)));
+        available.put(ProxyModules.ALERT, Map.entry(List.of("alert", "broadcast"), InfoCommands.alert(context)));
+        available.put(ProxyModules.PLAYER_INFO, Map.entry(List.of("pinfo", "playerinfo"), InfoCommands.playerInfo(context)));
+        available.put(ProxyModules.AUDIT, Map.entry(List.of("audit"), InfoCommands.audit(context)));
+        available.put(ProxyModules.NETEXEC, Map.entry(List.of("netexec"), InfoCommands.netExec(context)));
+        available.put(ProxyModules.REPORTS, Map.entry(List.of("report"), ReportCommands.report(context)));
+        available.forEach((module, entry) -> {
+            if (config.moduleEnabled(module)) {
+                register(commands, entry.getKey(), entry.getValue());
+            }
+        });
+        if (config.moduleEnabled(ProxyModules.REPORTS)) {
+            register(commands, List.of("reports"), ReportCommands.reports(context));
+        }
+        if (config.moduleEnabled(ProxyModules.PUNISHMENTS)) {
+            proxy.getEventManager().register(this, new ModerationListener(context));
+            for (PunishmentType type : PunishmentType.values()) {
+                register(commands, List.of(type.name().toLowerCase(Locale.ROOT)),
+                        ModerationCommands.punish(context, type));
+            }
+            register(commands, List.of("unban"), ModerationCommands.revoke(context, PunishmentType.BAN));
+            register(commands, List.of("unmute"), ModerationCommands.revoke(context, PunishmentType.MUTE));
+            register(commands, List.of("history"), ModerationCommands.history(context));
+        } else {
+            proxy.getEventManager().register(this, new Object() {
+                @Subscribe
+                public void onPostLogin(PostLoginEvent event) {
+                    context.services().rememberName(event.getPlayer().getUniqueId(), event.getPlayer().getUsername());
+                }
+            });
+        }
+        if (config.moduleEnabled(ProxyModules.NETWORK_ALERTS)) {
+            proxy.getScheduler().buildTask(this, new AlertMonitor(context))
+                    .delay(30, TimeUnit.SECONDS)
+                    .repeat(context.settings().alertIntervalSeconds(), TimeUnit.SECONDS)
+                    .schedule();
+        }
+    }
+
+    private void register(CommandManager commands, List<String> names, SimpleCommand command) {
+        commands.register(commands.metaBuilder(names.getFirst())
+                .aliases(names.subList(1, names.size()).toArray(String[]::new))
+                .plugin(this)
+                .build(), command);
     }
 
     @Subscribe

@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import net.prismarin.api.Prismarin;
@@ -26,6 +27,8 @@ import net.prismarin.shared.platform.SimplePrismarin;
 import net.prismarin.shared.profile.ProfileServiceImpl;
 import net.prismarin.shared.status.MinecraftPinger;
 import net.prismarin.shared.status.NetworkStatusService;
+import net.prismarin.shared.status.SelectingConnector;
+import net.prismarin.shared.status.SimpleGameStateService;
 import net.prismarin.shared.storage.JsonFileProfileRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,10 +68,13 @@ class PrismarinPlaceholdersTest {
                 List.of(Currency.COINS, tokens), Currency.COINS, events);
         LocalMessageBus bus = new LocalMessageBus("lobby");
         NetworkStatusService status = new NetworkStatusService(servers, bus, Runnable::run,
-                Clock.systemUTC(), (host, port, timeout) -> new MinecraftPinger.Result(port * 3, 16, "", 1L));
+                Clock.systemUTC(), (host, port, timeout) -> new MinecraftPinger.Result(port * 3, 16, "", 1L,
+                        port == 1 ? "prismarin:RUNNING:" : ""));
         status.refresh().join();
         prismarin = new SimplePrismarin("lobby", Branding.DEFAULT, profiles, economy,
-                new YamlLocaleService(directory, "de"), bus, servers, status, events, Set.of("economy"));
+                new YamlLocaleService(directory, "de"), bus, servers, status, new SimpleGameStateService(),
+                new SelectingConnector(servers, status, (uuid, server) -> CompletableFuture.completedFuture(true)),
+                null, events, Set.of("economy"));
         profiles.load(player, "Leon").join();
         economy.deposit(player, Currency.COINS, 40L).join();
         economy.deposit(player, tokens, 7L).join();
@@ -104,7 +110,16 @@ class PrismarinPlaceholdersTest {
     void disabledEconomyShowsZero() {
         Prismarin disabled = new SimplePrismarin("lobby", Branding.DEFAULT, prismarin.profiles(),
                 new DisabledEconomyService(), prismarin.locale(), prismarin.messageBus(), servers,
-                prismarin.serverStatus(), prismarin.events(), Set.of());
+                prismarin.serverStatus(), prismarin.gameState(), prismarin.connector(), null, prismarin.events(),
+                Set.of());
         assertEquals("0", new PrismarinPlaceholders(disabled).resolve(player, "balance"));
+    }
+
+    @Test
+    void statesAndJoinableCounts() {
+        PrismarinPlaceholders placeholders = new PrismarinPlaceholders(prismarin);
+        assertEquals("running", placeholders.resolve(null, "server_state_bw_1"));
+        assertEquals("unknown", placeholders.resolve(null, "server_state_bw_2"));
+        assertEquals("1", placeholders.resolve(null, "group_joinable_bedwars"));
     }
 }

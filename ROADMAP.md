@@ -18,9 +18,9 @@ Grundregeln für alles, was hier entsteht:
 | 1b | Netzwerkübersicht `/network` mit Ping und Heartbeat | fertig (0.2.0) |
 | 1c | Ganze Systeme abschaltbar, z. B. das Coin-System | fertig (0.2.0) |
 | 2 | Brücken: Vault, PlaceholderAPI, Konflikterkennung | fertig (0.2.0) |
-| 3 | Spielserver-Adapter: Status fremder Plugins, Connect- und Queue-API | offen |
-| 4 | Speicher: MySQL/MariaDB, SQLite | offen |
-| 5 | Admin-System über alle Server | offen, braucht Redis |
+| 3 | Spielserver-Adapter: Status fremder Plugins, Connect- und Queue-API | fertig (0.3.0) |
+| 4 | Speicher: MySQL/MariaDB, SQLite | fertig (0.3.0) |
+| 5 | Admin-System über alle Server | fertig (0.3.0), das meiste ohne Redis |
 | 6 | Veröffentlichen: Maven-Paket, Releases, Doku, Beispiel-Plugin | offen |
 | 7 | Baukasten für Spielmodi (ehemals Game-Engine) | offen |
 
@@ -62,33 +62,34 @@ Grundregeln für alles, was hier entsteht:
 - Zusätzlich die neue VaultUnlocked-API (`net.milkbowl.vault2`, „Economy Modern“) mit allen konfigurierten Währungen, `set`, `canWithdraw` und `canDeposit`. Wird nur registriert, wenn VaultUnlocked installiert ist; mit dem klassischen Vault bleibt es bei der alten API.
 - Live mit einem Test-Plugin geprüft, das wie ein Shop über Vault bucht: Einzahlen, Abbuchen, zu wenig Guthaben, Bruchteile, unbekannte Währung, Setzen, über beide Schnittstellen. Danach stimmten die Stände in PRISMARIN.
 
-## Stufe 3: Spielserver-Adapter
+## Stufe 3: Spielserver-Adapter (fertig)
 
-- Status eines fremden Spiels ohne Code: in der `servers.yml` einen Platzhalter angeben (z. B. Arena-Status eines Bedwars-Plugins), der Navigator zeigt Wartet/Läuft/Voll.
-- Schnittstelle `GameServerState` für eigene Modi, die ihren Zustand selbst melden.
-- Connect- und Queue-API: Spieler in eine Gruppe schicken, freien Server wählen, Party später mitnehmen.
+- Spielzustände `WAITING`, `STARTING`, `RUNNING`, `ENDING`, `RESTARTING`, dazu „voll“, wenn die Spielerzahl das Maximum erreicht.
+- Ein Spielserver meldet seinen Zustand über `prismarin.gameState().state(...)` oder ohne Code über `game-state.placeholder` in seiner `config.yml` (ein PAPI-Platzhalter des Spiel-Plugins) mit einstellbaren Wörtern unter `game-state.mapping`.
+- Der Zustand geht per Heartbeat raus und steht zusätzlich in der Server-List-MOTD des Backends (`game-state.write-motd`). So sehen Lobbys ihn auch ohne Redis. Fremde Server ohne PRISMARIN werden über Wörter wie „Waiting“ oder „Ingame“ in ihrer MOTD erkannt.
+- `servers.yml` kennt jetzt `groups:` mit Anzeigename, Icon und Beschreibung. Der Navigator zeigt pro Gruppe einen Eintrag mit Spielerzahl und freien Servern, ein Klick wählt den besten freien Server (zuerst „startet“, dann der vollste wartende).
+- `prismarin.connector()`: `connect`, `pick(group)`, `connectToGroup`, auf Paper und Velocity. Dazu `/play <gruppe>` und die Platzhalter `server_state_<server>` und `group_joinable_<gruppe>`.
 
-## Stufe 4: Speicher
+## Stufe 4: Speicher (fertig)
 
-- MySQL/MariaDB als dritter Speicher neben JSON und MongoDB, atomare Buchungen per bedingtem `UPDATE`.
-- SQLite für einzelne Server ohne Datenbank.
-- Migration zwischen den Speichern per Befehl.
+- MySQL/MariaDB und SQLite neben JSON und MongoDB, atomare Buchungen in der Datenbank.
+- Allgemeiner Dokumentenspeicher für Strafen, Reports, Audit-Log und Namen, in allen vier Speicherarten.
+- Offen: Migration zwischen den Speichern per Befehl.
 
-## Stufe 5: Admin-System über alle Server
+## Stufe 5: Admin-System (fertig)
 
-Alles hier läuft netzwerkweit und setzt Redis voraus, sonst bleibt es auf einem Server.
+Fast alles läuft im Proxy-Plugin und braucht deshalb kein Redis. Jedes Werkzeug hat einen eigenen Schalter unter `modules`.
 
-- Team-Chat (`/sc`) und Teamliste mit Server und Status.
-- Spieler finden und bewegen: `/find`, `/send`, `/goto`, `/sendgroup`.
-- Strafen: Ban, Mute, Kick, Warn mit Dauer, Grund, Historie und Durchsetzung am Proxy beim Login.
-- Reports mit Kategorie, Warteschlange fürs Team und Benachrichtigung.
-- Ankündigungen an alle, eine Gruppe oder einen Server, als Chat, Titel oder Bossbar, auch zeitgesteuert.
-- Wartung pro Server oder Gruppe statt nur für das ganze Netzwerk, Whitelist für Teammitglieder.
-- Befehl auf einer Gruppe ausführen (`/netexec bedwars say ...`), mit Rechteprüfung.
-- Spielerakte `/pinfo`: Konto, Währungen, Strafen, zuletzt gesehen, aktueller Server.
-- Audit-Log: wer hat wann welche Strafe, Buchung oder Wartung ausgelöst.
-- Warnungen bei Ausfall oder niedriger TPS, im Spiel für das Team und als Discord-Webhook.
-- Netzwerkweites Vanish.
+- Team-Chat `/sc`, Teamliste `/team`, `/find`, `/goto`, `/send <spieler|all|server:x> <server|group:x>`.
+- Strafen: `/ban`, `/mute` (mit Dauer wie `30m`, `12h`, `7d`, `1w`), `/kick`, `/warn`, `/unban`, `/unmute`, `/history`. Bans greifen beim Login am Proxy, Mutes setzt der Spielserver durch, der Proxy meldet sie ihm über den Kanal `prismarin:moderation`. Als API: `prismarin.punishments()` mit Events.
+- Reports: `/report` mit Abklingzeit, `/reports` und `/reports close <id>`, Meldung an das Team und optional an Discord.
+- Ankündigungen: `/alert [-t] [server:x|group:x] Nachricht`, als Chat und auf Wunsch als Titel.
+- Wartung pro Server oder Gruppe: `/maintenance server|group <name> on|off`, Bypass mit `prismarin.maintenance.bypass`.
+- Spielerakte `/pinfo`, Audit-Log `/audit [ziel]`.
+- Warnungen bei Ausfall und niedriger TPS (TPS nur mit Redis) im Spiel und per Discord-Webhook aus `admin.yml`.
+- `/netexec <all|server|group:x> <befehl>` über Redis.
+- Vanish wie SuperVanish: `/vanish`, Sichtbarkeit über `prismarin.vanish.see` und Stufen `prismarin.vanish.level.<n>`, weg aus Tab, Serverliste und Spielerzahlen, kein Aufsammeln, keine Mobs, keine Druckplatten und Sculk-Sensoren, kein Schlafen-Zählen, keine Fortschritts-Meldungen, Zustand bleibt beim Serverwechsel.
+- Offen: lautloses Öffnen von Truhen und das Verbergen von Blockabbau-Effekten im Vanish.
 
 ## Stufe 6: Veröffentlichen
 

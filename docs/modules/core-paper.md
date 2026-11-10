@@ -3,7 +3,7 @@
 ## Anforderungen
 
 - Ein Kern-Plugin auf jedem Paper-Backend: Profile, Economy, Chat-Format, Tablist, Sidebar, Menü-Framework, Serververzeichnis.
-- Library-Host für alle abhängigen Paper-Module: bettet `:api` + `:shared` ein und lädt Guice/Mongo/Lettuce/Configurate über den `libraries:`-Mechanismus der `plugin.yml`.
+- Library-Host für alle abhängigen Paper-Module: bettet `:api` + `:shared` ein und lädt Guice/Mongo/Lettuce/Configurate/HikariCP/MariaDB/SQLite über den `libraries:`-Mechanismus der `plugin.yml`.
 - Kein I/O auf dem Main-Thread; Profil-Laden blockiert ausschließlich den Auth-Thread im PreLogin.
 - LuckPerms optional (`softdepend`): mit LuckPerms kommen Prefix/Weight/Namensfarbe aus dessen Metadaten, ohne greift ein Zwei-Stufen-Fallback (Admin-Permission vs. Default).
 
@@ -49,7 +49,7 @@ net.prismarin.core
 ├── server
 │   └── YamlServerDirectory    servers.yml -> immutable Liste NetworkServer
 ├── storage
-│   └── ProfileStorage         Auswahl JSON vs. Mongo, hält/schließt MongoClient
+│   └── (ProfileStorage liegt seit 0.2.0 in :shared/storage und wählt JSON, SQLite, MySQL oder Mongo)
 ├── tablist
 │   ├── TablistManager         Header/Footer alle 100 Ticks, Team-Sortierung nach Rang-Gewicht
 │   └── TeamSortKeys           "%04d"+Name, 16-Zeichen-Limit

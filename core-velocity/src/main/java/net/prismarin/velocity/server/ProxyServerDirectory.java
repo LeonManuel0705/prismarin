@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
+import net.prismarin.api.server.ServerGroup;
 
 public final class ProxyServerDirectory implements ServerDirectory {
 
@@ -24,6 +25,11 @@ public final class ProxyServerDirectory implements ServerDirectory {
     @Override
     public List<NetworkServer> servers() {
         return proxy.getAllServers().stream().map(this::describe).toList();
+    }
+
+    @Override
+    public List<ServerGroup> groups() {
+        return configured.groups();
     }
 
     @Override

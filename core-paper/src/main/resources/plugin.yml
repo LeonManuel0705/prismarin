@@ -20,6 +20,13 @@ commands:
   network:
     description: Opens the live overview of all network servers.
     aliases: [servers]
+  play:
+    description: Sends you to a free server of a group.
+    permission: prismarin.command.play
+  vanish:
+    description: Makes you invisible to players without permission.
+    aliases: [v]
+    permission: prismarin.vanish.use
 permissions:
   prismarin.command.coins:
     default: true
@@ -30,4 +37,12 @@ permissions:
   prismarin.rank.admin:
     default: op
   prismarin.admin.network:
+    default: op
+  prismarin.command.play:
+    default: true
+  prismarin.vanish.use:
+    default: op
+  prismarin.vanish.others:
+    default: op
+  prismarin.vanish.see:
     default: op

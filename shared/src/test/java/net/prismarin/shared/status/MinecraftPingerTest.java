@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 class MinecraftPingerTest {
 
     private static final String STATUS = "{\"version\":{\"name\":\"Paper 1.21.11\",\"protocol\":774},"
-            + "\"players\":{\"max\":100,\"online\":7},\"description\":{\"text\":\"hi\"}}";
+            + "\"players\":{\"max\":100,\"online\":7},\"description\":{\"text\":\"hi \",\"extra\":[{\"text\":\"there\"}]}}";
 
     @Test
     void readsPlayersVersionAndLatencyFromStatusPing() throws Exception {
@@ -30,6 +30,7 @@ class MinecraftPingerTest {
             assertEquals(100, result.maxPlayers());
             assertEquals("Paper 1.21.11", result.version());
             assertTrue(result.latencyMillis() >= 0);
+            assertEquals("hi there", result.description());
         }
     }
 

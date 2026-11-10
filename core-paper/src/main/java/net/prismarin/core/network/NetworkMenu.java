@@ -18,6 +18,7 @@ import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.api.server.GameState;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.api.server.ServerStatus;
@@ -117,6 +118,10 @@ public final class NetworkMenu {
             lore.add(locale.render("network.server.players", target,
                     Placeholder.unparsed("players", String.valueOf(entry.players())),
                     Placeholder.unparsed("max", String.valueOf(entry.maxPlayers()))));
+            if (entry.state() != GameState.UNKNOWN || entry.full()) {
+                lore.add(locale.render("network.server.state", target,
+                        Placeholder.component("state", GameStateNames.render(locale, entry, target))));
+            }
             lore.add(entry.latencyMillis() >= 0
                     ? locale.render("network.server.ping", target,
                             Placeholder.unparsed("ping", String.valueOf(entry.latencyMillis())))
@@ -154,6 +159,9 @@ public final class NetworkMenu {
     private static Material materialFor(ServerStatus entry) {
         if (!entry.online()) {
             return Material.RED_CONCRETE;
+        }
+        if (!entry.joinable()) {
+            return Material.ORANGE_CONCRETE;
         }
         if (entry.prismarin() && entry.tps() < HEALTHY_TPS) {
             return Material.YELLOW_CONCRETE;

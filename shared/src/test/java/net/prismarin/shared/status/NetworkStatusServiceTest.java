@@ -11,6 +11,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import net.prismarin.api.server.GameState;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.api.server.ServerStatus;
@@ -64,8 +65,8 @@ class NetworkStatusServiceTest {
             }
             return new MinecraftPinger.Result(3, 50, "Paper", 4L);
         });
-        service.publish(new Heartbeat("lobby", 3, 50, 19.5, 12.0, 900, 2048, 3600, "1.21.11", 0L));
-        service.publish(new Heartbeat("BW", 8, 16, 17.0, 40.0, 1200, 4096, 60, "1.21.11", 0L));
+        service.publish(new Heartbeat("lobby", 3, 50, 19.5, 12.0, 900, 2048, 3600, "1.21.11", 0L, null, null));
+        service.publish(new Heartbeat("BW", 8, 16, 17.0, 40.0, 1200, 4096, 60, "1.21.11", 0L, null, null));
         List<ServerStatus> statuses = service.refresh().join();
         assertTrue(statuses.get(0).prismarin());
         assertEquals(19.5, statuses.get(0).tps());
@@ -82,5 +83,22 @@ class NetworkStatusServiceTest {
             throw new IOException("down");
         });
         assertTrue(service.refresh().join().stream().noneMatch(ServerStatus::online));
+    }
+
+    @Test
+    void stateComesFromHeartbeatOrMotd() {
+        NetworkStatusService service = service((host, port, timeout) -> port == 1
+                ? new MinecraftPinger.Result(3, 50, "Paper", 4L, "prismarin:RUNNING:Map Castle")
+                : new MinecraftPinger.Result(8, 8, "Paper", 4L, "Waiting for players"));
+        List<ServerStatus> statuses = service.refresh().join();
+        assertEquals(GameState.RUNNING, statuses.get(0).state());
+        assertEquals("Map Castle", statuses.get(0).stateText());
+        assertFalse(statuses.get(0).joinable());
+        assertEquals(GameState.WAITING, statuses.get(1).state());
+        assertTrue(statuses.get(1).full());
+        assertFalse(statuses.get(1).joinable());
+
+        service.publish(new Heartbeat("bw", 2, 8, 20, 1, 1, 1, 1, "1.21.11", 0L, "STARTING", "10s"));
+        assertEquals(GameState.STARTING, service.refresh().join().get(1).state());
     }
 }

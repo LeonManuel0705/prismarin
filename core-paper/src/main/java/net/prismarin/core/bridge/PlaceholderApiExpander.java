@@ -11,6 +11,9 @@ public final class PlaceholderApiExpander implements PlaceholderExpander {
 
     @Override
     public String expand(UUID viewer, String text) {
+        if (viewer == null) {
+            return PlaceholderAPI.setPlaceholders((OfflinePlayer) null, text);
+        }
         Player online = Bukkit.getPlayer(viewer);
         OfflinePlayer player = online != null ? online : Bukkit.getOfflinePlayer(viewer);
         return PlaceholderAPI.setPlaceholders(player, text);

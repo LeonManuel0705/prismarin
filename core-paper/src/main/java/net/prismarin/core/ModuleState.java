@@ -18,7 +18,8 @@ public final class ModuleState {
     private static final Map<String, String> REQUIRED_SYSTEMS = Map.of(
             CoreModules.ECONOMY_COMMANDS, PrismarinSystems.ECONOMY,
             CoreModules.VAULT, PrismarinSystems.ECONOMY,
-            CoreModules.NETWORK_MENU, PrismarinSystems.NETWORK_STATUS);
+            CoreModules.NETWORK_MENU, PrismarinSystems.NETWORK_STATUS,
+            CoreModules.PLAY_COMMAND, PrismarinSystems.NETWORK_STATUS);
 
     private final Map<String, String> disabled;
 

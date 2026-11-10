@@ -3,9 +3,11 @@ package net.prismarin.lobby.menu;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
@@ -18,21 +20,26 @@ import net.prismarin.api.economy.Currency;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
+import net.prismarin.api.server.ServerGroup;
+import net.prismarin.api.server.ServerStatus;
 import net.prismarin.core.gui.ClickContext;
 import net.prismarin.core.gui.ItemBuilder;
 import net.prismarin.core.gui.Menu;
 import net.prismarin.core.gui.MenuButton;
 import net.prismarin.core.gui.MenuService;
+import net.prismarin.core.locale.PlayerLocales;
+import net.prismarin.core.network.GameStateNames;
 import net.prismarin.lobby.LobbyPlugin;
 import net.prismarin.lobby.item.LobbyItems;
 import net.prismarin.lobby.player.PlayerHiderService;
-import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.lobby.server.ServerConnector;
 import net.prismarin.lobby.util.CurrencyDisplay;
 import net.prismarin.lobby.util.XpProgressBar;
 import net.prismarin.shared.config.CoreConfig;
+import net.prismarin.shared.status.NetworkStatusService;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -61,12 +68,15 @@ public final class LobbyMenus {
     private final CoreConfig config;
     private final Branding branding;
     private final CurrencyDisplay currencies;
+    private final NetworkStatusService status;
+    private final NetworkConnector network;
 
     @Inject
     public LobbyMenus(LobbyPlugin plugin, MenuService menuService, LocaleService locale, ProfileService profiles,
                       ServerDirectory directory, MiniMessage miniMessage, LobbyItems items,
                       PlayerHiderService hider, ServerConnector connector, CoreConfig config,
-                      Branding branding, CurrencyDisplay currencies) {
+                      Branding branding, CurrencyDisplay currencies, NetworkStatusService status,
+                      NetworkConnector network) {
         this.plugin = plugin;
         this.menuService = menuService;
         this.locale = locale;
@@ -79,18 +89,32 @@ public final class LobbyMenus {
         this.config = config;
         this.branding = branding;
         this.currencies = currencies;
+        this.status = status;
+        this.network = network;
     }
 
     public void openNavigator(Player player) {
         Locale playerLocale = PlayerLocales.of(player, profiles);
         Menu menu = new Menu(locale.render("lobby.navigator.title", playerLocale), MENU_ROWS);
         fill(menu);
-        List<NetworkServer> servers = directory.servers();
-        int count = Math.min(servers.size(), 9);
+        List<MenuButton> entries = new ArrayList<>();
+        Set<String> listedGroups = new HashSet<>();
+        for (ServerGroup group : directory.groups()) {
+            if (!directory.byGroup(group.name()).isEmpty()) {
+                listedGroups.add(group.name());
+                entries.add(groupButton(playerLocale, group));
+            }
+        }
+        for (NetworkServer server : directory.servers()) {
+            if (!listedGroups.contains(server.group())) {
+                entries.add(serverButton(playerLocale, server));
+            }
+        }
+        int count = Math.min(entries.size(), 9);
         if (count > 0) {
             List<Integer> slots = MenuLayout.centeredRowSlots(SERVER_ROW, count);
             for (int i = 0; i < count; i++) {
-                menu.button(slots.get(i), serverButton(playerLocale, servers.get(i)));
+                menu.button(slots.get(i), entries.get(i));
             }
         }
         menuService.open(player, menu);
@@ -134,12 +158,17 @@ public final class LobbyMenus {
                 ? locale.render("lobby.navigator.here-name", playerLocale,
                         Placeholder.unparsed("server", capitalize(server.name())))
                 : locale.format(server.displayName());
-        List<Component> lore = List.of(
-                description(server, playerLocale),
-                Component.empty(),
-                here
-                        ? locale.render("lobby.navigator.here", playerLocale)
-                        : locale.render("lobby.navigator.connect", playerLocale));
+        List<Component> lore = new ArrayList<>();
+        lore.add(description(server, playerLocale));
+        status.status(server.name()).filter(ServerStatus::online).ifPresent(entry -> lore.add(
+                locale.render("lobby.navigator.server-status", playerLocale,
+                        Placeholder.component("state", GameStateNames.render(locale, entry, playerLocale)),
+                        Placeholder.unparsed("players", String.valueOf(entry.players())),
+                        Placeholder.unparsed("max", String.valueOf(entry.maxPlayers())))));
+        lore.add(Component.empty());
+        lore.add(here
+                ? locale.render("lobby.navigator.here", playerLocale)
+                : locale.render("lobby.navigator.connect", playerLocale));
         ItemStack icon = ItemBuilder.of(iconFor(server))
                 .name(name)
                 .lore(lore)
@@ -151,6 +180,51 @@ public final class LobbyMenus {
                             PlayerLocales.of(context.player(), profiles))));
         }
         return new MenuButton(icon, context -> connect(context.player(), server));
+    }
+
+    private MenuButton groupButton(Locale playerLocale, ServerGroup group) {
+        List<NetworkServer> servers = directory.byGroup(group.name());
+        int online = 0;
+        int joinable = 0;
+        for (NetworkServer server : servers) {
+            Optional<ServerStatus> entry = status.status(server.name());
+            online += entry.filter(ServerStatus::online).map(ServerStatus::players).orElse(0);
+            joinable += entry.filter(ServerStatus::joinable).isPresent() ? 1 : 0;
+        }
+        List<Component> lore = new ArrayList<>();
+        group.property("description").map(text -> locale.raw(text, playerLocale).equals(text)
+                ? locale.format(text) : locale.render(text, playerLocale)).ifPresent(lore::add);
+        lore.add(locale.render("lobby.navigator.group-lore", playerLocale,
+                Placeholder.unparsed("online", String.valueOf(online)),
+                Placeholder.unparsed("joinable", String.valueOf(joinable))));
+        lore.add(Component.empty());
+        lore.add(locale.render(joinable > 0 ? "lobby.navigator.group-click" : "lobby.navigator.group-none",
+                playerLocale));
+        Material material = group.property("icon").map(Material::matchMaterial).filter(Material::isItem)
+                .orElse(Material.ENDER_PEARL);
+        ItemStack icon = ItemBuilder.of(material)
+                .name(locale.format(group.displayName()))
+                .lore(lore)
+                .glow(joinable > 0)
+                .build();
+        return new MenuButton(icon, context -> playGroup(context.player(), group));
+    }
+
+    private void playGroup(Player player, ServerGroup group) {
+        Locale playerLocale = PlayerLocales.of(player, profiles);
+        closeLater(player);
+        network.connectToGroup(player.getUniqueId(), group.name()).thenAccept(result -> plugin.getServer()
+                .getScheduler().runTask(plugin, () -> {
+                    if (result.isEmpty()) {
+                        player.sendMessage(locale.render("play.no-server", playerLocale,
+                                Placeholder.unparsed("group", group.name())));
+                        return;
+                    }
+                    player.sendMessage(locale.render("lobby.navigator.connecting", playerLocale,
+                            Placeholder.component("server", locale.format(result.get().displayName()))));
+                    player.playSound(Sound.sound(Key.key("entity.enderman.teleport"), Sound.Source.MASTER, 0.7f,
+                            1.2f), Sound.Emitter.self());
+                }));
     }
 
     private void connect(Player player, NetworkServer server) {

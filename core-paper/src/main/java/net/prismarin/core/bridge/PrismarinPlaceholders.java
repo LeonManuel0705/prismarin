@@ -54,6 +54,22 @@ public final class PrismarinPlaceholders {
             return status(key.substring("server_status_".length()))
                     .map(status -> status.online() ? "online" : "offline").orElse(null);
         }
+        if (key.startsWith("server_state_")) {
+            return status(key.substring("server_state_".length()))
+                    .map(status -> !status.online() ? "offline"
+                            : status.full() && status.state().joinable() ? "full"
+                            : status.state().name().toLowerCase(Locale.ROOT))
+                    .orElse(null);
+        }
+        if (key.startsWith("group_joinable_")) {
+            String group = key.substring("group_joinable_".length());
+            return String.valueOf(prismarin.servers().byGroup(group).stream()
+                    .map(NetworkServer::name)
+                    .map(this::status)
+                    .flatMap(Optional::stream)
+                    .filter(ServerStatus::joinable)
+                    .count());
+        }
         if (key.startsWith("server_ping_")) {
             return status(key.substring("server_ping_".length()))
                     .map(status -> String.valueOf(Math.max(0L, status.latencyMillis()))).orElse(null);

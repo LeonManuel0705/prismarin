@@ -1,7 +1,9 @@
 package net.prismarin.shared.platform;
 
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import net.prismarin.api.Prismarin;
@@ -10,9 +12,14 @@ import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.event.EventBus;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.messaging.MessageBus;
+import net.prismarin.api.moderation.PunishmentService;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.api.server.GameStateService;
+import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.api.server.ServerStatusService;
+import net.prismarin.shared.admin.AuditLog;
+import net.prismarin.shared.admin.ReportService;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.economy.DisabledEconomyService;
 import net.prismarin.shared.economy.EconomyServiceImpl;
@@ -20,7 +27,9 @@ import net.prismarin.shared.event.SimpleEventBus;
 import net.prismarin.shared.locale.BrandingTags;
 import net.prismarin.shared.locale.YamlLocaleService;
 import net.prismarin.shared.messaging.MessageBusFactory;
+import net.prismarin.shared.moderation.DocumentPunishmentService;
 import net.prismarin.shared.profile.ProfileServiceImpl;
+import net.prismarin.shared.storage.DocumentStore;
 import net.prismarin.shared.storage.ProfileRepository;
 import net.prismarin.shared.storage.ProfileStorage;
 import net.prismarin.shared.text.TextFormatter;
@@ -32,9 +41,12 @@ public final class CoreServices implements AutoCloseable {
     private final EventBus events;
     private final TextFormatter formatter;
     private final LocaleService locale;
-    private final ProfileService profiles;
+    private final ProfileServiceImpl profiles;
     private final EconomyService economy;
     private final MessageBus messageBus;
+    private final PunishmentService punishments;
+    private final ReportService reports;
+    private final AuditLog audit;
 
     private CoreServices(CoreConfig config, Path dataDirectory, ExecutorService executor) {
         this.config = config;
@@ -43,20 +55,25 @@ public final class CoreServices implements AutoCloseable {
         this.formatter = BrandingTags.formatter(config.branding());
         this.locale = new YamlLocaleService(dataDirectory, config.defaultLocale(), formatter);
         ProfileRepository repository = storage.repository();
-        this.profiles = new ProfileServiceImpl(repository, config.defaultLocale(), executor, events);
+        DocumentStore documents = storage.documents();
+        this.profiles = new ProfileServiceImpl(repository, config.defaultLocale(), executor, events, documents);
         this.economy = config.systemEnabled(PrismarinSystems.ECONOMY)
                 ? new EconomyServiceImpl(repository, executor, config.currencies(), config.primaryCurrency(), events)
                 : new DisabledEconomyService();
         this.messageBus = MessageBusFactory.create(config);
+        this.punishments = new DocumentPunishmentService(documents, executor, events, Clock.systemUTC());
+        this.reports = new ReportService(documents, executor, Clock.systemUTC());
+        this.audit = new AuditLog(documents, executor, Clock.systemUTC());
     }
 
     public static CoreServices start(CoreConfig config, Path dataDirectory, ExecutorService executor) {
         return new CoreServices(config, dataDirectory, executor);
     }
 
-    public Prismarin prismarin(ServerDirectory servers, ServerStatusService serverStatus) {
+    public Prismarin prismarin(ServerDirectory servers, ServerStatusService serverStatus, GameStateService gameState,
+                               NetworkConnector connector) {
         return new SimplePrismarin(config.serverId(), config.branding(), profiles, economy, locale, messageBus,
-                servers, serverStatus, events, enabledSystems());
+                servers, serverStatus, gameState, connector, punishments, events, enabledSystems());
     }
 
     public Set<String> enabledSystems() {
@@ -93,6 +110,26 @@ public final class CoreServices implements AutoCloseable {
 
     public MessageBus messageBus() {
         return messageBus;
+    }
+
+    public PunishmentService punishments() {
+        return punishments;
+    }
+
+    public ReportService reports() {
+        return reports;
+    }
+
+    public AuditLog audit() {
+        return audit;
+    }
+
+    public DocumentStore documents() {
+        return storage.documents();
+    }
+
+    public void rememberName(UUID uuid, String name) {
+        profiles.rememberName(uuid, name);
     }
 
     @Override

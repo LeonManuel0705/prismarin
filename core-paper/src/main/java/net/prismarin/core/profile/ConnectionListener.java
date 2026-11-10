@@ -26,6 +26,7 @@ import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.scoreboard.PlayerBoards;
 import net.prismarin.core.scoreboard.SidebarManager;
 import net.prismarin.core.tablist.TablistManager;
+import net.prismarin.core.vanish.VanishService;
 import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -50,11 +51,13 @@ public final class ConnectionListener implements Listener {
     private final PlayerBoards boards;
     private final PermissionSnapshots snapshots;
     private final ModuleState modules;
+    private final VanishService vanish;
 
     @Inject
     public ConnectionListener(PrismarinCorePlugin plugin, ProfileService profiles, LocaleService locale,
                               CoreConfig config, SidebarManager sidebar, TablistManager tablist,
-                              PlayerBoards boards, PermissionSnapshots snapshots, ModuleState modules) {
+                              PlayerBoards boards, PermissionSnapshots snapshots, ModuleState modules,
+                              VanishService vanish) {
         this.plugin = plugin;
         this.profiles = profiles;
         this.locale = locale;
@@ -64,6 +67,7 @@ public final class ConnectionListener implements Listener {
         this.boards = boards;
         this.snapshots = snapshots;
         this.modules = modules;
+        this.vanish = vanish;
     }
 
     @EventHandler
@@ -112,9 +116,12 @@ public final class ConnectionListener implements Listener {
         Player player = event.getPlayer();
         snapshots.refresh(player);
         if (modules.enabled(CoreModules.JOIN_MESSAGES)) {
-            String key = player.hasPlayedBefore() ? "join.message" : "join.first-message";
             event.joinMessage(null);
-            broadcast(key, player.getName(), null);
+            if (!vanish.vanished(player)) {
+                broadcast(player.hasPlayedBefore() ? "join.message" : "join.first-message", player.getName(), null);
+            }
+        } else if (vanish.vanished(player)) {
+            event.joinMessage(null);
         }
         if (modules.enabled(CoreModules.TABLIST)) {
             tablist.handleJoin(player);
@@ -139,7 +146,11 @@ public final class ConnectionListener implements Listener {
         Player player = event.getPlayer();
         if (modules.enabled(CoreModules.JOIN_MESSAGES)) {
             event.quitMessage(null);
-            broadcast("quit.message", player.getName(), player.getUniqueId());
+            if (!vanish.vanished(player)) {
+                broadcast("quit.message", player.getName(), player.getUniqueId());
+            }
+        } else if (vanish.vanished(player)) {
+            event.quitMessage(null);
         }
         sidebar.handleQuit(player);
         if (modules.enabled(CoreModules.TABLIST)) {

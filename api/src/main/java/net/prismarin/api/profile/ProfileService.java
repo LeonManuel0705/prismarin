@@ -11,6 +11,10 @@ public interface ProfileService {
 
     Optional<PlayerProfile> getCached(UUID uuid);
 
+    CompletableFuture<Optional<PlayerProfile>> find(UUID uuid);
+
+    CompletableFuture<Optional<UUID>> lookup(String name);
+
     CompletableFuture<Void> save(PlayerProfile profile);
 
     CompletableFuture<Void> unload(UUID uuid);

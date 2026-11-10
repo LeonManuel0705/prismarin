@@ -14,6 +14,7 @@ import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.rank.RankFormatProvider;
 import net.prismarin.core.scoreboard.AnimatedTitle;
 import net.prismarin.core.scoreboard.PlayerBoards;
+import net.prismarin.core.vanish.VanishService;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.Scoreboard;
@@ -30,19 +31,21 @@ public final class TablistManager {
     private final LocaleService locale;
     private final PermissionSnapshots snapshots;
     private final ProfileService profiles;
+    private final VanishService vanish;
     private final AnimatedTitle title;
     private BukkitTask task;
 
     @Inject
     public TablistManager(PrismarinCorePlugin plugin, PlayerBoards boards, RankFormatProvider ranks,
                           LocaleService locale, PermissionSnapshots snapshots, MiniMessage miniMessage,
-                          Branding branding, ProfileService profiles) {
+                          Branding branding, ProfileService profiles, VanishService vanish) {
         this.plugin = plugin;
         this.boards = boards;
         this.ranks = ranks;
         this.locale = locale;
         this.snapshots = snapshots;
         this.profiles = profiles;
+        this.vanish = vanish;
         this.title = AnimatedTitle.brand(miniMessage, branding);
     }
 
@@ -73,8 +76,8 @@ public final class TablistManager {
 
     public void refreshAll() {
         Component frame = title.next();
-        String online = String.valueOf(plugin.getServer().getOnlinePlayers().size());
         for (Player viewer : plugin.getServer().getOnlinePlayers()) {
+            String online = String.valueOf(vanish.visibleCount(viewer));
             snapshots.refresh(viewer);
             viewer.sendPlayerListHeaderAndFooter(
                     locale.render("tablist.header", PlayerLocales.of(viewer, profiles), viewer.getUniqueId(),

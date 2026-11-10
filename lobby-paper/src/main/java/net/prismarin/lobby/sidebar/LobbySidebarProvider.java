@@ -15,11 +15,12 @@ import net.prismarin.api.economy.Currency;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.core.rank.RankFormatProvider;
 import net.prismarin.core.scoreboard.AnimatedTitle;
 import net.prismarin.core.scoreboard.SidebarProvider;
+import net.prismarin.core.vanish.VanishService;
 import net.prismarin.lobby.LobbyPlugin;
-import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.lobby.util.CurrencyDisplay;
 import net.prismarin.lobby.util.XpProgressBar;
 import net.prismarin.shared.config.CoreConfig;
@@ -41,11 +42,12 @@ public final class LobbySidebarProvider implements SidebarProvider {
     private final String barColor;
     private final CurrencyDisplay currencies;
     private final boolean levels;
+    private final VanishService vanish;
 
     @Inject
     public LobbySidebarProvider(LobbyPlugin plugin, LocaleService locale, ProfileService profiles,
                                 RankFormatProvider ranks, MiniMessage miniMessage, Branding branding,
-                                CurrencyDisplay currencies, CoreConfig config) {
+                                CurrencyDisplay currencies, CoreConfig config, VanishService vanish) {
         this.plugin = plugin;
         this.locale = locale;
         this.profiles = profiles;
@@ -55,6 +57,7 @@ public final class LobbySidebarProvider implements SidebarProvider {
         this.barColor = branding.primaryColor();
         this.currencies = currencies;
         this.levels = config.systemEnabled(PrismarinSystems.LEVELS);
+        this.vanish = vanish;
     }
 
     @Override
@@ -94,7 +97,7 @@ public final class LobbySidebarProvider implements SidebarProvider {
         }
         lines.add(Component.empty());
         lines.add(locale.render("lobby.sidebar.online", playerLocale, player.getUniqueId(),
-                Placeholder.unparsed("online", String.valueOf(plugin.getServer().getOnlinePlayers().size()))));
+                Placeholder.unparsed("online", String.valueOf(vanish.visibleCount(player)))));
         lines.add(Component.empty());
         lines.add(locale.render("lobby.sidebar.footer", playerLocale, player.getUniqueId()));
         return lines;

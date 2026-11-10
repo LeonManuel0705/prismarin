@@ -14,6 +14,7 @@ import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileLoadedEvent;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.api.profile.ProfileUnloadedEvent;
+import net.prismarin.shared.storage.DocumentStore;
 import net.prismarin.shared.storage.ProfileRepository;
 
 public final class ProfileServiceImpl implements ProfileService {
@@ -22,11 +23,18 @@ public final class ProfileServiceImpl implements ProfileService {
     private final String defaultLocale;
     private final ExecutorService executor;
     private final EventBus events;
+    private final PlayerNames names;
     private final ConcurrentHashMap<UUID, PlayerProfile> cache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, CompletableFuture<Void>> chains = new ConcurrentHashMap<>();
 
     public ProfileServiceImpl(ProfileRepository repository, String defaultLocale, ExecutorService executor,
                               EventBus events) {
+        this(repository, defaultLocale, executor, events, null);
+    }
+
+    public ProfileServiceImpl(ProfileRepository repository, String defaultLocale, ExecutorService executor,
+                              EventBus events, DocumentStore documents) {
+        this.names = documents == null ? null : new PlayerNames(documents);
         this.repository = repository;
         this.defaultLocale = defaultLocale;
         this.executor = executor;
@@ -48,6 +56,9 @@ public final class ProfileServiceImpl implements ProfileService {
                 profile.setLastSeen(Instant.now());
             }
             cache.put(uuid, profile);
+            if (names != null) {
+                names.remember(uuid, name);
+            }
             events.publish(new ProfileLoadedEvent(profile, created));
             return profile;
         });
@@ -56,6 +67,33 @@ public final class ProfileServiceImpl implements ProfileService {
     @Override
     public Optional<PlayerProfile> getCached(UUID uuid) {
         return Optional.ofNullable(cache.get(uuid));
+    }
+
+    @Override
+    public CompletableFuture<Optional<PlayerProfile>> find(UUID uuid) {
+        PlayerProfile cached = cache.get(uuid);
+        if (cached != null) {
+            return CompletableFuture.completedFuture(Optional.of(cached));
+        }
+        return CompletableFuture.supplyAsync(() -> repository.find(uuid), executor);
+    }
+
+    @Override
+    public CompletableFuture<Optional<UUID>> lookup(String name) {
+        Optional<UUID> online = cache.values().stream()
+                .filter(profile -> profile.getName().equalsIgnoreCase(name))
+                .map(PlayerProfile::getUuid)
+                .findFirst();
+        if (online.isPresent() || names == null) {
+            return CompletableFuture.completedFuture(online);
+        }
+        return CompletableFuture.supplyAsync(() -> names.lookup(name), executor);
+    }
+
+    public void rememberName(UUID uuid, String name) {
+        if (names != null) {
+            executor.execute(() -> names.remember(uuid, name));
+        }
     }
 
     @Override

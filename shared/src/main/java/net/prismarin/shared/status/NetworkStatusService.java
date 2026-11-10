@@ -15,6 +15,7 @@ import java.util.concurrent.Executor;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.prismarin.api.messaging.MessageBus;
+import net.prismarin.api.server.GameState;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.api.server.ServerStatus;
@@ -101,18 +102,39 @@ public final class NetworkStatusService implements ServerStatusService {
         Optional<Heartbeat> heartbeat = freshHeartbeat(server, now);
         try {
             MinecraftPinger.Result result = pinger.ping(server.host(), server.port(), PING_TIMEOUT);
+            GameStateParser.Parsed fromMotd = GameStateParser.parseMotd(result.description());
             return heartbeat
-                    .map(beat -> new ServerStatus(server.name(), true, result.players(), result.maxPlayers(),
-                            result.latencyMillis(), result.version(), true, beat.tps(), beat.mspt(),
-                            beat.usedMemoryMb(), beat.maxMemoryMb(), beat.uptimeSeconds(), now))
+                    .map(beat -> {
+                        GameStateParser.Parsed state = stateOf(beat, fromMotd);
+                        return new ServerStatus(server.name(), true, result.players(), result.maxPlayers(),
+                                result.latencyMillis(), result.version(), true, beat.tps(), beat.mspt(),
+                                beat.usedMemoryMb(), beat.maxMemoryMb(), beat.uptimeSeconds(), now, state.state(),
+                                state.text());
+                    })
                     .orElseGet(() -> new ServerStatus(server.name(), true, result.players(), result.maxPlayers(),
-                            result.latencyMillis(), result.version(), false, 0D, 0D, 0L, 0L, 0L, now));
+                            result.latencyMillis(), result.version(), false, 0D, 0D, 0L, 0L, 0L, now,
+                            fromMotd.state(), fromMotd.text()));
         } catch (Exception e) {
             return heartbeat
-                    .map(beat -> new ServerStatus(server.name(), true, beat.players(), beat.maxPlayers(), -1L,
-                            beat.version(), true, beat.tps(), beat.mspt(), beat.usedMemoryMb(), beat.maxMemoryMb(),
-                            beat.uptimeSeconds(), now))
+                    .map(beat -> {
+                        GameStateParser.Parsed state = stateOf(beat, new GameStateParser.Parsed(GameState.UNKNOWN, ""));
+                        return new ServerStatus(server.name(), true, beat.players(), beat.maxPlayers(), -1L,
+                                beat.version(), true, beat.tps(), beat.mspt(), beat.usedMemoryMb(),
+                                beat.maxMemoryMb(), beat.uptimeSeconds(), now, state.state(), state.text());
+                    })
                     .orElseGet(() -> ServerStatus.offline(server.name(), now));
+        }
+    }
+
+    private static GameStateParser.Parsed stateOf(Heartbeat beat, GameStateParser.Parsed fallback) {
+        if (beat.state() == null) {
+            return fallback;
+        }
+        try {
+            GameState state = GameState.valueOf(beat.state());
+            return state == GameState.UNKNOWN ? fallback : new GameStateParser.Parsed(state, beat.stateText());
+        } catch (IllegalArgumentException e) {
+            return fallback;
         }
     }
 

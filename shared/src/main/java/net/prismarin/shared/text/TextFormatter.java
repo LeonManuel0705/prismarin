@@ -41,6 +41,10 @@ public final class TextFormatter {
         return LegacyColors.toMiniMessage(expanded);
     }
 
+    public String expandExternal(UUID viewer, String text) {
+        return text.indexOf('%') >= 0 ? expander.expand(viewer, text) : text;
+    }
+
     public void expander(PlaceholderExpander expander) {
         this.expander = expander == null ? PlaceholderExpander.NONE : expander;
     }

@@ -63,6 +63,10 @@ lobby:
       hidden: "<gray>● Players hidden</gray> <dark_gray>› Right click</dark_gray>"
       lore: "<gray>Hides every other player.</gray>"
   navigator:
+    group-lore: "<gray>%online% players</gray> <dark_gray>·</dark_gray> <color:#2DD4BF>%joinable%</color> <gray>free servers</gray>"
+    group-click: "<color:#22D3EE>Click to play</color>"
+    group-none: "<red>No free server right now</red>"
+    server-status: "%state% <dark_gray>·</dark_gray> <gray>%players%/%max% players</gray>"
     title: "<gradient:#22D3EE:#2DD4BF><b>Navigator</b></gradient>"
     here-name: "<gray>%server%</gray>"
     here: "<gray>● You are here.</gray>"
@@ -118,6 +122,7 @@ network:
     summary: "<white>%players%</white> <gray>players on</gray> <color:#2DD4BF>%online%</color><gray>/%total% servers</gray>"
     refresh: "<color:#22D3EE>Refresh</color>"
   server:
+    state: "<gray>State:</gray> %state%"
     group: "<gray>Group:</gray> <white>%group%</white>"
     offline: "<red>● Offline</red>"
     players: "<gray>Players:</gray> <white>%players%</white><dark_gray>/</dark_gray><gray>%max%</gray>"
@@ -130,3 +135,24 @@ network:
     no-metrics: "<dark_gray>No PRISMARIN: ping data only</dark_gray>"
     here: "<color:#2DD4BF>● You are here</color>"
     connect: "<color:#22D3EE>Click to connect</color>"
+game-state:
+  unknown: "<gray>Unknown</gray>"
+  waiting: "<color:#2DD4BF>Waiting</color>"
+  starting: "<color:#22D3EE>Starting</color>"
+  running: "<color:#FBBF24>Running</color>"
+  ending: "<gray>Ending</gray>"
+  restarting: "<dark_gray>Restarting</dark_gray>"
+  full: "<red>Full</red>"
+play:
+  usage: "%brand_prefix%Usage: <color:#22D3EE>/play group</color></gray>"
+  unknown-group: "%brand_prefix%✖ There is no group called <color:#22D3EE>%group%</color>.</gray>"
+  no-server: "%brand_prefix%✖ No server in <color:#22D3EE>%group%</color> is free right now.</gray>"
+  connecting: "%brand_prefix%Connecting to %server%<gray> ...</gray>"
+vanish:
+  reminder: "<color:#2DD4BF>● You are vanished</color>"
+  enabled: "%brand_prefix%✔ You are now <color:#2DD4BF>vanished</color>.</gray>"
+  disabled: "%brand_prefix%✔ You are <color:#22D3EE>visible</color> again.</gray>"
+  enabled-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> is now vanished.</gray>"
+  disabled-other: "%brand_prefix%✔ <color:#22D3EE>%player%</color> is visible again.</gray>"
+moderation:
+  muted: "%brand_prefix%✖ You are muted. Reason: <white>%reason%</white><gray>, remaining</gray> <white>%remaining%</white><gray>.</gray>"

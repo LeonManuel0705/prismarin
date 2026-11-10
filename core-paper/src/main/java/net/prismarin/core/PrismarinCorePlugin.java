@@ -17,13 +17,20 @@ import net.prismarin.core.chat.AsyncChatListener;
 import net.prismarin.core.command.CoinsCommand;
 import net.prismarin.core.command.EconomyCommand;
 import net.prismarin.core.gui.MenuService;
+import net.prismarin.core.moderation.ModerationChannel;
+import net.prismarin.core.moderation.MuteListener;
+import net.prismarin.core.moderation.NetExecListener;
+import net.prismarin.core.network.GameStateMotdListener;
 import net.prismarin.core.network.HeartbeatTask;
 import net.prismarin.core.network.NetworkCommand;
 import net.prismarin.core.network.NetworkMenu;
+import net.prismarin.core.network.PlayCommand;
 import net.prismarin.core.profile.ConnectionListener;
 import net.prismarin.core.scoreboard.SidebarManager;
 import net.prismarin.core.tablist.TablistManager;
 import net.prismarin.core.task.PeriodicSaveTask;
+import net.prismarin.core.vanish.VanishCommand;
+import net.prismarin.core.vanish.VanishListener;
 import net.prismarin.shared.config.ConfigLoader;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.platform.CoreServices;
@@ -49,6 +56,7 @@ public final class PrismarinCorePlugin extends JavaPlugin {
     private BukkitTask heartbeatTask;
     private BukkitTask statusTask;
     private PlaceholderBridge placeholderBridge;
+    private VanishListener vanishListener;
 
     @Override
     public void onLoad() {
@@ -90,7 +98,30 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         } else {
             removeCommand("network");
         }
+        getServer().getMessenger().registerOutgoingPluginChannel(this, ModerationChannel.ID);
+        getServer().getMessenger().registerIncomingPluginChannel(this, ModerationChannel.ID,
+                injector.getInstance(ModerationChannel.class));
+        if (modules.enabled(CoreModules.MUTE_ENFORCEMENT)) {
+            pluginManager.registerEvents(injector.getInstance(MuteListener.class), this);
+        }
+        if (modules.enabled(CoreModules.VANISH)) {
+            vanishListener = injector.getInstance(VanishListener.class);
+            pluginManager.registerEvents(vanishListener, this);
+            vanishListener.start();
+            registerCommand("vanish", injector.getInstance(VanishCommand.class));
+        } else {
+            removeCommand("vanish");
+        }
+        if (modules.enabled(CoreModules.NETEXEC) && config.redisEnabled()) {
+            injector.getInstance(NetExecListener.class).subscribe(services.messageBus());
+        }
+        if (modules.enabled(CoreModules.PLAY_COMMAND)) {
+            registerCommand("play", injector.getInstance(PlayCommand.class));
+        } else {
+            removeCommand("play");
+        }
         if (config.systemEnabled(PrismarinSystems.NETWORK_STATUS)) {
+            pluginManager.registerEvents(injector.getInstance(GameStateMotdListener.class), this);
             NetworkStatusService status = injector.getInstance(NetworkStatusService.class);
             heartbeatTask = getServer().getScheduler()
                     .runTaskTimer(this, injector.getInstance(HeartbeatTask.class), 20L, HEARTBEAT_INTERVAL_TICKS);
@@ -141,6 +172,10 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         }
         heartbeatTask = null;
         statusTask = null;
+        if (vanishListener != null) {
+            vanishListener.stop();
+            vanishListener = null;
+        }
         getServer().getMessenger().unregisterOutgoingPluginChannel(this);
         if (saveTask != null) {
             saveTask.cancel();

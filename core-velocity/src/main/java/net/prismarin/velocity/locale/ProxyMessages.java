@@ -25,6 +25,10 @@ public final class ProxyMessages {
         source.sendMessage(render(source, key, resolvers));
     }
 
+    public LocaleService locale() {
+        return locale;
+    }
+
     public Locale localeOf(CommandSource source) {
         if (source instanceof Player player) {
             Locale effective = player.getEffectiveLocale();

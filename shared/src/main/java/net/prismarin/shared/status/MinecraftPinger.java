@@ -1,5 +1,6 @@
 package net.prismarin.shared.status;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import java.io.ByteArrayOutputStream;
@@ -22,7 +23,11 @@ public final class MinecraftPinger {
         throw new AssertionError();
     }
 
-    public record Result(int players, int maxPlayers, String version, long latencyMillis) {
+    public record Result(int players, int maxPlayers, String version, long latencyMillis, String description) {
+
+        public Result(int players, int maxPlayers, String version, long latencyMillis) {
+            this(players, maxPlayers, version, latencyMillis, "");
+        }
     }
 
     public static Result ping(String host, int port, Duration timeout) throws IOException {
@@ -76,7 +81,28 @@ public final class MinecraftPinger {
                 players.has("online") ? players.get("online").getAsInt() : 0,
                 players.has("max") ? players.get("max").getAsInt() : 0,
                 version.has("name") ? version.get("name").getAsString() : "",
-                latency);
+                latency,
+                root.has("description") ? plain(root.get("description")) : "");
+    }
+
+    static String plain(JsonElement element) {
+        if (element == null || element.isJsonNull()) {
+            return "";
+        }
+        if (element.isJsonPrimitive()) {
+            return element.getAsString();
+        }
+        if (element.isJsonArray()) {
+            StringBuilder text = new StringBuilder();
+            element.getAsJsonArray().forEach(child -> text.append(plain(child)));
+            return text.toString();
+        }
+        JsonObject object = element.getAsJsonObject();
+        StringBuilder text = new StringBuilder(object.has("text") ? plain(object.get("text")) : "");
+        if (object.has("extra")) {
+            text.append(plain(object.get("extra")));
+        }
+        return text.toString();
     }
 
     private static void writePacket(OutputStream out, byte[] body) throws IOException {

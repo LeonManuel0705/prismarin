@@ -57,4 +57,22 @@ class YamlServerDirectoryTest {
     void missingFileWithoutBundledDefaultsIsEmpty() {
         assertTrue(new YamlServerDirectory(directory.resolve("none.yml")).servers().isEmpty());
     }
+
+    @Test
+    void readsGroupDefinitions() throws IOException {
+        Path file = directory.resolve("servers.yml");
+        Files.writeString(file, """
+                groups:
+                  bedwars:
+                    display-name: "&cBedwars"
+                    icon: RED_BED
+                servers:
+                  bw-1:
+                    group: bedwars
+                """);
+        YamlServerDirectory servers = new YamlServerDirectory(file);
+        assertEquals(1, servers.groups().size());
+        assertEquals("&cBedwars", servers.group("BEDWARS").orElseThrow().displayName());
+        assertEquals(Optional.of("RED_BED"), servers.groups().getFirst().property("icon"));
+    }
 }
