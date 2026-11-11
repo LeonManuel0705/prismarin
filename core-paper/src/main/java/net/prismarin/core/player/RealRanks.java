@@ -6,8 +6,10 @@ import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.player.RankDisplay;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.PrismarinCorePlugin;
+import net.prismarin.core.config.RankDisplaySettings;
 import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.rank.DefaultRankFormatProvider;
+import net.prismarin.core.rank.RankDisplayProvider;
 import net.prismarin.core.rank.RankFormatProvider;
 import net.prismarin.shared.platform.CoreServices;
 import org.bukkit.entity.Player;
@@ -19,11 +21,12 @@ public final class RealRanks {
 
     @Inject
     public RealRanks(PrismarinCorePlugin plugin, LocaleService locale, CoreServices services,
-                     PermissionSnapshots snapshots, ProfileService profiles) {
+                     PermissionSnapshots snapshots, ProfileService profiles, RankDisplaySettings display) {
         DefaultRankFormatProvider fallback = new DefaultRankFormatProvider(locale, snapshots, profiles);
-        this.real = plugin.getServer().getPluginManager().getPlugin("LuckPerms") != null
+        RankFormatProvider group = plugin.getServer().getPluginManager().getPlugin("LuckPerms") != null
                 ? new LuckPermsGroupRank(services.formatter(), fallback)
                 : fallback;
+        this.real = new RankDisplayProvider(group, display, services.formatter());
     }
 
     public RankDisplay display(Player player) {
@@ -31,7 +34,7 @@ public final class RealRanks {
     }
 
     public static RankDisplay display(RankFormatProvider provider, Player player) {
-        return RankDisplays.of(provider.prefix(player), provider.suffix(player), provider.nameColor(player),
-                provider.chatColor(player), provider.weight(player));
+        return RankDisplays.of(provider.label(player), provider.prefix(player), provider.suffix(player),
+                provider.nameColor(player), provider.chatColor(player), provider.weight(player));
     }
 }

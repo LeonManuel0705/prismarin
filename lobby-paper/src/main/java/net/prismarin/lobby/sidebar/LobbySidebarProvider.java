@@ -73,7 +73,7 @@ public final class LobbySidebarProvider implements SidebarProvider {
         lines.add(Component.empty());
         lines.add(locale.render("lobby.sidebar.rank-label", playerLocale, player.getUniqueId()));
         lines.add(locale.render("lobby.sidebar.rank", playerLocale, player.getUniqueId(),
-                Placeholder.component("rank", ranks.ownPrefix(player))));
+                Placeholder.component("rank", ranks.ownLabel(player))));
         List<Currency> shown = currencies.shown();
         if (!shown.isEmpty()) {
             lines.add(Component.empty());

@@ -13,7 +13,12 @@ public final class RankDisplays {
 
     public static RankDisplay of(Component prefix, Component suffix, TextColor nameColor, TextColor chatColor,
                                  int weight) {
-        return new RankDisplay(label(prefix), prefix, suffix, nameColor, chatColor, weight);
+        return of(prefix, prefix, suffix, nameColor, chatColor, weight);
+    }
+
+    public static RankDisplay of(Component label, Component prefix, Component suffix, TextColor nameColor,
+                                 TextColor chatColor, int weight) {
+        return new RankDisplay(label(label), prefix, suffix, nameColor, chatColor, weight);
     }
 
     public static String label(Component prefix) {

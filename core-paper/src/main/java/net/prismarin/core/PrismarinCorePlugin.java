@@ -27,6 +27,7 @@ import net.prismarin.core.command.BalanceCommand;
 import net.prismarin.core.command.EconomyCommand;
 import net.prismarin.core.command.LevelCommand;
 import net.prismarin.core.config.CoreConfigComments;
+import net.prismarin.core.config.RankDisplaySettings;
 import net.prismarin.core.essentials.EssentialsCommands;
 import net.prismarin.core.gui.MenuService;
 import net.prismarin.core.moderation.ModerationChannel;
@@ -227,6 +228,7 @@ public final class PrismarinCorePlugin extends JavaPlugin {
                     getPluginMeta().getVersion());
             getLogger().info("Registered PlaceholderAPI expansion %prismarin_...%");
         }
+        injector.getInstance(RankDisplaySettings.class);
         CoreConfigComments.apply(getDataFolder().toPath().resolve("config.yml"));
         getLogger().info("Enabled as '" + config.serverId() + "' with systems " + prismarin.enabledSystems().stream()
                 .sorted().toList() + " and modules " + modules.enabledModules());

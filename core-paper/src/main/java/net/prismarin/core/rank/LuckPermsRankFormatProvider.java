@@ -18,11 +18,31 @@ public final class LuckPermsRankFormatProvider implements RankFormatProvider {
 
     private final TextFormatter formatter;
     private final RankFormatProvider fallback;
+    private final String labelMeta;
     private final Map<String, Component> prefixCache = new ConcurrentHashMap<>();
 
     public LuckPermsRankFormatProvider(TextFormatter formatter, RankFormatProvider fallback) {
+        this(formatter, fallback, "");
+    }
+
+    public LuckPermsRankFormatProvider(TextFormatter formatter, RankFormatProvider fallback, String labelMeta) {
         this.formatter = formatter;
         this.fallback = fallback;
+        this.labelMeta = labelMeta == null ? "" : labelMeta;
+    }
+
+    @Override
+    public Component label(Player player) {
+        if (!labelMeta.isBlank()) {
+            String label = metaData(player).getMetaValue(labelMeta);
+            if (label != null && !label.isBlank()) {
+                Component rendered = format(label);
+                if (PrefixStyle.visible(rendered)) {
+                    return rendered;
+                }
+            }
+        }
+        return prefix(player);
     }
 
     @Override

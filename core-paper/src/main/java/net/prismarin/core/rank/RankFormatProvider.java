@@ -17,6 +17,14 @@ public interface RankFormatProvider {
         return prefix(player);
     }
 
+    default Component label(Player player) {
+        return prefix(player);
+    }
+
+    default Component ownLabel(Player player) {
+        return label(player);
+    }
+
     default Component suffix(Player player) {
         return Component.empty();
     }

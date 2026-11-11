@@ -45,6 +45,16 @@ public final class ExternalRankFormatProvider implements RankFormatProvider {
     }
 
     @Override
+    public Component label(Player player) {
+        return external(player).map(RankDisplay::prefix).orElseGet(() -> fallback.label(player));
+    }
+
+    @Override
+    public Component ownLabel(Player player) {
+        return external(player).map(RankDisplay::prefix).orElseGet(() -> fallback.ownLabel(player));
+    }
+
+    @Override
     public Component suffix(Player player) {
         return external(player).map(RankDisplay::suffix).orElseGet(() -> fallback.suffix(player));
     }

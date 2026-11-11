@@ -39,4 +39,32 @@ class PrefixStyleTest {
         assertEquals(Optional.empty(), PrefixStyle.parse(""));
         assertEquals(NamedTextColor.AQUA, PrefixStyle.nearest(TextColor.color(0x55FFFF)));
     }
+
+    private static final String SEPARATORS = "\u2503|\u00bb:\u2022";
+
+    private static String plain(Component component) {
+        return net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(component);
+    }
+
+    @Test
+    void trailingSeparatorsAndSpacesAreTrimmedButColoursStay() {
+        Component trimmed = PrefixStyle.trimTrailing(TextFormatter.plain().format("&cAdmin &8\u2503 "), SEPARATORS);
+        assertEquals("Admin", plain(trimmed));
+        assertEquals(Optional.of(NamedTextColor.RED), Optional.ofNullable(trimmed.children().getFirst().color()));
+    }
+
+    @Test
+    void separatorsInsideTheRankAndGradientsSurvive() {
+        assertEquals("A|B", plain(PrefixStyle.trimTrailing(TextFormatter.plain().format("&6A|B &8\u00bb"), SEPARATORS)));
+        Component gradient = TextFormatter.plain().format("<gradient:#22D3EE:#2DD4BF>Team</gradient> <dark_gray>|</dark_gray> ");
+        assertEquals("Team", plain(PrefixStyle.trimTrailing(gradient, SEPARATORS)));
+    }
+
+    @Test
+    void aRankMadeOnlyOfSeparatorsIsLeftAlone() {
+        Component only = TextFormatter.plain().format("&8\u2503");
+        assertEquals("\u2503", plain(PrefixStyle.trimTrailing(only, SEPARATORS)));
+        assertEquals("", plain(PrefixStyle.trimTrailing(Component.empty(), SEPARATORS)));
+        assertEquals("", plain(PrefixStyle.trimTrailing(null, SEPARATORS)));
+    }
 }

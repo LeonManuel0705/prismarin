@@ -17,6 +17,21 @@ public final class CoreConfigComments {
                     "without Redis.")),
             Map.entry("game-state.mapping", List.of("Words in the placeholder text that mean each state, compared",
                     "without case.")),
+            Map.entry("rank-display", List.of(
+                    "How the rank appears. %prefix% is the prefix as LuckPerms or a rank plugin sets it,",
+                    "%rank% the rank on its own: the LuckPerms meta below, else the prefix without its separator.",
+                    "Nicked players run through the same lines, so their fake rank looks exactly like a real one.")),
+            Map.entry("rank-display.before-name", List.of(
+                    "In front of the name in the tab list, the name tag and chat. Minecraft uses one prefix for tab",
+                    "list and name tag. With plain ranks in LuckPerms (\"&cAdmin\") this line adds the separator for",
+                    "every rank at once, for example \"%rank% <dark_gray>\u2503</dark_gray>\".")),
+            Map.entry("rank-display.alone", List.of(
+                    "Where the rank stands alone: sidebar, lobby profile, menus and %prismarin_rank_label%.")),
+            Map.entry("rank-display.trim", List.of(
+                    "Characters cut off the end of the prefix for %rank%, so \"&cAdmin &8\u2503\" becomes \"Admin\".")),
+            Map.entry("rank-display.luckperms-meta", List.of(
+                    "LuckPerms meta key that sets %rank% directly, for example",
+                    "/lp group admin meta set rank-label \"&cAdmin\". Empty: always the trimmed prefix.")),
             Map.entry("vanish", List.of("Vanish hides staff completely, like SuperVanish, instead of an invisibility effect.")),
             Map.entry("vanish.silent-containers", List.of("Open chests and other containers without animation or sound.")),
             Map.entry("vanish.silent-blocks", List.of("Break blocks without sound and particles for other players.")),

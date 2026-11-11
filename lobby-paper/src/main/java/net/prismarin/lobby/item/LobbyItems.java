@@ -280,7 +280,7 @@ public final class LobbyItems {
                     }
                 }
                 case RANK -> lore.add(locale.render("lobby.item.profile.lore.rank", playerLocale,
-                        player.getUniqueId(), Placeholder.component("rank", ranks.ownPrefix(player))));
+                        player.getUniqueId(), Placeholder.component("rank", ranks.ownLabel(player))));
                 case EMPTY -> lore.add(Component.empty());
                 case TEXT -> lore.add(texts.render(line.argument(), playerLocale, player.getUniqueId(), name));
                 case ATTRIBUTE -> self.flatMap(target -> players.get().attributes().profileLine(line.argument(),

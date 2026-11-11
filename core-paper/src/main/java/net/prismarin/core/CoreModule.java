@@ -21,6 +21,7 @@ import net.prismarin.api.profile.ProfileService;
 import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.core.config.GameStateSettings;
+import net.prismarin.core.config.RankDisplaySettings;
 import net.prismarin.core.config.MenuSettings;
 import net.prismarin.core.config.VanishSettings;
 import net.prismarin.core.network.PaperConnectorTransport;
@@ -35,6 +36,7 @@ import net.prismarin.core.player.PaperPlayerService;
 import net.prismarin.core.rank.DefaultRankFormatProvider;
 import net.prismarin.core.rank.ExternalRankFormatProvider;
 import net.prismarin.core.rank.LuckPermsRankFormatProvider;
+import net.prismarin.core.rank.RankDisplayProvider;
 import net.prismarin.core.rank.RankFormatProvider;
 import net.prismarin.shared.config.ConfigLoader;
 import net.prismarin.shared.config.CoreConfig;
@@ -196,13 +198,22 @@ public final class CoreModule extends AbstractModule {
     RankFormatProvider rankFormatProvider(LocaleService localeService, CoreServices services,
                                           PermissionSnapshots snapshots, ProfileService profiles,
                                           ModuleState modules, NickRegistry nicks,
-                                          Provider<FakeRankFormat> fakeRank) {
+                                          Provider<FakeRankFormat> fakeRank, RankDisplaySettings display) {
         DefaultRankFormatProvider fallback = new DefaultRankFormatProvider(localeService, snapshots, profiles);
         RankFormatProvider base = plugin.getServer().getPluginManager().getPlugin("LuckPerms") != null
-                ? new LuckPermsRankFormatProvider(services.formatter(), fallback)
+                ? new LuckPermsRankFormatProvider(services.formatter(), fallback, display.luckPermsMeta())
                 : fallback;
         RankFormatProvider real = new ExternalRankFormatProvider(base, RankSources.global());
-        return modules.enabled(CoreModules.NICK) ? new NickRankFormatProvider(real, nicks, fakeRank) : real;
+        RankFormatProvider shown = modules.enabled(CoreModules.NICK)
+                ? new NickRankFormatProvider(real, nicks, fakeRank)
+                : real;
+        return new RankDisplayProvider(shown, display, services.formatter());
+    }
+
+    @Provides
+    @Singleton
+    RankDisplaySettings rankDisplaySettings(CoreConfig config) {
+        return RankDisplaySettings.load(configPath());
     }
 
     private Path dataDirectory() {

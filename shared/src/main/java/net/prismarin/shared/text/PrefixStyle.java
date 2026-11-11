@@ -1,11 +1,15 @@
 package net.prismarin.shared.text;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
@@ -24,6 +28,64 @@ public final class PrefixStyle {
 
     private PrefixStyle() {
         throw new AssertionError();
+    }
+
+    public static Component trimTrailing(Component component, String separators) {
+        if (component == null) {
+            return Component.empty();
+        }
+        List<Segment> segments = new ArrayList<>();
+        flatten(component, Style.empty(), segments);
+        int end = segments.size();
+        while (end > 0) {
+            Segment last = segments.get(end - 1);
+            if (last.opaque() != null) {
+                break;
+            }
+            String text = last.text();
+            int cut = text.length();
+            while (cut > 0) {
+                int codePoint = text.codePointBefore(cut);
+                if (!Character.isWhitespace(codePoint) && separators.indexOf(codePoint) < 0) {
+                    break;
+                }
+                cut -= Character.charCount(codePoint);
+            }
+            if (cut > 0) {
+                segments.set(end - 1, new Segment(text.substring(0, cut), last.style(), null));
+                break;
+            }
+            end--;
+        }
+        TextComponent.Builder builder = Component.text();
+        boolean shown = false;
+        for (Segment segment : segments.subList(0, end)) {
+            if (segment.opaque() != null) {
+                builder.append(segment.opaque());
+                shown = true;
+            } else {
+                builder.append(Component.text(segment.text(), segment.style()));
+                shown |= !segment.text().isBlank();
+            }
+        }
+        return shown ? builder.build() : component;
+    }
+
+    private static void flatten(Component component, Style parent, List<Segment> out) {
+        Style style = component.style().merge(parent, Style.Merge.Strategy.IF_ABSENT_ON_TARGET);
+        if (component instanceof TextComponent text) {
+            if (!text.content().isEmpty()) {
+                out.add(new Segment(text.content(), style, null));
+            }
+        } else {
+            out.add(new Segment("", style, component.children(List.of()).style(style)));
+        }
+        for (Component child : component.children()) {
+            flatten(child, style, out);
+        }
+    }
+
+    private record Segment(String text, Style style, Component opaque) {
     }
 
     public static boolean visible(Component prefix) {

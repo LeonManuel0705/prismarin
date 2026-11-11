@@ -478,6 +478,17 @@ public void onDisable() {
 
 ### Extension point: rank sources
 
+### How the rank appears
+
+`rank-display` in `config.yml` decides how the rank is shown. Two placeholders exist: `%prefix%` is the prefix as LuckPerms (prefix, otherwise the group display name), a `RankSource` or the fake rank of a nick sets it; `%rank%` is the rank on its own, the LuckPerms meta named in `rank-display.luckperms-meta` (default `rank-label`) or the prefix with every character from `rank-display.trim` and all spaces cut off its end, colours and gradients kept.
+
+| Key | Default | Used for |
+|:---|:---|:---|
+| `before-name` | `%prefix%` | tab list, name tag and chat (`%prefix%` in `chat.line`). Minecraft has one team prefix for tab list and name tag |
+| `alone` | `%rank%` | sidebar, lobby profile, menus, `%prismarin_rank_label%` and `RankDisplay#label` |
+
+With an existing setup like `&cAdmin &8┃` nothing has to change: the tab list keeps the separator, the sidebar shows `Admin`. For one style across all ranks, store plain ranks in LuckPerms (`&cAdmin`) and set `before-name: "%rank% <dark_gray>┃</dark_gray>"`. A nicked player's fake rank goes through the same lines, so it looks exactly like a real rank. `RankFormatProvider#prefix`, `#ownPrefix`, `#label` and `#ownLabel` return the results.
+
 A rank plugin can supply the rank PRISMARIN shows in chat, tab list, name tag, sidebar and profile, instead of LuckPerms or the built in default rank. The source with the highest priority that returns a rank wins; a nicked player still shows the fake rank to others.
 
 ```java
