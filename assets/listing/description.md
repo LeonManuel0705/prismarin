@@ -4,7 +4,7 @@ PRISMARIN is a framework for Minecraft networks on Paper and Velocity. Installed
 
 Every system can be switched off, every text lives in YAML with MiniMessage, `&` codes and hex colours, and every feature has a public API with events.
 
-![Diagram: PrismarinVelocity on the proxy, PrismarinCore on every Paper server, PrismarinLobby on lobbies, all sharing one database and Redis](https://raw.githubusercontent.com/LeonManuel0705/prismarin/main/assets/listing/architecture.png)
+![Which jar runs where: proxy chat output from PrismarinVelocity next to the /plugins list of a lobby, a BedWars server, a creative server and an old 1.8 server without any jar](https://raw.githubusercontent.com/LeonManuel0705/prismarin/main/assets/listing/architecture.png)
 
 ## Installation
 
