@@ -44,11 +44,11 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.LeonManuel0705.prismarin:prismarin-api:v1.0.0")
+    compileOnly("com.github.LeonManuel0705:prismarin:v1.0.0")
 }
 ```
 
-JitPack builds the tag with `jitpack.yml` (Java 21, only `:api` is installed). It names multi module builds `com.github.LeonManuel0705.prismarin`; the build log on jitpack.io shows the exact coordinates of each tag.
+JitPack builds the tag with `jitpack.yml` (Java 21, only `:api` is installed). Because that is the only artifact, JitPack publishes it as `com.github.LeonManuel0705:prismarin:<tag>`.
 
 ### Building it yourself
 
