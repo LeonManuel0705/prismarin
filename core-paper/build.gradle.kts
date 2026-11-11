@@ -7,19 +7,11 @@ val includedProjects: Configuration by configurations.creating {
     isTransitive = false
 }
 
-val bundledLibraries: Configuration by configurations.creating {
-    isCanBeConsumed = false
-    exclude(group = "com.google.guava")
-    exclude(group = "org.yaml", module = "snakeyaml")
-}
-
 dependencies {
     implementation(project(":api"))
     implementation(project(":shared"))
     includedProjects(project(":api"))
     includedProjects(project(":shared"))
-    bundledLibraries(libs.guice)
-    bundledLibraries(libs.configurate.yaml)
 
     compileOnly(libs.paper.api)
     compileOnly(libs.luckperms.api)
@@ -41,28 +33,29 @@ dependencies {
     testImplementation(libs.gson)
 }
 
+val pluginLibraries = mapOf(
+    "guice" to libs.versions.guice.get(),
+    "configurate" to libs.versions.configurate.get(),
+    "mongodb" to libs.versions.mongodb.get(),
+    "lettuce" to libs.versions.lettuce.get(),
+    "hikaricp" to libs.versions.hikaricp.get(),
+    "mariadb" to libs.versions.mariadb.get(),
+    "sqlite" to libs.versions.sqlite.get()
+)
+
 tasks.processResources {
     inputs.property("version", version)
+    inputs.properties(pluginLibraries)
     filesMatching("plugin.yml") {
-        expand("version" to version)
+        expand(pluginLibraries + ("version" to version))
     }
 }
 
 tasks.jar {
-    dependsOn(includedProjects, bundledLibraries)
+    dependsOn(includedProjects)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
         attributes("Multi-Release" to "true")
     }
     from(includedProjects.elements.map { elements -> elements.map { zipTree(it.asFile) } })
-    from(bundledLibraries.elements.map { elements -> elements.map { zipTree(it.asFile) } }) {
-        exclude(
-            "META-INF/MANIFEST.MF",
-            "META-INF/*.SF",
-            "META-INF/*.DSA",
-            "META-INF/*.RSA",
-            "module-info.class",
-            "META-INF/versions/**/module-info.class"
-        )
-    }
 }

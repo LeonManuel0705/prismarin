@@ -83,4 +83,35 @@ class RuntimeLibrariesTest {
             assertEquals(0, files.count());
         }
     }
+
+    @Test
+    void redisLibrariesAreRelocatedOnceAndTheRelocatedCopyIsLoaded() throws Exception {
+        byte[] jar = "netty".getBytes(StandardCharsets.UTF_8);
+        RuntimeLibraries.Library library = new RuntimeLibraries.Library("REDIS", "io.netty", "netty-common", "4", sha(jar));
+        Files.write(folder.resolve("netty-common-4.jar"), jar);
+        List<Path> relocations = new ArrayList<>();
+        List<Path> added = new ArrayList<>();
+        RuntimeLibraries.Relocator relocator = (input, output) -> {
+            relocations.add(input);
+            Files.writeString(output, "relocated");
+        };
+        new RuntimeLibraries(List.of(library), folder, "https://repo.example/", (s, t) -> { }, added::add,
+                NOPLogger.NOP_LOGGER, java.util.Set.of("REDIS"), relocator).ensure(List.of("REDIS"));
+        new RuntimeLibraries(List.of(library), folder, "https://repo.example/", (s, t) -> { }, added::add,
+                NOPLogger.NOP_LOGGER, java.util.Set.of("REDIS"), relocator).ensure(List.of("REDIS"));
+        assertEquals(1, relocations.size());
+        assertEquals(2, added.size());
+        assertEquals(added.get(0), added.get(1));
+        assertTrue(added.getFirst().startsWith(folder.resolve("relocated")));
+        assertEquals("relocated", Files.readString(added.getFirst()));
+    }
+
+    @Test
+    void theRelocationRulesMatchTheShadedPackages() {
+        var rules = RuntimeLibraries.relocations();
+        assertEquals("net.prismarin.libs.netty", rules.get("io.netty"));
+        assertEquals("net.prismarin.libs.lettuce", rules.get("io.lettuce"));
+        assertEquals("net.prismarin.libs.reactor", rules.get("reactor"));
+        assertEquals("net.prismarin.libs.reactivestreams", rules.get("org.reactivestreams"));
+    }
 }

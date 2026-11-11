@@ -12,6 +12,7 @@ mariadb = "4.0.0"
 sqlite = "3.54.1.0"
 mysql-connector = "26.10.0"
 guice = "7.0.0"
+jar-relocator = "1.7"
 gson = "2.11.0"
 adventure = "4.24.0"
 junit = "5.11.4"
@@ -34,6 +35,7 @@ mariadb-java-client = { module = "org.mariadb.jdbc:mariadb-java-client", version
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
 mysql-connector-j = { module = "com.mysql:mysql-connector-j", version.ref = "mysql-connector" }
 guice = { module = "com.google.inject:guice", version.ref = "guice" }
+jar-relocator = { module = "me.lucko:jar-relocator", version.ref = "jar-relocator" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 adventure-api = { module = "net.kyori:adventure-api", version.ref = "adventure" }
 adventure-minimessage = { module = "net.kyori:adventure-text-minimessage", version.ref = "adventure" }

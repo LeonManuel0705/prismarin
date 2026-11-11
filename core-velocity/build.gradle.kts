@@ -8,6 +8,7 @@ plugins {
 dependencies {
     implementation(project(":api"))
     implementation(project(":shared"))
+    implementation(libs.jar.relocator)
 
     compileOnly(libs.velocity.api)
     annotationProcessor(libs.velocity.api)
@@ -24,21 +25,24 @@ dependencies {
 
 val sqliteLibraries by configurations.creating
 val mongoLibraries by configurations.creating
+val redisLibraries by configurations.creating
 
-configurations.named { it == "sqliteLibraries" || it == "mongoLibraries" }.configureEach {
+configurations.named { it == "sqliteLibraries" || it == "mongoLibraries" || it == "redisLibraries" }.configureEach {
     exclude(group = "org.slf4j")
 }
 
 dependencies {
     sqliteLibraries(libs.sqlite.jdbc)
     mongoLibraries(libs.mongodb.driver.sync)
+    redisLibraries(libs.lettuce.core)
 }
 
 val generateLibraryIndex by tasks.registering {
     val sqlite = sqliteLibraries.incoming.artifacts.resolvedArtifacts
     val mongo = mongoLibraries.incoming.artifacts.resolvedArtifacts
+    val redis = redisLibraries.incoming.artifacts.resolvedArtifacts
     val output = layout.buildDirectory.dir("generated/resources/libraries")
-    inputs.files(sqliteLibraries, mongoLibraries)
+    inputs.files(sqliteLibraries, mongoLibraries, redisLibraries)
     outputs.dir(output)
     doLast {
         val lines = mutableListOf<String>()
@@ -53,6 +57,7 @@ val generateLibraryIndex by tasks.registering {
         }
         add("SQLITE", sqlite.get())
         add("MONGO", mongo.get())
+        add("REDIS", redis.get())
         val file = output.get().file("prismarin-libraries.txt").asFile
         file.parentFile.mkdirs()
         file.writeText(lines.sorted().joinToString("\n") + "\n")
@@ -94,6 +99,10 @@ tasks.shadowJar {
         exclude(dependency("org.slf4j:slf4j-api:.*"))
         exclude(dependency("org.xerial:sqlite-jdbc:.*"))
         exclude(dependency("org.mongodb:.*:.*"))
+        exclude(dependency("io.lettuce:.*:.*"))
+        exclude(dependency("io.netty:.*:.*"))
+        exclude(dependency("io.projectreactor:.*:.*"))
+        exclude(dependency("org.reactivestreams:.*:.*"))
     }
     relocate("org.spongepowered.configurate", "net.prismarin.libs.configurate")
     relocate("io.leangen.geantyref", "net.prismarin.libs.geantyref")
@@ -105,4 +114,6 @@ tasks.shadowJar {
     relocate("org.reactivestreams", "net.prismarin.libs.reactivestreams")
     relocate("com.zaxxer.hikari", "net.prismarin.libs.hikari")
     relocate("org.mariadb.jdbc", "net.prismarin.libs.mariadb")
+    relocate("me.lucko.jarrelocator", "net.prismarin.libs.jarrelocator")
+    relocate("org.objectweb.asm", "net.prismarin.libs.asm")
 }

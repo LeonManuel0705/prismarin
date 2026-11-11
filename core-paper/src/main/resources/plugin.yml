@@ -7,11 +7,13 @@ softdepend:
   - Vault
   - PlaceholderAPI
 libraries:
-  - org.mongodb:mongodb-driver-sync:5.2.1
-  - io.lettuce:lettuce-core:6.5.5.RELEASE
-  - com.zaxxer:HikariCP:7.1.0
-  - org.mariadb.jdbc:mariadb-java-client:4.0.0
-  - org.xerial:sqlite-jdbc:3.54.1.0
+  - com.google.inject:guice:${guice}
+  - org.spongepowered:configurate-yaml:${configurate}
+  - org.mongodb:mongodb-driver-sync:${mongodb}
+  - io.lettuce:lettuce-core:${lettuce}
+  - com.zaxxer:HikariCP:${hikaricp}
+  - org.mariadb.jdbc:mariadb-java-client:${mariadb}
+  - org.xerial:sqlite-jdbc:${sqlite}
 commands:
   economy:
     description: Manages player balances.

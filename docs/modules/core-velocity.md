@@ -63,12 +63,15 @@ Velocity kennt keine `plugin.yml`-Permission-Defaults; Vergabe über LuckPerms (
 
 ## Drivers loaded on demand
 
-The proxy jar does not contain the SQLite and MongoDB drivers, they would take it from 9 to 24 MB. On start the proxy reads `prismarin-libraries.txt` from its jar, a list of every driver file with its SHA-256 checksum that the build writes from the versions in `gradle/libs.versions.toml`. Only the files for the configured `storage.mode` are fetched, `/prismarinproxy migrate` fetches the ones for both modes. `LOCAL`, `MYSQL` and `MARIADB` fetch nothing.
+The proxy jar does not contain the SQLite and MongoDB drivers or the Redis client, they would take it from 3 to 24 MB. On start the proxy reads `prismarin-libraries.txt` from its jar, a list of every driver file with its SHA-256 checksum that the build writes from the versions in `gradle/libs.versions.toml`. Only the files for the configured `storage.mode` are fetched, plus the Redis client when `redis.enabled` is on. `/prismarinproxy migrate` fetches the files for both modes. `LOCAL`, `MYSQL` and `MARIADB` without Redis fetch nothing.
 
 | Mode | Files |
 |:---|:---|
 | `SQLITE` | `org.xerial:sqlite-jdbc` |
 | `MONGO` | `org.mongodb:mongodb-driver-sync`, `mongodb-driver-core`, `bson`, `bson-record-codec` |
+| `REDIS` | `io.lettuce:lettuce-core`, seven `io.netty` modules, `reactor-core`, `reactive-streams` |
+
+Velocity ships its own Netty, so the Redis files are relocated once with `jar-relocator` (`io.netty` to `net.prismarin.libs.netty`, likewise `io.lettuce`, `reactor` and `org.reactivestreams`) into `libraries/relocated/` before they are loaded. The rules are built at runtime from parts, otherwise the shadow plugin would rewrite them while building.
 
 Files land in `plugins/prismarin-core/libraries/`. A file whose checksum does not match is never loaded. Files that are already there with the right checksum are used without any download, so a proxy without internet works after copying the jars into that folder by hand. The source is Maven Central, `-Dprismarin.libraryRepository=<url>` or the environment variable `PRISMARIN_LIBRARY_REPOSITORY` point to a mirror. Loading goes through `PluginManager#addToClasspath`, so the drivers stay inside PRISMARIN's class loader. Paper servers do the same through `libraries:` in `plugin.yml`.
 

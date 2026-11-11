@@ -161,7 +161,7 @@ A network that keeps its own coin plugin sets `systems.economy: false`. Commands
 | `MONGO` | MongoDB, `storage.mongo.uri` and `storage.mongo.database` | yes |
 | `MYSQL` or `MARIADB` | MySQL 5.7 or newer, or MariaDB, through MariaDB Connector/J and a HikariCP pool | yes |
 
-`LOCAL` and `SQLITE` make a single server usable with no infrastructure at all, the message bus then runs in process. The SQLite and MongoDB drivers are downloaded from Maven Central on first start, with checksums checked, only when that mode is used (Paper through `libraries:` in `plugin.yml`, the proxy into `plugins/prismarin-core/libraries/`). `MONGO` or `MYSQL` plus `redis.enabled: true` turns the same jars into a network where profiles, messages and heartbeats are shared across every server.
+`LOCAL` and `SQLITE` make a single server usable with no infrastructure at all, the message bus then runs in process. Drivers, the Redis client, Guice and Configurate are downloaded from Maven Central on first start, with checksums checked, and only what the configuration uses (Paper through `libraries:` in `plugin.yml`, the proxy into `plugins/prismarin-core/libraries/`). That keeps all three jars at about 4 MB together. `MONGO` or `MYSQL` plus `redis.enabled: true` turns the same jars into a network where profiles, messages and heartbeats are shared across every server.
 
 A MySQL or MariaDB network sets the connection under `storage.mysql`:
 

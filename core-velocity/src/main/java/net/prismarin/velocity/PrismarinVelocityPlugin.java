@@ -101,7 +101,9 @@ public final class PrismarinVelocityPlugin {
         CoreConfig coreConfig = loadCoreConfig();
         libraries = RuntimeLibraries.create(dataDirectory.resolve("libraries"),
                 path -> proxy.getPluginManager().addToClasspath(this, path), logger);
-        libraries.ensure(List.of(coreConfig.storageMode().name()));
+        libraries.ensure(coreConfig.redisEnabled()
+                ? List.of(coreConfig.storageMode().name(), RuntimeLibraries.REDIS)
+                : List.of(coreConfig.storageMode().name()));
         services = CoreServices.start(coreConfig, dataDirectory, executor);
         PlayerLocaleRegistry playerLocales = new PlayerLocaleRegistry();
         proxy.getEventManager().register(this, playerLocales);

@@ -18,12 +18,15 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HexFormat;
 import java.util.HashSet;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
+import me.lucko.jarrelocator.JarRelocator;
 import org.slf4j.Logger;
 
 public final class RuntimeLibraries {
@@ -32,6 +35,9 @@ public final class RuntimeLibraries {
     public static final String DEFAULT_REPOSITORY = "https://repo1.maven.org/maven2/";
     public static final String REPOSITORY_PROPERTY = "prismarin.libraryRepository";
     public static final String REPOSITORY_ENV = "PRISMARIN_LIBRARY_REPOSITORY";
+    public static final String REDIS = "REDIS";
+    static final String RELOCATED = "relocated";
+    static final String RELOCATION_REVISION = "r1";
 
     public record Library(String mode, String group, String artifact, String version, String sha256) {
 
@@ -48,22 +54,38 @@ public final class RuntimeLibraries {
         void download(URI source, Path target) throws IOException, InterruptedException;
     }
 
+    public interface Relocator {
+        void relocate(Path input, Path output) throws IOException;
+    }
+
     private final List<Library> index;
     private final Path folder;
     private final String repository;
     private final Downloader downloader;
     private final Consumer<Path> classpath;
     private final Logger logger;
+    private final Set<String> relocatedModes;
+    private final Relocator relocator;
     private final Set<String> loaded = new HashSet<>();
 
     public RuntimeLibraries(List<Library> index, Path folder, String repository, Downloader downloader,
                             Consumer<Path> classpath, Logger logger) {
+        this(index, folder, repository, downloader, classpath, logger, Set.of(), (input, output) -> {
+            throw new IOException("No relocator");
+        });
+    }
+
+    public RuntimeLibraries(List<Library> index, Path folder, String repository, Downloader downloader,
+                            Consumer<Path> classpath, Logger logger, Set<String> relocatedModes,
+                            Relocator relocator) {
         this.index = List.copyOf(index);
         this.folder = folder;
         this.repository = repository.endsWith("/") ? repository : repository + "/";
         this.downloader = downloader;
         this.classpath = classpath;
         this.logger = logger;
+        this.relocatedModes = Set.copyOf(relocatedModes);
+        this.relocator = relocator;
     }
 
     public static RuntimeLibraries create(Path folder, Consumer<Path> classpath, Logger logger) {
@@ -73,7 +95,22 @@ public final class RuntimeLibraries {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        return new RuntimeLibraries(index, folder, repository(), RuntimeLibraries::httpDownload, classpath, logger);
+        Map<String, String> rules = relocations();
+        return new RuntimeLibraries(index, folder, repository(), RuntimeLibraries::httpDownload, classpath, logger,
+                Set.of(REDIS), (input, output) -> new JarRelocator(input.toFile(), output.toFile(), rules).run());
+    }
+
+    public static Map<String, String> relocations() {
+        Map<String, String> rules = new LinkedHashMap<>();
+        rules.put(dotted("io", "lettuce"), dotted("net", "prismarin", "libs", "lettuce"));
+        rules.put(dotted("io", "netty"), dotted("net", "prismarin", "libs", "netty"));
+        rules.put(dotted("rea", "ctor").replace(".", ""), dotted("net", "prismarin", "libs", "reactor"));
+        rules.put(dotted("org", "reactivestreams"), dotted("net", "prismarin", "libs", "reactivestreams"));
+        return Map.copyOf(rules);
+    }
+
+    private static String dotted(String... parts) {
+        return String.join(".", parts);
     }
 
     public static String repository() {
@@ -121,7 +158,7 @@ public final class RuntimeLibraries {
                 if (!matches(file, library.sha256())) {
                     fetch(library, file);
                 }
-                classpath.accept(file);
+                classpath.accept(relocatedModes.contains(library.mode()) ? relocated(library, file) : file);
                 loaded.add(library.fileName());
             } catch (IOException e) {
                 throw new IllegalStateException("Could not load " + library.fileName() + " for storage mode "
@@ -132,6 +169,23 @@ public final class RuntimeLibraries {
                 throw new IllegalStateException("Interrupted while downloading " + library.fileName(), e);
             }
         }
+    }
+
+    private Path relocated(Library library, Path source) throws IOException {
+        Path target = folder.resolve(RELOCATED).resolve(library.artifact() + "-" + library.version() + "-"
+                + RELOCATION_REVISION + "-" + library.sha256().substring(0, 12) + ".jar");
+        if (Files.isRegularFile(target)) {
+            return target;
+        }
+        Files.createDirectories(target.getParent());
+        Path temporary = Files.createTempFile(target.getParent(), library.artifact(), ".part");
+        try {
+            relocator.relocate(source, temporary);
+            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } finally {
+            Files.deleteIfExists(temporary);
+        }
+        return target;
     }
 
     private void fetch(Library library, Path file) throws IOException, InterruptedException {
