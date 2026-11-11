@@ -76,7 +76,7 @@ import net.prismarin.velocity.server.ProxyServerDirectory;
 import net.prismarin.velocity.social.SocialModule;
 import org.slf4j.Logger;
 
-@Plugin(id = "prismarin-core", name = "PrismarinCore", version = "0.4.0", authors = {"Leon"})
+@Plugin(id = "prismarin-core", name = "PrismarinCore", version = BuildConstants.VERSION, authors = {"Leon"})
 public final class PrismarinVelocityPlugin {
 
     private final ProxyServer proxy;

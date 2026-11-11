@@ -20,6 +20,26 @@ dependencies {
     testImplementation(libs.adventure.plain)
 }
 
+val generateBuildConstants by tasks.registering {
+    val version = project.version.toString()
+    val output = layout.buildDirectory.dir("generated/sources/buildConstants/java/main")
+    inputs.property("version", version)
+    outputs.dir(output)
+    doLast {
+        val file = output.get().file("net/prismarin/velocity/BuildConstants.java").asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            "package net.prismarin.velocity;\n\npublic final class BuildConstants {\n\n" +
+                "    public static final String VERSION = \"" + version + "\";\n\n" +
+                "    private BuildConstants() {\n    }\n}\n"
+        )
+    }
+}
+
+sourceSets.main {
+    java.srcDir(generateBuildConstants)
+}
+
 tasks.shadowJar {
     archiveFileName.set("prismarin-velocity.jar")
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
