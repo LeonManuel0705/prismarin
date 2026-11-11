@@ -92,7 +92,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.LeonManuel0705:prismarin:v1.0.2")
+    compileOnly("com.github.LeonManuel0705:prismarin:v1.0.3")
 }
 ```
 
