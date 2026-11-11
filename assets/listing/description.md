@@ -8,7 +8,12 @@ Every system can be switched off, every text lives in YAML with MiniMessage, `&`
 
 ## Installation
 
-1. Put `PrismarinVelocity.jar` on the Velocity proxy, `PrismarinCore.jar` on every Paper server and `PrismarinLobby.jar` on lobby servers. The lobby is its own download, the project **PRISMARIN Lobby**, and every jar is also on the [GitHub releases](https://github.com/LeonManuel0705/prismarin/releases).
+1. Download the ZIP and unpack it. It holds three jars:
+   * `velocity/PrismarinVelocity.jar` for the Velocity proxy
+   * `paper/PrismarinCore.jar` for every Paper server
+   * `paper/PrismarinLobby.jar` for lobby servers only, next to PrismarinCore
+
+   The single jars are also on the [GitHub releases](https://github.com/LeonManuel0705/prismarin/releases).
 2. Start everything once. Each server writes its `config.yml` and adds new options on later updates by itself.
 3. With more than one backend, set `storage.mode` to `MYSQL`, `MARIADB` or `MONGO` on all servers and turn on `redis.enabled`. A single test server runs on JSON files or SQLite without any database.
 
