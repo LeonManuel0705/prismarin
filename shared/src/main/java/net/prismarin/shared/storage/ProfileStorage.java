@@ -1,8 +1,5 @@
 package net.prismarin.shared.storage;
 
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoDatabase;
 import java.nio.file.Path;
 import net.prismarin.shared.config.CoreConfig;
 
@@ -12,7 +9,7 @@ public final class ProfileStorage implements AutoCloseable {
     private final DocumentStore documents;
     private final Runnable closer;
 
-    private ProfileStorage(ProfileRepository repository, DocumentStore documents, Runnable closer) {
+    ProfileStorage(ProfileRepository repository, DocumentStore documents, Runnable closer) {
         this.repository = repository;
         this.documents = documents;
         this.closer = closer;
@@ -46,10 +43,7 @@ public final class ProfileStorage implements AutoCloseable {
     }
 
     private static ProfileStorage mongo(CoreConfig config) {
-        MongoClient client = MongoClients.create(config.mongoUri());
-        MongoDatabase database = client.getDatabase(config.mongoDatabase());
-        return new ProfileStorage(new MongoProfileRepository(database), new MongoDocumentStore(database),
-                client::close);
+        return MongoStorage.open(config);
     }
 
     private static ProfileStorage sql(SqlDatabase database) {

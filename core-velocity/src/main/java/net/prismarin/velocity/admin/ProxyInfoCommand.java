@@ -4,8 +4,10 @@ import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.ConsoleCommandSource;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -19,12 +21,15 @@ public final class ProxyInfoCommand implements SimpleCommand {
     private final Path dataDirectory;
     private final String version;
     private final OperatorRegistry operators;
+    private final Consumer<Collection<String>> libraries;
 
-    public ProxyInfoCommand(AdminContext context, Path dataDirectory, String version, OperatorRegistry operators) {
+    public ProxyInfoCommand(AdminContext context, Path dataDirectory, String version, OperatorRegistry operators,
+                            Consumer<Collection<String>> libraries) {
         this.context = context;
         this.dataDirectory = dataDirectory;
         this.version = version;
         this.operators = operators;
+        this.libraries = libraries;
     }
 
     @Override
@@ -88,6 +93,13 @@ public final class ProxyInfoCommand implements SimpleCommand {
                 Placeholder.unparsed("to", to.name()));
         CoreConfig config = context.services().config();
         Thread.ofVirtual().start(() -> {
+            try {
+                libraries.accept(List.of(from.name(), to.name()));
+            } catch (RuntimeException e) {
+                context.send(source, "admin.migrate-failed",
+                        Placeholder.unparsed("reason", String.valueOf(e.getMessage())));
+                return;
+            }
             try (ProfileStorage sourceStorage = ProfileStorage.create(config.withStorageMode(from), dataDirectory);
                  ProfileStorage target = ProfileStorage.create(config.withStorageMode(to), dataDirectory)) {
                 StorageMigration.Result result = StorageMigration.run(sourceStorage, target);

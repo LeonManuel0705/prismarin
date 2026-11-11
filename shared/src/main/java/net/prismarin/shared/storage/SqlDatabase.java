@@ -12,9 +12,10 @@ import java.sql.SQLIntegrityConstraintViolationException;
 import java.sql.SQLTransactionRollbackException;
 import net.prismarin.shared.config.SqlSettings;
 import org.mariadb.jdbc.Driver;
-import org.sqlite.JDBC;
 
 public final class SqlDatabase implements AutoCloseable {
+
+    static final String SQLITE_DRIVER = "org.sqlite.JDBC";
 
     private static final int MAX_ATTEMPTS = 3;
 
@@ -51,7 +52,7 @@ public final class SqlDatabase implements AutoCloseable {
         }
         HikariConfig config = new HikariConfig();
         config.setPoolName("prismarin-sqlite");
-        config.setDriverClassName(JDBC.class.getName());
+        config.setDriverClassName(SQLITE_DRIVER);
         config.setJdbcUrl("jdbc:sqlite:" + absolute);
         config.setMaximumPoolSize(1);
         config.addDataSourceProperty("journal_mode", "WAL");

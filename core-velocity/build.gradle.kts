@@ -1,3 +1,5 @@
+import java.security.MessageDigest
+
 plugins {
     id("prismarin.java")
     id("com.gradleup.shadow") version "9.4.3"
@@ -18,6 +20,47 @@ dependencies {
     testImplementation(libs.adventure.api)
     testImplementation(libs.adventure.minimessage)
     testImplementation(libs.adventure.plain)
+}
+
+val sqliteLibraries by configurations.creating
+val mongoLibraries by configurations.creating
+
+configurations.named { it == "sqliteLibraries" || it == "mongoLibraries" }.configureEach {
+    exclude(group = "org.slf4j")
+}
+
+dependencies {
+    sqliteLibraries(libs.sqlite.jdbc)
+    mongoLibraries(libs.mongodb.driver.sync)
+}
+
+val generateLibraryIndex by tasks.registering {
+    val sqlite = sqliteLibraries.incoming.artifacts.resolvedArtifacts
+    val mongo = mongoLibraries.incoming.artifacts.resolvedArtifacts
+    val output = layout.buildDirectory.dir("generated/resources/libraries")
+    inputs.files(sqliteLibraries, mongoLibraries)
+    outputs.dir(output)
+    doLast {
+        val lines = mutableListOf<String>()
+        fun add(mode: String, artifacts: Set<ResolvedArtifactResult>) {
+            artifacts.forEach { artifact ->
+                val id = artifact.id.componentIdentifier as? org.gradle.api.artifacts.component.ModuleComponentIdentifier
+                    ?: return@forEach
+                val digest = MessageDigest.getInstance("SHA-256").digest(artifact.file.readBytes())
+                val sha = digest.joinToString("") { "%02x".format(it) }
+                lines += "$mode ${id.group}:${id.module}:${id.version} $sha"
+            }
+        }
+        add("SQLITE", sqlite.get())
+        add("MONGO", mongo.get())
+        val file = output.get().file("prismarin-libraries.txt").asFile
+        file.parentFile.mkdirs()
+        file.writeText(lines.sorted().joinToString("\n") + "\n")
+    }
+}
+
+sourceSets.main {
+    resources.srcDir(generateLibraryIndex)
 }
 
 val generateBuildConstants by tasks.registering {
@@ -49,14 +92,14 @@ tasks.shadowJar {
     }
     dependencies {
         exclude(dependency("org.slf4j:slf4j-api:.*"))
+        exclude(dependency("org.xerial:sqlite-jdbc:.*"))
+        exclude(dependency("org.mongodb:.*:.*"))
     }
     relocate("org.spongepowered.configurate", "net.prismarin.libs.configurate")
     relocate("io.leangen.geantyref", "net.prismarin.libs.geantyref")
     relocate("net.kyori.option", "net.prismarin.libs.kyori.option")
     relocate("org.yaml.snakeyaml", "net.prismarin.libs.snakeyaml")
     relocate("io.lettuce", "net.prismarin.libs.lettuce")
-    relocate("com.mongodb", "net.prismarin.libs.mongodb")
-    relocate("org.bson", "net.prismarin.libs.bson")
     relocate("io.netty", "net.prismarin.libs.netty")
     relocate("reactor", "net.prismarin.libs.reactor")
     relocate("org.reactivestreams", "net.prismarin.libs.reactivestreams")

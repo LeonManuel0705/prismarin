@@ -38,6 +38,7 @@ import net.prismarin.shared.server.YamlServerDirectory;
 import net.prismarin.shared.status.NetworkStatusService;
 import net.prismarin.shared.status.SelectingConnector;
 import net.prismarin.shared.status.SimpleGameStateService;
+import net.prismarin.velocity.library.RuntimeLibraries;
 import net.prismarin.velocity.admin.AdminContext;
 import net.prismarin.velocity.admin.AdminSettings;
 import net.prismarin.velocity.admin.AlertMonitor;
@@ -85,6 +86,7 @@ public final class PrismarinVelocityPlugin {
 
     private ExecutorService executor;
     private CoreServices services;
+    private RuntimeLibraries libraries;
 
     @Inject
     public PrismarinVelocityPlugin(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory) {
@@ -97,6 +99,9 @@ public final class PrismarinVelocityPlugin {
     public void onProxyInitialize(ProxyInitializeEvent event) {
         executor = Executors.newVirtualThreadPerTaskExecutor();
         CoreConfig coreConfig = loadCoreConfig();
+        libraries = RuntimeLibraries.create(dataDirectory.resolve("libraries"),
+                path -> proxy.getPluginManager().addToClasspath(this, path), logger);
+        libraries.ensure(List.of(coreConfig.storageMode().name()));
         services = CoreServices.start(coreConfig, dataDirectory, executor);
         PlayerLocaleRegistry playerLocales = new PlayerLocaleRegistry();
         proxy.getEventManager().register(this, playerLocales);
@@ -215,7 +220,7 @@ public final class PrismarinVelocityPlugin {
         }
         register(commands, List.of("prismarinproxy", "pproxy"), new ProxyInfoCommand(context, dataDirectory,
                 proxy.getPluginManager().fromInstance(this).flatMap(container -> container.getDescription().getVersion())
-                        .orElse("?"), operators));
+                        .orElse("?"), operators, libraries::ensure));
         if (config.moduleEnabled(ProxyModules.NETWORK_ALERTS)) {
             proxy.getScheduler().buildTask(this, new AlertMonitor(context))
                     .delay(30, TimeUnit.SECONDS)
