@@ -59,7 +59,9 @@ public final class ConfigLoader {
                 root.node("branding", "name").getString(fallback.name()),
                 root.node("branding", "primary-color").getString(fallback.primaryColor()),
                 root.node("branding", "accent-color").getString(fallback.accentColor()),
-                root.node("branding", "prefix").getString(fallback.prefix()));
+                root.node("branding", "prefix").getString(fallback.prefix()),
+                root.node("branding", "success-prefix").getString(fallback.successPrefix()),
+                root.node("branding", "error-prefix").getString(fallback.errorPrefix()));
         List<Currency> currencies = new ArrayList<>();
         for (String id : root.node("economy", "currencies").getList(String.class, DEFAULT_CURRENCIES)) {
             Currency currency = Currency.of(id);
@@ -153,6 +155,8 @@ public final class ConfigLoader {
         changed |= setIfAbsent(root.node("branding", "primary-color"), branding.primaryColor());
         changed |= setIfAbsent(root.node("branding", "accent-color"), branding.accentColor());
         changed |= setIfAbsent(root.node("branding", "prefix"), branding.prefix());
+        changed |= setIfAbsent(root.node("branding", "success-prefix"), branding.successPrefix());
+        changed |= setIfAbsent(root.node("branding", "error-prefix"), branding.errorPrefix());
         if (root.node("economy", "currencies").virtual()) {
             root.node("economy", "currencies").setList(String.class, DEFAULT_CURRENCIES);
             changed = true;

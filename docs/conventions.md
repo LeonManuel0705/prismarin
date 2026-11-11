@@ -27,9 +27,10 @@ Verbindlich für jedes Modul in diesem Repo. Abweichungen gelten als Review-Fehl
 
 ## Brand
 
-- Die Marke ist Konfiguration, kein Code: `branding.name`, `primary-color`, `accent-color`, `prefix` in der `config.yml`, als Record `Branding` in der API. `Branding.DEFAULT` ist die PRISMARIN-Marke.
-- In Texten nur über Tags: `%brand%` (fetter Name im Verlauf), `%brand_prefix%` (Chat-Prefix), `<brand_primary>` und `<brand_accent>` als Farben. Kein Text nennt `PRISMARIN` fest.
-- Keine Emojis. Einfache Unicode-Glyphen wie `◆ ✔ ✖ ●` sind erlaubt.
+- Die Marke ist Konfiguration, kein Code: `branding.name`, `primary-color`, `accent-color`, `prefix`, `success-prefix`, `error-prefix` in der `config.yml`, als Record `Branding` in der API. `Branding.DEFAULT` ist die PRISMARIN-Marke.
+- In Texten nur über Tags: `%brand%` (fetter Name im Verlauf), `%brand_prefix%` (Chat-Prefix für Infos), `%success_prefix%` (Befehl hat geklappt, Text hellgrün), `%error_prefix%` (Problem, Text hellrot), `<brand_primary>` und `<brand_accent>` als Farben. Kein Text nennt `PRISMARIN` fest.
+- Erfolg und Fehler zeigt die Farbe des Satzes, keine Haken oder Kreuze.
+- Keine Emojis. Einfache Unicode-Glyphen wie `◆ ●` sind als Aufzählungszeichen erlaubt.
 - Keine Kommentare im Code, auch kein JavaDoc. Die API wird in `docs/` beschrieben.
 
 ## Async-Regeln (Paper)

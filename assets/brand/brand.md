@@ -26,7 +26,7 @@ Brand gradient: `<gradient:#22D3EE:#2DD4BF>` — always in this direction, never
 Rules:
 - The prefix is the only bold element in a system message.
 - Message body starts `<gray>`; emphasized values switch to `<white>` or `<color:#2DD4BF>`.
-- Errors keep the identical prefix, body in `<red>`.
+- Confirmations use `%success_prefix%` (body light green `#86EFAC`), errors `%error_prefix%` (body light red `#FCA5A5`), both after the identical prefix.
 - Subsystems never invent their own prefixes; one network, one prefix.
 
 Examples:
@@ -79,7 +79,7 @@ Player entries are sorted by rank weight; rank tag before the name in the rank c
 
 | Do | Don't |
 |---|---|
-| Unicode glyphs `◆ ✔ ✖ ●` as markers | Emojis of any kind, anywhere |
+| Unicode glyphs `◆ ●` as markers, success and errors shown by text colour | Emojis of any kind, check marks or crosses |
 | Concrete, data-driven text: "BedWars startet in 5 Sekunden." | Motivational slogans: "Dein Abenteuer beginnt!" |
 | Numbers formatted with dots: `12.480` | Raw unformatted values: `12480` |
 | One prefix, one gradient direction | Per-feature prefixes or reversed gradients |

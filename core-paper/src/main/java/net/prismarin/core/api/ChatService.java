@@ -6,7 +6,7 @@ import net.prismarin.api.event.Subscription;
 public interface ChatService {
 
     Set<String> RESERVED_PLACEHOLDERS = Set.of("prefix", "name", "suffix", "message", "brand", "brand_prefix",
-            "brand_primary", "brand_accent");
+            "success_prefix", "error_prefix", "brand_primary", "brand_accent");
 
     Subscription register(ChatDecorator decorator, int priority);
 

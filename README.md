@@ -10,7 +10,7 @@ The point of the architecture is that a game mode never talks to a database. It 
 |:---|:---|
 | Profiles | One profile per player across every server, with locale, level, settings and balances |
 | Economy | Any number of currencies the network defines itself, with atomic transactions on every backend |
-| Branding | Name, colours and chat prefix come from the config, every bundled text uses `%brand%` and `%brand_prefix%` |
+| Branding | Name, colours and chat prefix come from the config, every bundled text uses `%brand%` and `%brand_prefix%`, confirmations and errors use `%success_prefix%` (light green) and `%error_prefix%` (light red) |
 | Text | MiniMessage, `&` colour codes, `&#RRGGBB` and `&x&R&R&G&G&B&B` hex, placeholders written as `%name%` |
 | Servers | A directory with groups and properties per server, used by the navigator and by plugins |
 | Game servers | Game states (waiting, starting, running, ending, full) from the API or from a placeholder of any game plugin, visible to lobbies even without Redis, plus `/play <group>` and `connectToGroup` that pick the best free server |

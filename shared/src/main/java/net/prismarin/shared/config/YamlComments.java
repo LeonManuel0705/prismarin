@@ -16,7 +16,8 @@ public final class YamlComments {
     public static final List<String> TEXT_HELP = List.of(
             "Every text accepts MiniMessage tags such as <red>, <bold> or <gradient:#22D3EE:#2DD4BF>,",
             "classic colour codes such as &a, &l or &r, and hex colours written as &#22D3EE or <#22D3EE>.",
-            "Placeholders are written as %name%, for example %player%, %brand% or %brand_prefix%.");
+            "Placeholders are written as %name%, for example %player%, %brand% or %brand_prefix%.",
+            "%success_prefix% and %error_prefix% start messages that confirm a command or report a problem.");
 
     private static final String COMMENT = "# ";
 
