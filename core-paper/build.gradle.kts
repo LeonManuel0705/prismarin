@@ -9,6 +9,8 @@ val includedProjects: Configuration by configurations.creating {
 
 val bundledLibraries: Configuration by configurations.creating {
     isCanBeConsumed = false
+    exclude(group = "com.google.guava")
+    exclude(group = "org.yaml", module = "snakeyaml")
 }
 
 dependencies {
