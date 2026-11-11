@@ -18,13 +18,17 @@ Das Jar entsteht ohne Shadow: `:api` und `:shared` werden über die `includedPro
 ```
 net.prismarin.core
 ├── PrismarinCorePlugin        Lifecycle, Command-Registrierung, Shutdown-Flush
-├── CoreApi                    statischer Service-Locator (einziger erlaubter), register/unregister
+├── CoreApi                    statischer Service-Locator (einziger erlaubter), sidebar(), tablist(), chat(), menus()
+├── PaperApis                  registriert Vanish, Staff-Modus, Level, Sidebar, Tablist, Chat und Menüs als API
+├── api                        stabile Paper-API: SidebarService/SidebarProvider, TablistService/TablistContributor,
+│                              ChatService/ChatDecorator
 ├── CoreModule                 Guice-Bindings: CoreConfig, MenuSettings, LocaleService, ProfileStorage,
 │                              ProfileRepository, ProfileService, EconomyService, MessageBus,
 │                              ServerDirectory, MiniMessage, ExecutorService (virtuelle Threads),
 │                              RankFormatProvider (LuckPerms-Erkennung)
 ├── chat
-│   └── AsyncChatListener      MiniMessage-Chat nur mit Permission, Renderer pro Viewer-Locale
+│   ├── AsyncChatListener      MiniMessage-Chat nur mit Permission, Renderer pro Viewer-Locale
+│   └── ChatDecorations        ChatService: Präfixe, Suffixe, Nachricht, Platzhalter anderer Plugins
 ├── command
 │   ├── CoinsCommand           /coins aus dem Profil-Cache
 │   ├── EconomyCommand         /economy give|take|set, async Offline-Resolve, Main-Thread-Antworten
@@ -33,8 +37,14 @@ net.prismarin.core
 │   └── MenuSettings           menu.click-sound/-volume/-pitch aus config.yml, schreibt Defaults nach
 ├── gui
 │   ├── Menu / PagedMenu       Button-Raster 1–6 Reihen; PagedMenu mit Navigationszeile
-│   ├── MenuButton / ClickContext / MenuHolder / MenuService (Listener, Klick-Sound, open())
+│   ├── MenuButton / ClickContext / MenuHolder / MenuService (Listener, Klick-Sound, open/refresh/close)
+│   ├── MenuStyle              einheitlicher Look: Glas-Füllung, Akzent, Zurück- und Schließen-Knopf
 │   └── ItemBuilder / ItemText Item-Fluent-API, Anti-Kursiv-Sanitizing
+├── display
+│   ├── PriorityRegistry       Registrierungen mit Priorität, Fehler werden einmal geloggt
+│   └── DisplayParts           Präfix- und Suffix-Teile, Zusatzzeilen, Platzhalter zusammenführen
+├── level
+│   └── PaperLevels            LevelService, solange systems.levels an ist
 ├── profile
 │   └── ConnectionListener     PreLogin-Load (10 s), Join-/Quit-Messages, Unload
 ├── rank
@@ -42,8 +52,7 @@ net.prismarin.core
 │   ├── DefaultRankFormatProvider   Fallback über prismarin.rank.admin
 │   └── LuckPermsRankFormatProvider Meta prefix, Gruppengewicht, Meta-Key "name-color"
 ├── scoreboard
-│   ├── SidebarManager         10-Tick-Ticker, max. 15 Zeilen, NumberFormat.blank()
-│   ├── SidebarProvider        title(player) / lines(player) — von Modulen gestellt
+│   ├── SidebarManager         SidebarService, 10-Tick-Ticker, max. 15 Zeilen, NumberFormat.blank()
 │   ├── AnimatedTitle          Gradient-Phasen-Frames für den Brand-Schriftzug
 │   └── PlayerBoards           ein Scoreboard pro Spieler
 ├── server
@@ -97,15 +106,19 @@ Eigene Event-Typen definiert das Modul nicht.
 - `ItemTextTest` (7): Anti-Kursiv-Sanitizing, Name-/Lore-Deserialisierung.
 - `AnimatedTitleTest` (9): Frame-Erzeugung, Zyklus, Validierung.
 - `TeamSortKeysTest` (8): Gewichts-Sortierung, Clamping, 16-Zeichen-Kürzung.
+- `PriorityRegistryTest` (9): Priorität, Reihenfolge bei Gleichstand, Abmelden, Fehler anderer Plugins.
+- `DisplayPartsTest` (6): Präfix- und Suffix-Teile wie bisher, Zusatzzeilen, Chat-Platzhalter.
+- `VanishRulesTest` (6): Sichtbarkeit nach Level und Recht, Level aus Permissions.
 
 Bukkit-abhängige Klassen (Listener, Manager) sind bewusst dünn gehalten und nicht unit-getestet.
 
 ## Erweiterungspunkte
 
 - **`CoreApi` + Child-Injector**: der vorgesehene Weg für neue Paper-Module (siehe `docs/conventions.md`).
-- **`SidebarProvider`**: pro Server setzt genau ein Modul den Provider (`SidebarManager.provider(...)`); der Core rendert.
+- **`SidebarProvider`**: beliebig viele Plugins registrieren Provider mit Priorität (`SidebarService.register`); pro Spieler gewinnt der höchste passende, der Core rendert (siehe „Plugin APIs on Paper“).
+- **`TablistContributor` und `ChatDecorator`**: Zeilen und Namens-Dekorationen in Tablist und Chat, ohne den Core zu ersetzen.
 - **`RankFormatProvider`**: weitere Rang-Quellen als neue Implementierung plus Provider-Logik in `CoreModule`.
-- **Menü-Framework**: `Menu`/`PagedMenu` subclassen oder komponieren; `MenuService.open` übernimmt Thread-Hop und Klick-Handling.
+- **Menü-Framework**: `Menu`/`PagedMenu` subclassen oder komponieren; `MenuService.open` übernimmt Thread-Hop und Klick-Handling, `MenuStyle` liefert den einheitlichen Look.
 - **`MessageBus`**: für künftige Cross-Server-Features direkt injizierbar; Kanäle sind frei wählbar.
 
 ## Essentials-Modul
@@ -131,6 +144,174 @@ Schalter `modules.essentials`, tritt automatisch zurück, wenn `Essentials` (Ess
 | `skull` | `/skull [name]`, fremde Köpfe werden asynchron bei Mojang nachgeschlagen | `prismarin.essentials.skull` |
 
 Das Vanilla-`/clear` bleibt unangetastet, damit Befehlsblöcke und Datenpakete weiter funktionieren. `/fly` übernimmt die Flugerlaubnis von Vanish (`VanishService.releaseFlight`), dadurch nimmt das Aufheben von Vanish einen per `/fly` gesetzten Flug nicht mehr weg. Texte unter `essentials` in den Sprachdateien. Tests: `EssentialsLogicTest`, `EssentialsSettingsTest`, `EssentialsResourcesTest` (beide Sprachen, `plugin.yml`).
+
+## Plugin APIs on Paper
+
+Everything PRISMARIN shows or switches on a backend can be used by other plugins without replacing it. Plugins declare `depend: [PrismarinCore]` (or `softdepend` and check `PrismarinProvider.isAvailable()` / `CoreApi.isAvailable()`). The packages `net.prismarin.api.*`, `net.prismarin.core.api` and `net.prismarin.core.gui` are the stable API; all other `net.prismarin.core.*` packages are internal and may change.
+
+| Feature | Type | Entry point | Empty or missing when |
+| --- | --- | --- | --- |
+| Vanish | `net.prismarin.api.vanish.VanishService` | `PrismarinProvider.get().vanish()` | module `vanish` is off |
+| Staff mode | `net.prismarin.api.staff.StaffModeService` | `PrismarinProvider.get().staffMode()` | staff mode is off |
+| Levels | `net.prismarin.api.level.LevelService` | `PrismarinProvider.get().levels()` | `systems.levels: false` |
+| Sidebar | `net.prismarin.core.api.SidebarService` | `CoreApi.get().sidebar()` | module `sidebar` is off |
+| Tab list | `net.prismarin.core.api.TablistService` | `CoreApi.get().tablist()` | module `tablist` is off |
+| Chat line | `net.prismarin.core.api.ChatService` | `CoreApi.get().chat()` | module `chat` is off |
+| Menus | `net.prismarin.core.gui.MenuService`, `MenuStyle` | `CoreApi.get().menus()`, `CoreApi.get().menuStyle()` | never |
+| Lobby | `net.prismarin.lobby.api.LobbyService` | `LobbyApi.service()` (see `lobby.md`) | PrismarinLobby is not installed |
+
+Every type is also registered in the Bukkit `ServicesManager` while it is available, for example `Bukkit.getServicesManager().load(SidebarService.class)`. Registrations return a `Subscription`; call `unsubscribe()` in `onDisable`. A provider, contributor or decorator that throws is skipped and logged once, it never breaks the PRISMARIN output. Without registrations everything looks and behaves exactly as before.
+
+### Vanish
+
+```java
+Prismarin prismarin = PrismarinProvider.get();
+boolean hidden = prismarin.vanish().map(vanish -> !vanish.canSee(viewer.getUniqueId(), target.getUniqueId()))
+        .orElse(false);
+prismarin.vanish().ifPresent(vanish -> vanish.vanish(spectator.getUniqueId()));
+prismarin.events().subscribe(VanishChangedEvent.class, event -> spectators.update(event.player(), event.vanished()));
+```
+
+| Method | Meaning |
+| --- | --- |
+| `vanished(uuid)`, `vanishedPlayers()` | vanish state of players on this server, any thread |
+| `level(uuid)` | the level a vanished player hides at, for a visible online player the level he would vanish at (`prismarin.vanish.level.<n>`, at least 1), 0 when offline |
+| `canSee(viewer, target)` | the player himself, or `prismarin.vanish.see` plus a level at least as high as the target's. A `null` viewer (console, everyone) never sees vanished players |
+| `vanish(uuid)`, `reveal(uuid)`, `toggle(uuid)` | main thread only, same effect as `/vanish` (hidden, silent, flight, remembered across server switches, the proxy is told). `vanish` and `reveal` return `false` for offline players and when nothing changed, `toggle` returns the new state |
+
+`VanishChangedEvent(player, vanished, level, cause)` fires on the main thread for every real change with the cause `COMMAND`, `STAFF_MODE`, `PLUGIN` or `JOIN` (vanish restored after a server switch). A vanished player who quits fires no event.
+
+### Staff mode
+
+```java
+prismarin.staffMode().ifPresent(staff -> {
+    if (!staff.active(player.getUniqueId())) {
+        staff.enter(player.getUniqueId());
+    }
+});
+prismarin.events().subscribe(StaffModeChangedEvent.class, event -> hud.staff(event.player(), event.enabled()));
+```
+
+`active(uuid)` reads the state, `enter`, `leave` and `toggle` switch it on the main thread exactly like `/mod` (nick and or vanish as configured, stays on after a server switch). `enter` needs `prismarin.staff.mode` and returns `false` without it, for offline players and when already active. `nickIncluded()` and `vanishIncluded()` tell what the staff mode does on this server. `StaffModeChangedEvent(player, enabled, nicked, vanished)` fires on the main thread.
+
+### Levels
+
+The `LevelService` described in `api.md` is registered on Paper as well. `/level` runs through the same profile methods, so `XpGainedEvent` and `LevelChangedEvent` (reason `command`) fire for it too.
+
+```java
+prismarin.levels().ifPresent(levels -> levels.addXp(player.getUniqueId(), 25, "skywars-kill"));
+```
+
+### Sidebar
+
+Several plugins can offer a sidebar. For each player the provider with the highest priority whose `appliesTo(player)` is true is shown, ties go to the one registered first. The lobby registers its sidebar with `SidebarService.LOBBY_PRIORITY` (0), so a game plugin uses a higher priority for its worlds and the lobby sidebar stays everywhere else.
+
+```java
+Subscription board = CoreApi.get().sidebar().map(sidebar -> sidebar.register(new SidebarProvider() {
+    @Override
+    public boolean appliesTo(Player player) {
+        return arenas.playing(player);
+    }
+
+    @Override
+    public Component title(Player player) {
+        return Component.text("BedWars", NamedTextColor.RED);
+    }
+
+    @Override
+    public List<Component> lines(Player player) {
+        return arenas.scoreboard(player);
+    }
+}, 100)).orElse(null);
+```
+
+- Updated every 10 ticks on the main thread, at most 15 lines, `refresh(player)` updates at once, `active(player)` returns the chosen provider.
+- `title` may return `null` for the default title (`sidebar.title`). An empty line list hides the sidebar for that player.
+- `appliesTo`, `title` and `lines` run on the main thread often, answer from memory.
+
+### Tab list
+
+A `TablistContributor` adds lines below the PRISMARIN header and footer and decorations around the names. Name decorations are part of the scoreboard team, so they show in the tab list and above the head, and they may differ per viewer.
+
+```java
+Subscription tab = CoreApi.get().tablist().map(tablist -> tablist.register(new TablistContributor() {
+    @Override
+    public List<Component> footer(Player viewer) {
+        return List.of(Component.text("Season 3 ends on Friday", NamedTextColor.GRAY));
+    }
+
+    @Override
+    public Component suffix(Player viewer, Player target) {
+        return clans.tag(target.getUniqueId());
+    }
+}, 10)).orElse(null);
+```
+
+- Header lines follow `tablist.header`, footer lines follow `tablist.footer`, in priority order.
+- Prefixes go before the rank prefix, suffixes after the rank suffix, each separated by a space; empty components are skipped.
+- Refreshed every 100 ticks and when a player joins; `refresh()` renders at once (main thread).
+
+### Chat line
+
+A `ChatDecorator` adds badges before the rank, text after the name, rewrites the message per viewer or fills extra placeholders that operators can put into `chat.line` of the language files.
+
+```java
+Subscription chatHook = CoreApi.get().chat().map(chat -> chat.register(new ChatDecorator() {
+    @Override
+    public Component prefix(Player source, Audience viewer) {
+        return teams.badge(source.getUniqueId());
+    }
+
+    @Override
+    public Component message(Player source, Audience viewer, Component message) {
+        return viewer instanceof Player target ? mentions.highlight(message, target.getName()) : message;
+    }
+
+    @Override
+    public Map<String, Component> placeholders(Player source, Audience viewer) {
+        return Map.of("team", teams.name(source.getUniqueId()));
+    }
+}, 0)).orElse(null);
+```
+
+```yaml
+chat:
+  line: "%prefix%%name%%suffix% <dark_gray>[%team%]</dark_gray> <dark_gray>»</dark_gray> %message%"
+```
+
+- Decorators run on the async chat thread once per viewer: never touch worlds or entities there and answer from memory.
+- Placeholder keys are lower case `[a-z0-9_-]`; `prefix`, `name`, `suffix`, `message` and the brand tags are reserved. With several decorators the higher priority wins a key. Unknown `%key%` stay for PlaceholderAPI.
+- Message rewrites run one after another in priority order.
+
+### Menus
+
+`net.prismarin.core.gui` is the menu toolkit PRISMARIN uses itself, so menus of other plugins look and sound the same.
+
+| Type | Use |
+| --- | --- |
+| `Menu(title, rows)` | 1 to 6 rows; `button(slot, button)`, `fill(pane)` for all empty slots, `onClose(player -> ...)` runs when the player closes the menu or opens another inventory, not when the same menu is opened again |
+| `PagedMenu(title, rows, items, (context, item) -> ..., previous, next)` | pages through a list with arrows in the last row |
+| `MenuButton` | `MenuButton.of(icon, player -> ...)`, `MenuButton.display(icon)` without action, or `new MenuButton(icon, context -> ...)` |
+| `ClickContext` | `player()`, `slot()`, `clickType()`, `menu()`, `menus()` |
+| `MenuService` | `open(player, menu)` from any thread (opens on the next tick, subclasses build in `prepare(viewer)`), `refresh(player)`, `close(player)`, `openMenu(player)` |
+| `MenuStyle` | the PRISMARIN look: `fill(menu)` black panes, `accent(menu, slots)` cyan panes, `back(locale, action)` and `close(locale)` with the texts `menu.back` and `menu.close` |
+| `ItemBuilder` | `of(material)`, `name`, `lore`, `amount`, `glow`, `skullOwner`, `headTexture`, `build()`; names never turn italic |
+
+Every click in a PRISMARIN menu is cancelled, items cannot be taken out, clicks play `menu.click-sound`.
+
+```java
+MenuStyle style = CoreApi.get().menuStyle();
+Locale language = PrismarinProvider.get().players().locale(player.getUniqueId());
+Menu menu = new Menu(Component.text("Choose a kit"), 3);
+style.fill(menu);
+menu.button(13, MenuButton.of(ItemBuilder.of(Material.IRON_SWORD).name(Component.text("Warrior")).build(),
+        clicked -> kits.select(clicked, "warrior")));
+menu.button(26, style.close(language));
+menu.onClose(kits::save);
+CoreApi.get().menus().open(player, menu);
+```
+
+Classes: `PaperApis` (registration), `PaperVanishService`, `PaperStaffModeService`, `PaperLevels`, `ChatDecorations`, `SidebarManager`, `TablistManager`; pure and tested: `PriorityRegistry` (`PriorityRegistryTest`), `DisplayParts` (`DisplayPartsTest`), `VanishRules` (`VanishRulesTest`).
 
 ## Friends and parties for backend plugins
 
@@ -335,3 +516,18 @@ New on top of the existing placeholders (`%prismarin_nick%`, `%prismarin_realnam
 | `player-answer` | proxy to server | `id`, `players[]` with `uuid`, `name`, `nick`, `server`, `world`, `locale`, `vanished` for every requested player that is online and every online player whose real name or nick matches a requested name |
 
 Classes: `PaperPlayerService`, `PlayerTracker` (events, state reports), `ProxyPlayerQueries` (queries through a carrier), `RealRanks`, `LuckPermsGroupRank`, `RankDisplays`, `PaperPlayers` (registration); shared: `PlayerWire` (JSON, tested in `PlayerWireTest`), `PlayerSnapshots` (tested in `PlayerSnapshotsTest`). Placeholders are tested in `PlayerPlaceholdersTest` and `LegacyCodesTest`.
+
+## Proxy services for backend plugins
+
+`BackendApis.register` (after `BackendSocial`) makes the proxy's services usable on every backend and registers them behind `Prismarin` and in the Bukkit `ServicesManager`:
+
+| Service | Backend implementation |
+| --- | --- |
+| `DataStorage` | `PluginDataStorage` on this server's document store |
+| `AuditService` | `RemoteAudit`: writes directly with `MONGO` or `MYSQL`, otherwise sends the entry to the proxy and keeps it locally only without a route |
+| `MaintenanceService` | `RemoteMaintenance`, every call goes to the proxy |
+| `NotificationService` | `RemoteNotifications`, `Delivery.NO_ROUTE` without a route |
+| `ReportService`, `PunishmentTemplates` | `RemoteReports`, `RemoteTemplates` with a `ModerationCatalog` for `reasons()`, `templates()` and `claimTimeout()`, refreshed at most once a minute and 40 ticks after a join |
+| `NickService` | the `NickManager`, now also behind `Prismarin.nicks()` |
+
+`PaperProxyLink` carries the calls: it picks an online player other than the one to avoid (a punished player could be kicked before the answer arrives), falls back to the Redis bus and only then to the avoided player, sends `network-request` with that player as carrier, and completes the call when `network-answer` arrives through the same player, after five seconds with a `TimeoutException`, or when the carrier quits. `network-event` messages from the proxy are published on the local `EventBus` (currently `ReportFiledEvent`). `ModerationChannel` only got the two message types and `handleRemote`.

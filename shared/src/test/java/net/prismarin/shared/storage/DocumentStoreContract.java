@@ -171,6 +171,17 @@ abstract class DocumentStoreContract {
     }
 
     @Test
+    void collectionsListEveryCollectionWithDocuments() {
+        store().save(collection, "a", "{}");
+        store().save(otherCollection, "b", "{}");
+
+        List<String> names = store().collections();
+        assertTrue(names.contains(collection));
+        assertTrue(names.contains(otherCollection));
+        assertEquals(names.stream().sorted().toList(), names);
+    }
+
+    @Test
     void entriesReturnIdsWithBodies() {
         store().save(collection, "b", "{\"v\":2}");
         store().save(collection, "a", "{\"v\":1}");

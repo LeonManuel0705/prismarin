@@ -1,13 +1,18 @@
 package net.prismarin.lobby;
 
 import com.google.inject.Injector;
+import net.prismarin.api.event.Subscription;
 import net.prismarin.core.CoreApi;
+import net.prismarin.core.api.SidebarService;
 import net.prismarin.core.scoreboard.SidebarManager;
+import net.prismarin.lobby.api.LobbyApi;
+import net.prismarin.lobby.api.LobbyService;
 import net.prismarin.lobby.command.LobbyBuildCommand;
 import net.prismarin.lobby.command.SetSpawnCommand;
 import net.prismarin.lobby.command.SetVoidCommand;
 import net.prismarin.lobby.config.LobbySettings;
 import net.prismarin.lobby.config.LocationsFile;
+import net.prismarin.lobby.extension.PaperLobbyService;
 import net.prismarin.lobby.listener.DoubleJumpListener;
 import net.prismarin.lobby.listener.HotbarListener;
 import net.prismarin.lobby.listener.JoinListener;
@@ -21,13 +26,13 @@ import net.prismarin.lobby.world.LobbyWorlds;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabExecutor;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.plugin.ServicePriority;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class LobbyPlugin extends JavaPlugin {
 
     private Injector injector;
-    private SidebarManager sidebarManager;
-    private LobbySidebarProvider sidebarProvider;
+    private Subscription sidebar;
 
     @Override
     public void onEnable() {
@@ -62,10 +67,12 @@ public final class LobbyPlugin extends JavaPlugin {
         registerCommand("setvoid", injector.getInstance(SetVoidCommand.class));
 
         if (settings.enabled(LobbySettings.SIDEBAR)) {
-            sidebarManager = injector.getInstance(SidebarManager.class);
-            sidebarProvider = injector.getInstance(LobbySidebarProvider.class);
-            sidebarManager.provider(sidebarProvider);
+            sidebar = injector.getInstance(SidebarManager.class)
+                    .register(injector.getInstance(LobbySidebarProvider.class), SidebarService.LOBBY_PRIORITY);
         }
+        LobbyService lobby = injector.getInstance(PaperLobbyService.class);
+        LobbyApi.register(lobby);
+        getServer().getServicesManager().register(LobbyService.class, lobby, this, ServicePriority.Normal);
         getLogger().info("Lobby features " + LobbySettings.ALL.stream().filter(settings::enabled).toList()
                 + " in worlds " + worlds.names());
         LocationsFile locations = injector.getInstance(LocationsFile.class);
@@ -81,11 +88,12 @@ public final class LobbyPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        if (sidebarManager != null && sidebarManager.provider() == sidebarProvider) {
-            sidebarManager.provider(null);
+        LobbyApi.unregister();
+        getServer().getServicesManager().unregisterAll(this);
+        if (sidebar != null) {
+            sidebar.unsubscribe();
+            sidebar = null;
         }
-        sidebarManager = null;
-        sidebarProvider = null;
         getServer().getMessenger().unregisterOutgoingPluginChannel(this);
         injector = null;
     }

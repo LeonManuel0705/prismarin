@@ -1,5 +1,6 @@
 package net.prismarin.shared.storage;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -33,7 +34,9 @@ public final class StorageMigration {
             profiles++;
         }
         int documents = 0;
-        for (String collection : COLLECTIONS) {
+        List<String> collections = new ArrayList<>(COLLECTIONS);
+        collections.addAll(PluginCollections.in(source.documents()));
+        for (String collection : collections) {
             for (Map.Entry<String, String> entry : source.documents().entries(collection).entrySet()) {
                 target.documents().save(collection, entry.getKey(), entry.getValue());
                 documents++;

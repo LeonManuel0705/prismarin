@@ -10,6 +10,9 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import net.prismarin.api.economy.BalanceChangedEvent;
 import net.prismarin.api.event.EventBus;
+import net.prismarin.api.level.LevelChangedEvent;
+import net.prismarin.api.level.LevelProgress;
+import net.prismarin.api.level.XpGainedEvent;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileLoadedEvent;
 import net.prismarin.api.profile.ProfileService;
@@ -26,6 +29,7 @@ public final class ProfileServiceImpl implements ProfileService {
     private final PlayerNames names;
     private final ConcurrentHashMap<UUID, PlayerProfile> cache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, CompletableFuture<Void>> chains = new ConcurrentHashMap<>();
+    private final PlayerProfile.ProgressListener progress = this::publishProgress;
 
     public ProfileServiceImpl(ProfileRepository repository, String defaultLocale, ExecutorService executor,
                               EventBus events) {
@@ -55,6 +59,7 @@ public final class ProfileServiceImpl implements ProfileService {
                 profile.setName(name);
                 profile.setLastSeen(Instant.now());
             }
+            track(profile);
             cache.put(uuid, profile);
             if (names != null) {
                 names.remember(uuid, name);
@@ -75,7 +80,7 @@ public final class ProfileServiceImpl implements ProfileService {
         if (cached != null) {
             return CompletableFuture.completedFuture(Optional.of(cached));
         }
-        return CompletableFuture.supplyAsync(() -> repository.find(uuid), executor);
+        return CompletableFuture.supplyAsync(() -> repository.find(uuid).map(this::track), executor);
     }
 
     @Override
@@ -125,10 +130,26 @@ public final class ProfileServiceImpl implements ProfileService {
                 profile = repository.find(uuid)
                         .orElseThrow(() -> new IllegalStateException("no profile stored for " + uuid));
             }
+            track(profile);
             action.accept(profile);
             repository.save(profile);
             return profile;
         });
+    }
+
+    private PlayerProfile track(PlayerProfile profile) {
+        profile.progressListener(progress);
+        return profile;
+    }
+
+    private void publishProgress(PlayerProfile profile, LevelProgress before, LevelProgress after, long xpAdded,
+                                 String reason) {
+        if (xpAdded > 0L) {
+            events.publish(new XpGainedEvent(profile.getUuid(), xpAdded, reason, before, after));
+        }
+        if (before.level() != after.level()) {
+            events.publish(new LevelChangedEvent(profile.getUuid(), before.level(), after.level(), reason));
+        }
     }
 
     private <T> CompletableFuture<T> ordered(UUID uuid, Supplier<T> task) {

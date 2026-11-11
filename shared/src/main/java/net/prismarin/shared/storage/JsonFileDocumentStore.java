@@ -109,6 +109,22 @@ public final class JsonFileDocumentStore implements DocumentStore {
     }
 
     @Override
+    public synchronized List<String> collections() {
+        if (Files.notExists(directory)) {
+            return List.of();
+        }
+        try (Stream<Path> folders = Files.list(directory)) {
+            return folders.filter(Files::isDirectory)
+                    .map(folder -> folder.getFileName().toString())
+                    .filter(name -> COLLECTION.matcher(name).matches())
+                    .sorted()
+                    .toList();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
+    @Override
     public void close() {
     }
 

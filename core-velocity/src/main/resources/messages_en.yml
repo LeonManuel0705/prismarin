@@ -210,6 +210,7 @@ alerts:
   server-up: "<dark_gray>[</dark_gray><color:#2DD4BF>Network</color><dark_gray>]</dark_gray> <white>%server%</white> <gray>is back online.</gray>"
   server-down: "<dark_gray>[</dark_gray><red>Network</red><dark_gray>]</dark_gray> <white>%server%</white> <gray>is offline.</gray>"
   low-tps: "<dark_gray>[</dark_gray><color:#FBBF24>Network</color><dark_gray>]</dark_gray> <white>%server%</white> <gray>runs at</gray> <color:#FBBF24>%tps% TPS</color><gray>.</gray>"
+  plugin: "<dark_gray>[</dark_gray><color:#FBBF24>%source%</color><dark_gray>]</dark_gray> <gray>%server%</gray> <white>%message%</white>"
 admin:
   info-header: "%brand_prefix%PRISMARIN proxy <white>%version%</white> as <color:#22D3EE>%server%</color></gray>"
   info-storage: " <gray>Storage</gray> <white>%storage%</white> <dark_gray>·</dark_gray> <gray>Bus</gray> <white>%bus%</white>"

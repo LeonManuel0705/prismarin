@@ -3,6 +3,8 @@ package net.prismarin.core.staff;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.Consumer;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.prismarin.api.event.EventBus;
@@ -10,6 +12,7 @@ import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.nick.NickService;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.api.staff.StaffModeChangedEvent;
+import net.prismarin.api.vanish.VanishChangedEvent;
 import net.prismarin.core.CoreModules;
 import net.prismarin.core.ModuleState;
 import net.prismarin.core.PrismarinCorePlugin;
@@ -66,22 +69,25 @@ public final class StaffModeService implements Listener {
         }
     }
 
-    private boolean nickEnabled() {
+    public boolean nickEnabled() {
         return settings.nick() && modules.enabled(CoreModules.NICK);
     }
 
-    private boolean vanishEnabled() {
+    public boolean vanishEnabled() {
         return settings.vanish() && modules.enabled(CoreModules.VANISH);
     }
 
-    private void enter(Player player) {
+    public boolean enter(Player player) {
+        if (active(player)) {
+            return false;
+        }
         boolean autoBefore = nickEnabled() && nicks.autoNick(player.getUniqueId());
-        profiles.modify(player.getUniqueId(), profile -> {
-            profile.getSettings().put(SETTING, "true");
-            profile.getSettings().put(AUTO_BEFORE, String.valueOf(autoBefore));
+        store(player, values -> {
+            values.put(SETTING, "true");
+            values.put(AUTO_BEFORE, String.valueOf(autoBefore));
         });
         if (vanishEnabled() && !vanish.vanished(player)) {
-            vanish.vanish(player);
+            vanish.vanish(player, VanishChangedEvent.Cause.STAFF_MODE);
         }
         if (nickEnabled()) {
             nicks.setAutoNick(player.getUniqueId(), true);
@@ -91,18 +97,22 @@ public final class StaffModeService implements Listener {
         }
         send(player, "staff-mode.enabled", Placeholder.unparsed("parts", parts(player)));
         events.publish(new StaffModeChangedEvent(player.getUniqueId(), true, nickEnabled(), vanishEnabled()));
+        return true;
     }
 
-    private void leave(Player player) {
+    public boolean leave(Player player) {
+        if (!active(player)) {
+            return false;
+        }
         boolean autoBefore = profiles.getCached(player.getUniqueId())
                 .map(profile -> Boolean.parseBoolean(profile.getSettings().get(AUTO_BEFORE)))
                 .orElse(false);
-        profiles.modify(player.getUniqueId(), profile -> {
-            profile.getSettings().remove(SETTING);
-            profile.getSettings().remove(AUTO_BEFORE);
+        store(player, values -> {
+            values.remove(SETTING);
+            values.remove(AUTO_BEFORE);
         });
         if (vanishEnabled() && vanish.vanished(player)) {
-            vanish.reveal(player);
+            vanish.reveal(player, VanishChangedEvent.Cause.STAFF_MODE);
         }
         if (nickEnabled()) {
             nicks.setAutoNick(player.getUniqueId(), autoBefore);
@@ -112,6 +122,7 @@ public final class StaffModeService implements Listener {
         }
         send(player, "staff-mode.disabled");
         events.publish(new StaffModeChangedEvent(player.getUniqueId(), false, false, false));
+        return true;
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
@@ -126,7 +137,7 @@ public final class StaffModeService implements Listener {
                 return;
             }
             if (vanishEnabled() && !vanish.vanished(player)) {
-                vanish.vanish(player);
+                vanish.vanish(player, VanishChangedEvent.Cause.STAFF_MODE);
             }
             if (nickEnabled() && !nicks.isNicked(player.getUniqueId()) && nicks.nicksShownHere()) {
                 nicks.nickRandom(player.getUniqueId());
@@ -148,6 +159,11 @@ public final class StaffModeService implements Listener {
             text.append(locale.raw("staff-mode.part-vanish", target));
         }
         return text.isEmpty() ? locale.raw("staff-mode.part-none", target) : text.toString();
+    }
+
+    private void store(Player player, Consumer<Map<String, String>> change) {
+        profiles.getCached(player.getUniqueId()).ifPresent(profile -> change.accept(profile.getSettings()));
+        profiles.modify(player.getUniqueId(), profile -> change.accept(profile.getSettings()));
     }
 
     private void send(Player player, String key, TagResolver... resolvers) {

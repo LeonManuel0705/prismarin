@@ -21,6 +21,7 @@ public final class SqlDocumentStore implements DocumentStore {
     private static final String FIND_CONTAINING = "SELECT body FROM prismarin_documents WHERE collection = ? "
             + "AND body LIKE ? ESCAPE '!' ORDER BY id";
     private static final String DELETE = "DELETE FROM prismarin_documents WHERE collection = ? AND id = ?";
+    private static final String COLLECTIONS = "SELECT DISTINCT collection FROM prismarin_documents";
 
     private final SqlDatabase database;
     private final String upsert;
@@ -118,6 +119,21 @@ public final class SqlDocumentStore implements DocumentStore {
                 statement.setBytes(2, key);
                 return statement.executeUpdate() > 0;
             }
+        });
+    }
+
+    @Override
+    public List<String> collections() {
+        return database.execute(connection -> {
+            List<String> names = new ArrayList<>();
+            try (PreparedStatement statement = connection.prepareStatement(COLLECTIONS);
+                 ResultSet rows = statement.executeQuery()) {
+                while (rows.next()) {
+                    names.add(rows.getString(1));
+                }
+            }
+            names.sort(null);
+            return names;
         });
     }
 

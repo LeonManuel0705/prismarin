@@ -25,10 +25,25 @@ net.prismarin.shared
 ├── locale
 │   └── YamlLocaleService        seedet messages_de/en.yml, flacht YAML zu dotted keys,
 │                                Fallback-Kette Sprache -> de -> Key, Component-Cache
+├── admin
+│   ├── AuditLog                 Collection "audit", record (fire and forget) und store (Future)
+│   └── LocalAuditService        AuditService über AuditLog, prüft Aktion, Akteur und Längen
 ├── messaging
 │   ├── LocalMessageBus          In-Process Pub/Sub (CopyOnWriteArrayList je Channel)
 │   ├── MessageBusFactory        create(CoreConfig) -> Redis oder Local
 │   └── RedisMessageBus          Lettuce Pub/Sub, Gson-Envelope, getrennte Pub/Sub-Connections
+├── network                    Aufrufe Spielserver -> Proxy (siehe unten)
+│   ├── NetworkCalls             Drahtformat network-request/-answer, Aktionen, 30 000-Byte-Grenze, within(...)
+│   ├── ApiJson                  Gson für API-Records (Duration als Millisekunden), Feldleser mit klaren Fehlern
+│   ├── ProxyLink                call(action, body, avoid); orNoRoute(...) als Rückfall
+│   ├── Route                    Träger wählen: anderer Spieler, dann Redis, dann der gemiedene Spieler
+│   ├── PendingCalls             offene Aufrufe pro Route, Zeitlimit, Abbruch beim Verlassen des Trägers
+│   ├── RemoteDispatcher         Proxy-Seite: Aktion -> API-Dienst -> Antwort, NoticeSink mit Herkunftsserver
+│   ├── RemoteAudit, RemoteMaintenance, RemoteNotifications, RemoteReports, RemoteTemplates
+│   │                            Backend-Seite der API-Dienste über einen ProxyLink
+│   ├── ModerationCatalog        Zwischenspeicher für Gründe, Vorlagen, Claim-Zeit; sendet eigene Einträge erneut
+│   ├── NetworkEvents            ReportFiledEvent als network-event an die Spielserver
+│   └── NoRouteException, RemoteCallException
 ├── profile
 │   └── ProfileServiceImpl       ConcurrentHashMap-Cache, load/save/unload/modify auf Virtual Threads
 └── storage
@@ -37,7 +52,9 @@ net.prismarin.shared
     ├── JsonFileProfileRepository  profiles/<uuid>.json, 64 Lock-Stripes, atomarer Temp-File-Move
     ├── MongoProfileRepository     Collection "profiles", findOneAndUpdate mit $gte-Filter gegen Negativsaldo
     ├── SqlProfileRepository       Tabellen prismarin_profiles + prismarin_balances, Zeilensperre pro Spieler
-    ├── DocumentStore            save / find / findAll / findBy(feld, wert) / delete für JSON-Dokumente
+    ├── DocumentStore            save / find / findAll / entries / findBy(feld, wert) / delete / collections
+    ├── PluginDataStorage        DataStorage der API: Namensräume fremder Plugins auf dem DocumentStore
+    ├── PluginCollections        physischer Name ext_<namensraum>_<collection>, owned(), in(store)
     ├── JsonFileDocumentStore      documents/<collection>/<hex(id)>.json
     ├── MongoDocumentStore         Collection "documents_<collection>", Rohtext in body, Felder als k/v-Paare
     ├── SqlDocumentStore           Tabelle prismarin_documents, findBy filtert in Java mit LIKE-Vorfilter
@@ -61,6 +78,12 @@ Alle Implementierungen halten dieselbe Semantik. Die SQL-Klassen und alle `Docum
 - Ohne Profil liefern `incrementCurrency` und `setCurrency` `PROFILE_NOT_LOADED` und legen nichts an.
 - Collection-Namen folgen `[a-z0-9_-]{1,64}`, Dokument-IDs sind 1 bis 128 Zeichen lang, exakt und groß/klein-sensitiv. `findBy` vergleicht ein Feld der obersten Ebene, dessen primitiver Wert als String gleich dem gesuchten Wert ist; `findAll` und `findBy` sortieren nach den UTF-8-Bytes der ID.
 
+`collections()` nennt jede Collection mit mindestens einem Dokument, sortiert (JSON: Unterordner von `documents/`, SQL: `SELECT DISTINCT collection`, Mongo: Collections mit Präfix `documents_`). `StorageMigration` kopiert neben den festen Core-Collections alle Collections mit Präfix `ext_`, also die Daten fremder Plugins aus `Prismarin.storage()`.
+
+### Speicher für fremde Plugins
+
+`PluginDataStorage` legt jede Collection eines Plugins unter `ext_<namensraum>_<collection>` ab. Namensräume folgen `[a-z0-9][a-z0-9-]{1,23}` ohne Unterstrich, Collections `[a-z0-9][a-z0-9-]{0,31}`, `prismarin` ist reserviert. Weil keine eigene Collection mit `ext_` beginnt und der Namensraum keinen Unterstrich enthalten darf, kann kein Paar zwei Plugins auf denselben Namen abbilden. Alle Zugriffe laufen auf dem Executor des Cores, ungültige Namen und IDs werfen sofort `IllegalArgumentException`.
+
 SQL-Schema (wird beim Start mit `CREATE TABLE IF NOT EXISTS` angelegt):
 
 | Tabelle | Spalten | Schlüssel |
@@ -72,6 +95,22 @@ SQL-Schema (wird beim Start mit `CREATE TABLE IF NOT EXISTS` angelegt):
 Dialekte: MySQL/MariaDB nutzt InnoDB mit `utf8mb4`, `READ COMMITTED`, `SELECT ... FOR UPDATE` auf die Profilzeile als Sperre pro Spieler und `INSERT ... ON DUPLICATE KEY UPDATE`. SQLite läuft mit einer einzigen Pool-Verbindung, WAL-Journal, `synchronous=NORMAL` und `BEGIN IMMEDIATE`, Upserts über `ON CONFLICT ... DO UPDATE`. Deadlocks (SQLState `40`) und Schlüsselkonflikte bei gleichzeitigem Erstanlegen (`23`) werden bis zu dreimal wiederholt. `findBy` holt bei Werten aus `[A-Za-z0-9._:-]` per `LIKE` nur passende Kandidaten und filtert dann exakt in Java; andere Werte lesen die ganze Collection.
 
 Treiber: MySQL und MariaDB laufen beide über MariaDB Connector/J (`jdbc:mariadb://host:port/database`), der auch MySQL-Server ab 5.7 spricht; ein `jdbc:mysql:`-URL oder `permitMysqlScheme` ist nicht nötig, weil die URL intern gebaut wird. Connector/J 4 prüft TLS standardmäßig (`sslMode=verify-full`). Gegen einen MySQL-Server mit selbstsigniertem Zertifikat `sslMode: trust` unter `storage.mysql.properties` setzen, gegen einen Server ohne TLS `sslMode: disable` (bei MySQL 8 mit `caching_sha2_password` zusätzlich `allowPublicKeyRetrieval: true`). Die Datenbank selbst muss existieren, die Tabellen legt das Plugin an.
+
+## Aufrufe vom Spielserver zum Proxy
+
+Die Pakete `network` und `admin` tragen die API-Dienste, die auf dem Proxy leben, auf die Spielserver: Audit-Log, Wartung, Team-Meldungen, Rundrufe, Reports und Strafvorlagen. Ein Spielserver schickt `network-request` (`id`, `action`, `body`) über `prismarin:moderation` mit einem Spieler als Träger oder, wenn niemand online ist und Redis läuft, über den Bus-Kanal `prismarin:network`. Der Proxy antwortet mit `network-answer` (`id`, `ok`, `error` oder `body`) über denselben Träger bzw. über `prismarin:network-answer` mit `to` = Absender.
+
+| Aktion | Body | Antwort |
+| --- | --- | --- |
+| `audit-record`, `audit-latest` | `actor`, `action`, `target`, `details` bzw. `target`, `limit` | `{}` bzw. `entries`, `truncated` |
+| `maintenance-state`, `maintenance-set` | `{}` bzw. `kind` (`network`, `server`, `group`), `name`, `active`, `actor` | `state` bzw. `changed` |
+| `staff-alert`, `staff-chat`, `broadcast` | `alert` (`StaffAlert`), `chat` (`StaffChat`), `broadcast` (`Broadcast`) | `delivery` |
+| `moderation-catalog` | `{}` | `reports`, `templates`, `reasons`, `claim-millis`, `template-list` |
+| `report-file`, `report-open`, `report-find`, `report-claim`, `report-release`, `report-close` | `reporter`, `reporter-name`, `target`, `reason`, `id`, `staff`, `verdict` | `submission`, `reports`, `report` |
+| `reason-register`, `reason-unregister`, `template-register`, `template-unregister` | `reason`, `template` oder `id` | `{}` |
+| `template-preview`, `template-punish` | `target`, `template`, `actor`, `note` | `preview` bzw. `punishment` |
+
+Jede Nachricht bleibt unter 30 000 Bytes, Listen werden mit `truncated` gekürzt. Records werden mit `ApiJson` geschrieben und beim Lesen von ihren eigenen Konstruktoren geprüft; Fehler gehen als lesbarer Text zurück und werden beim Aufrufer zu `RemoteCallException`. Ohne Weg zum Proxy wirft der Link `NoRouteException`: Meldungen liefern dann `Delivery.NO_ROUTE`, Audit-Einträge bleiben lokal.
 
 ## Events
 
@@ -115,6 +154,7 @@ Ressourcen: `messages_de.yml` / `messages_en.yml` als Seed-Vorlagen für `YamlLo
 
 Unit (Standard-`test`-Task):
 
+- `ProfileLevelServiceTest` (10): XP, Level setzen und verschieben, Grenzen, Offline-Profile, Reihenfolge von `XpGainedEvent` und `LevelChangedEvent`.
 - `EconomyServiceImplTest` (6): Balance-Lesen, Deposit/Withdraw-Delegation, `INSUFFICIENT_FUNDS`, Ablehnung nicht-positiver Beträge.
 - `YamlLocaleServiceTest` (6): Seeding, dotted-Key-Flattening, Fallback Sprache→de→Key, Platzhalter-Resolver.
 - `LocalMessageBusTest` (4): Publish/Subscribe, Envelope-Felder, Channel-Isolation, close.
@@ -122,6 +162,9 @@ Unit (Standard-`test`-Task):
 - `SqliteProfileRepositoryTest` (19): `ProfileRepositoryContract` gegen SQLite plus Wiederöffnen der Datei und idempotentes Schema.
 - `JsonFileDocumentStoreTest` (16) und `SqliteDocumentStoreTest` (16): `DocumentStoreContract` (Roundtrip, Ersetzen, Sortierung, `findBy`-Regeln, Sonderzeichen, exakte IDs, Validierung) plus je zwei speicherspezifische Fälle.
 - `ProfileStorageTest` (2): Auswahl der Implementierungen und eine gemeinsame SQLite-Datei für Profile und Dokumente.
+- `PluginDataStorageTest` (6): physische Namen passen in jeden Speicher und treffen nie Core-Collections, Namensräume sind getrennt, Listen und `findBy` roh und typisiert, Validierung vor jedem Zugriff, Migration nimmt `ext_`-Collections mit.
+- `NetworkCallsTest` (6), `PendingCallsTest` (5), `RouteTest` (3), `NetworkEventsTest` (3): Drahtformat und Ablehnung kaputter Nachrichten, Größengrenze, Routen, Zeitlimit, Ereignisweitergabe.
+- `RemoteRoundTripTest` (14): jeder Dienst einmal über JSON vom Spielserver zum `RemoteDispatcher` und zurück, mit Rückfall ohne Route, abgeschalteten Modulen, abgelehnten Registrierungen, Heilung nach Proxy-Neustart und gekürzten Listen.
 
 Integration (`@Tag("integration")`, separater `integrationTest`-Task, nur CI — Docker ist lokal nicht verfügbar):
 

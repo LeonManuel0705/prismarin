@@ -18,6 +18,8 @@ public interface DocumentStore extends AutoCloseable {
 
     boolean delete(String collection, String id);
 
+    List<String> collections();
+
     @Override
     void close();
 }

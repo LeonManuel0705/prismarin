@@ -10,6 +10,7 @@ import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.prismarin.api.level.LevelService;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
@@ -109,13 +110,11 @@ public final class LevelCommand implements TabExecutor {
         int[] before = new int[1];
         profiles.modify(target, profile -> {
             before[0] = profile.getLevel();
-            if (change.action() == LevelCommandParser.Action.ADD_XP) {
-                profile.addXp(change.amount());
-            } else {
-                profile.setLevel(LevelCommandParser.apply(profile.getLevel(), change.action(), change.amount()));
-                if (change.action() == LevelCommandParser.Action.SET) {
-                    profile.setXp(0L);
-                }
+            int level = LevelCommandParser.apply(profile.getLevel(), change.action(), change.amount());
+            switch (change.action()) {
+                case ADD_XP -> profile.addXp(change.amount(), LevelService.REASON_COMMAND);
+                case SET -> profile.setProgress(level, 0L, LevelService.REASON_COMMAND);
+                case ADD, REMOVE -> profile.setLevel(level, LevelService.REASON_COMMAND);
             }
         }).whenComplete((profile, error) -> {
             if (error != null || profile == null) {

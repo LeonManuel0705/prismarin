@@ -1,0 +1,16 @@
+name: PrismarinExample
+version: "${version}"
+main: net.prismarin.example.ExamplePlugin
+api-version: "1.21"
+depend:
+  - PrismarinCore
+commands:
+  example:
+    description: Shows what a game plugin can do with the PRISMARIN API.
+    usage: /example <whois|win|top|report|reward|punish|alert|state|maintenance>
+    permission: prismarin.example.use
+permissions:
+  prismarin.example.use:
+    default: true
+  prismarin.example.staff:
+    default: op

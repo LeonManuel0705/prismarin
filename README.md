@@ -21,12 +21,24 @@ The point of the architecture is that a game mode never talks to a database. It 
 | Friends and parties | Friend requests, online status and jump, parties with chat and follow the leader, network wide `/msg` and `/r`, all reachable from the lobby profile menu |
 | Ranks and levels | `/rank` sets, adds or removes LuckPerms groups with optional durations, LuckPerms prefixes with `&` codes colour the name, `/level` sets, adds or removes levels and XP, a balance command per currency plus `/balance` |
 | Network overview | `/network` opens a live inventory with status, players, ping, version, TPS, memory and uptime per server |
-| Events | `ProfileLoadedEvent`, `ProfileUnloadedEvent`, `BalanceChangedEvent`, `PunishmentIssuedEvent` and `PunishmentRevokedEvent` on proxy and backends |
+| Events | Profiles, balances, server switches, nicks, punishments, reports, friends, parties, maintenance and staff alerts, listed in `docs/api.md` |
+| Plugin API | One interface for every service, storage for other plugins, audit log, maintenance and staff alerts reachable from backends, see `docs/api.md` |
 | Vault | Registers as the Vault economy for the classic API and the multi currency VaultUnlocked API, so every shop or game plugin pays out network currency |
 | PlaceholderAPI | `%prismarin_balance%`, `%prismarin_group_online_bedwars%`, `%prismarin_rank_prefix%`, `%prismarin_language%`, `%prismarin_data_<key>%` for attributes of other plugins and more, and PlaceholderAPI placeholders inside PRISMARIN's own tablist, sidebar and chat |
 | Compatibility | Switches its own tablist, sidebar or chat format off when TAB, a scoreboard plugin or a chat plugin is installed |
 | Systems and modules | Whole systems (economy, levels, network status) and single features (chat, tablist, sidebar, join messages, commands, proxy features, lobby parts) can each be switched off |
 | Lobby | An optional ready made lobby with navigator, lobby selector for several lobby worlds or servers with premium lobbies, profile menu, language menu, nick tool, silent lobby, player hider, double jump, void teleport and custom hotbar items with click actions |
+
+## Compatibility
+
+| Part | Supported |
+|:---|:---|
+| Backends | Paper 1.21.7 to 1.21.11 and forks based on it, tested live on 1.21.11. Spigot, Bukkit and Folia are not supported. |
+| Proxy | Velocity 3.4 |
+| Java | 21 or newer |
+| Clients | Whatever the proxy accepts. With ViaVersion, ViaBackwards and ViaRewind 1.21 and 1.16.5 clients were tested with bots; 1.8 clients need worlds that stay between Y 0 and 255. |
+| Older backends | A 1.8 or 1.16 server can still run behind the proxy and gets every proxy feature (bans, mutes, reports as clickable chat, friends, parties, private messages, staff chat, maintenance), only the backend features such as menus, nicks, vanish and sidebar need PRISMARIN on the server itself. |
+| Optional | MySQL 5.7+, MariaDB, MongoDB, SQLite, Redis or a Redis compatible server, LuckPerms, Vault or VaultUnlocked, PlaceholderAPI |
 
 ## Architecture
 
@@ -48,10 +60,25 @@ core-velocity  core-paper
 | `:core-paper` | Core plugin for Paper backends. Chat format with rank prefixes, tablist, sidebar and menu frameworks, economy commands, network overview. |
 | `:core-velocity` | Core plugin for the proxy. MOTD, maintenance mode, `/hub`, `/sendall`, lobby fallback when a backend drops a player. |
 | `:lobby-paper` | Optional lobby gameplay on top of the core. |
+| `:example-paper` | An example plugin that uses only the API, built but not shipped. |
 
 ## Using the API
 
-Add `depend: [PrismarinCore]` to your `plugin.yml`, then:
+The API is published as `net.prismarin:prismarin-api` (GitHub Packages) and through JitPack, both as a small jar with a sources jar. Add it as `compileOnly`, PrismarinCore provides it at runtime:
+
+```kotlin
+repositories {
+    maven("https://jitpack.io")
+}
+
+dependencies {
+    compileOnly("com.github.LeonManuel0705.prismarin:prismarin-api:v1.0.0")
+}
+```
+
+For GitHub Packages use `https://maven.pkg.github.com/LeonManuel0705/prismarin` with a token that has `read:packages` and `compileOnly("net.prismarin:prismarin-api:1.0.0")`; `./gradlew :api:publishToMavenLocal` puts the same coordinates into `mavenLocal()`.
+
+Add `depend: [PrismarinCore]` to your `plugin.yml` (on Velocity a dependency on `prismarin-core`), then:
 
 ```java
 Prismarin prismarin = PrismarinProvider.get();
@@ -80,9 +107,23 @@ prismarin.events().subscribe(ServerChangedEvent.class, event -> { });
 players.attributes().register(PlayerAttribute.of("bedwars_wins", player -> wins(player.uuid())));
 ```
 
-`displayName` shows the real name only to the player himself and to staff with `prismarin.nick.realname`, `resolve` finds a player by what someone typed without leaking a real name. Registered attributes show up as `%prismarin_data_<key>%` and in the lobby profile. Details in `docs/modules/core-paper.md` and `docs/modules/core-velocity.md`.
+A game plugin keeps its own data in PRISMARIN's storage, and an anticheat on a backend reaches the proxy without any channel code of its own:
 
-On Paper the same instances are registered in the Bukkit services manager (`Prismarin`, `PlayerService`, `FriendService`, `PartyService`). On Velocity, depend on `prismarin-core`.
+```java
+TypedCollection<Stats> stats = prismarin.storage().namespace("bedwars").collection("stats", Stats.class);
+stats.save(uuid.toString(), new Stats(12, 30));
+
+prismarin.audit().record("AntiCheat", "anticheat.flag", suspectName, "Reach 4.2");
+prismarin.notifications().notifyStaff(StaffAlert.of("AntiCheat",
+        NoticeText.of("%player% may use Reach").with("player", suspectName)));
+prismarin.reports().ifPresent(reports -> reports.file(anticheatId, "AntiCheat", suspect, "hacking Reach 4.2"));
+prismarin.punishmentTemplates().ifPresent(templates -> templates.punish(suspect, "hacking", "AntiCheat"));
+prismarin.maintenance().ifPresent(maintenance -> maintenance.setServer("bw-1", true, "BedwarsReset"));
+```
+
+`displayName` shows the real name only to the player himself and to staff with `prismarin.nick.realname`, `resolve` finds a player by what someone typed without leaking a real name. Registered attributes show up as `%prismarin_data_<key>%` and in the lobby profile.
+
+Every service, how to get it on Paper and Velocity, the events and the limits are listed in [`docs/api.md`](docs/api.md). The module `example-paper` is a complete plugin that uses the API in small classes; it is built with the project but not shipped in `dist`.
 
 ## Configuration
 
@@ -154,7 +195,7 @@ servers:
 
 ## Testing
 
-261 unit tests across 43 test classes run on every build. 5 more classes are integration tests, tagged separately, that spin up real MongoDB, Redis, MySQL and MariaDB containers through Testcontainers.
+More than 700 unit tests run on every build. 5 more classes are integration tests, tagged separately, that spin up real MongoDB, Redis, MySQL and MariaDB containers through Testcontainers.
 
 ```bash
 ./gradlew build             # compile plus unit tests
@@ -164,7 +205,7 @@ servers:
 
 ## Status
 
-Version 0.4.0 adds storage migration, silent containers in vanish and an optional bridge that gives backend operators PRISMARIN permissions on the proxy. Version 0.3.0 added game server adapters with automatic server selection, SQL storage and a cross server admin system on top of 0.2.0, which turned the former single network into a framework with configurable branding and currencies, a public API, switchable systems and modules, the network overview and bridges to Vault and PlaceholderAPI. Next on the roadmap is publishing: a Maven package, releases and documentation. See `ROADMAP.md`.
+Version 1.0.0 is the first stable release. On top of the 0.x series it brings friends, parties with roles and private messages, a cross server nick system with skins and fake ranks, reports with a staff menu, chat evidence and claims, punishment templates that escalate, ban and mute lists, a staff mode, an essentials module, a reworked lobby with several lobbies and custom items, LuckPerms display names, and a public API for every system: players, levels, vanish, staff mode, storage for other plugins, audit log, maintenance, staff notifications, sidebar, tab list, chat, menus and the lobby. See `docs/api.md` and the example plugin in `example-paper`. Next on the roadmap is publishing on Hangar and Modrinth.
 
 ## License
 

@@ -12,6 +12,7 @@ import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
+import net.prismarin.shared.network.NetworkCalls;
 import net.prismarin.shared.player.PlayerWire;
 import net.prismarin.velocity.locale.PlayerLocaleRegistry;
 
@@ -52,6 +53,11 @@ public final class ModerationChannel {
         }
     }
 
+    public interface RemoteHandler {
+
+        void request(Player carrier, String server, JsonObject message);
+    }
+
     private final VanishRegistry vanish;
     private final PlayerLocaleRegistry locales;
     private volatile OperatorRegistry operators;
@@ -60,6 +66,7 @@ public final class ModerationChannel {
     private volatile SocialHandler social;
     private volatile PlayerHandler players;
     private volatile MenuHandler reportsMenu;
+    private volatile RemoteHandler remote;
 
     public ModerationChannel(VanishRegistry vanish, PlayerLocaleRegistry locales) {
         this.vanish = vanish;
@@ -111,6 +118,10 @@ public final class ModerationChannel {
         JsonArray array = new JsonArray();
         values.forEach(array::add);
         return array;
+    }
+
+    public void handleRemote(RemoteHandler remote) {
+        this.remote = remote;
     }
 
     public void handlePlayers(PlayerHandler players) {
@@ -230,6 +241,10 @@ public final class ModerationChannel {
             }
             if ("social-query".equals(type) && socialHandler != null && carrier.getUniqueId().equals(subject)) {
                 socialHandler.query(carrier, message);
+            }
+            RemoteHandler remoteHandler = remote;
+            if (NetworkCalls.REQUEST.equals(type) && remoteHandler != null && carrier.getUniqueId().equals(subject)) {
+                remoteHandler.request(carrier, connection.getServerInfo().getName(), message);
             }
             PlayerHandler playerHandler = players;
             if (playerHandler != null && carrier.getUniqueId().equals(subject)) {

@@ -1,5 +1,5 @@
 group = "net.prismarin"
-version = "0.4.0"
+version = "1.0.0"
 
 tasks.register<Copy>("dist") {
     group = "distribution"

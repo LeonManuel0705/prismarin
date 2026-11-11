@@ -11,7 +11,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.prismarin.lobby.action.ActionRunner;
 import net.prismarin.lobby.action.ItemAction;
 import net.prismarin.lobby.action.ItemClick;
+import net.prismarin.lobby.api.HotbarClick;
+import net.prismarin.lobby.api.LobbyHotbarItem;
 import net.prismarin.lobby.config.CustomItem;
+import net.prismarin.lobby.extension.LobbyExtensions;
 import net.prismarin.lobby.item.LobbyItems;
 import net.prismarin.lobby.menu.LobbyMenus;
 import net.prismarin.lobby.menu.NickToolMenu;
@@ -50,13 +53,15 @@ public final class HotbarListener implements Listener {
     private final ActionRunner actions;
     private final NickToolMenu nickTool;
     private final SilentLobbyService silent;
+    private final LobbyExtensions extensions;
     private final CooldownTracker debounce = new CooldownTracker(CLICK_DEBOUNCE);
     private final Map<UUID, Long> lastDrop = new ConcurrentHashMap<>();
 
     @Inject
     public HotbarListener(LobbyItems items, LobbyMenus menus, PlayerHiderService hider, BuildModeService buildMode,
                           LobbyWorlds worlds, LobbyTravel travel, ActionRunner actions, NickToolMenu nickTool,
-                          SilentLobbyService silent) {
+                          SilentLobbyService silent, LobbyExtensions extensions) {
+        this.extensions = extensions;
         this.nickTool = nickTool;
         this.silent = silent;
         this.items = items;
@@ -92,6 +97,13 @@ public final class HotbarListener implements Listener {
             List<ItemAction> list = custom.get().actionsFor(ItemClick.of(left, player.isSneaking()));
             if (!list.isEmpty() && debounce.tryUse(player.getUniqueId(), now)) {
                 actions.run(player, list);
+            }
+            return;
+        }
+        Optional<LobbyHotbarItem> added = extensions.hotbarItem(id.get());
+        if (added.isPresent()) {
+            if (debounce.tryUse(player.getUniqueId(), now)) {
+                extensions.click(added.get(), new HotbarClick(player, left, player.isSneaking()));
             }
             return;
         }

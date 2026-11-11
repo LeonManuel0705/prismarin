@@ -24,12 +24,15 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import net.prismarin.api.PrismarinProvider;
+import net.prismarin.api.PrismarinSystems;
+import net.prismarin.api.level.LevelApi;
 import net.prismarin.api.moderation.ModerationApi;
 import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.shared.config.ConfigComments;
 import net.prismarin.shared.config.ConfigLoader;
 import net.prismarin.shared.config.CoreConfig;
+import net.prismarin.shared.level.ProfileLevelService;
 import net.prismarin.shared.platform.CoreServices;
 import net.prismarin.shared.server.YamlServerDirectory;
 import net.prismarin.shared.status.NetworkStatusService;
@@ -44,7 +47,9 @@ import net.prismarin.velocity.admin.ModerationChannel;
 import net.prismarin.velocity.admin.ModerationListener;
 import net.prismarin.velocity.admin.OperatorRegistry;
 import net.prismarin.velocity.admin.ProxyInfoCommand;
+import net.prismarin.velocity.admin.ProxyMaintenance;
 import net.prismarin.velocity.admin.ProxyPunishmentTemplates;
+import net.prismarin.velocity.admin.ProxyRemote;
 import net.prismarin.velocity.admin.ProxyReportApi;
 import net.prismarin.velocity.admin.PunishmentCommands;
 import net.prismarin.velocity.admin.PunishmentFlow;
@@ -129,10 +134,12 @@ public final class PrismarinVelocityPlugin {
         if (serverMaintenance != null) {
             proxy.getEventManager().register(this, serverMaintenance);
         }
+        ProxyMaintenance maintenance = new ProxyMaintenance(configStore, serverMaintenance,
+                coreConfig.moduleEnabled(ProxyModules.MAINTENANCE), services, executor);
         if (coreConfig.moduleEnabled(ProxyModules.MAINTENANCE)) {
             proxy.getEventManager().register(this, new MaintenanceLoginListener(configStore, messages));
             commands.register(commands.metaBuilder("maintenance").plugin(this).build(),
-                    new MaintenanceCommand(configStore, messages, serverMaintenance));
+                    new MaintenanceCommand(maintenance, messages));
         }
 
         NetworkStatusService networkStatus = new NetworkStatusService(directory, services.messageBus(), executor);
@@ -140,9 +147,13 @@ public final class PrismarinVelocityPlugin {
         NetworkConnector connector = new SelectingConnector(directory, networkStatus, new ProxyConnectorTransport(proxy));
         PrismarinProvider.register(services.prismarin(directory, networkStatus, new SimpleGameStateService(),
                 connector));
+        if (coreConfig.systemEnabled(PrismarinSystems.LEVELS)) {
+            LevelApi.register(new ProfileLevelService(services.profiles()));
+        }
         AdminContext admin = new AdminContext(proxy, services, messages, vanish, moderationChannel, connector,
                 directory, networkStatus, AdminSettings.load(dataDirectory.resolve("admin.yml")));
         registerAdmin(coreConfig, admin);
+        ProxyRemote.register(admin, maintenance, logger);
         ProxyPlayers.register(this, admin, executor);
         SocialModule.register(this, logger, coreConfig, admin, executor, dataDirectory);
         logger.info("PRISMARIN proxy core enabled as '{}' with {}, systems {} and modules {}",
@@ -224,6 +235,8 @@ public final class PrismarinVelocityPlugin {
     public void onProxyShutdown(ProxyShutdownEvent event) {
         PrismarinProvider.unregister();
         ModerationApi.unregister();
+        LevelApi.unregister();
+        ProxyRemote.unregister();
         if (services != null) {
             services.close();
             services = null;

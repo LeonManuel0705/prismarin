@@ -84,6 +84,18 @@ public final class MongoDocumentStore implements DocumentStore {
     }
 
     @Override
+    public List<String> collections() {
+        List<String> names = new ArrayList<>();
+        for (String name : database.listCollectionNames()) {
+            if (name.startsWith(PREFIX)) {
+                names.add(name.substring(PREFIX.length()));
+            }
+        }
+        names.sort(null);
+        return names;
+    }
+
+    @Override
     public void close() {
     }
 

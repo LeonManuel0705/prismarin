@@ -5,59 +5,46 @@ import com.google.inject.Singleton;
 import java.util.List;
 import java.util.Locale;
 import java.util.function.Consumer;
-import net.kyori.adventure.text.Component;
-import net.prismarin.api.locale.LocaleService;
 import net.prismarin.core.gui.ClickContext;
-import net.prismarin.core.gui.ItemBuilder;
 import net.prismarin.core.gui.Menu;
 import net.prismarin.core.gui.MenuButton;
+import net.prismarin.core.gui.MenuStyle;
 import net.prismarin.lobby.LobbyPlugin;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
 @Singleton
 public final class MenuKit {
 
-    public static final Consumer<ClickContext> DECORATION = context -> context.player().updateInventory();
+    public static final Consumer<ClickContext> DECORATION = MenuButton.NOTHING;
 
     private final LobbyPlugin plugin;
-    private final LocaleService locale;
+    private final MenuStyle style;
 
     @Inject
-    public MenuKit(LobbyPlugin plugin, LocaleService locale) {
+    public MenuKit(LobbyPlugin plugin, MenuStyle style) {
         this.plugin = plugin;
-        this.locale = locale;
+        this.style = style;
     }
 
     public void fill(Menu menu) {
-        ItemStack pane = ItemBuilder.of(Material.BLACK_STAINED_GLASS_PANE).name(Component.space()).build();
-        for (int slot = 0; slot < menu.size(); slot++) {
-            menu.button(slot, new MenuButton(pane, DECORATION));
-        }
+        style.fill(menu);
     }
 
     public void accent(Menu menu, List<Integer> slots) {
-        ItemStack pane = ItemBuilder.of(Material.CYAN_STAINED_GLASS_PANE).name(Component.space()).build();
-        for (int slot : slots) {
-            if (slot >= 0 && slot < menu.size()) {
-                menu.button(slot, decoration(pane));
-            }
-        }
+        style.accent(menu, slots);
     }
 
     public MenuButton decoration(ItemStack icon) {
-        return new MenuButton(icon, DECORATION);
+        return MenuButton.display(icon);
     }
 
     public MenuButton back(Locale target, Consumer<Player> action) {
-        return new MenuButton(ItemBuilder.of(Material.ARROW).name(locale.render("menu.back", target)).build(),
-                context -> action.accept(context.player()));
+        return style.back(target, action);
     }
 
     public MenuButton close(Locale target) {
-        return new MenuButton(ItemBuilder.of(Material.BARRIER).name(locale.render("menu.close", target)).build(),
-                context -> closeLater(context.player()));
+        return style.close(target);
     }
 
     public void closeLater(Player player) {

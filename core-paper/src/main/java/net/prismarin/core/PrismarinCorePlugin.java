@@ -48,6 +48,7 @@ import net.prismarin.core.player.PaperPlayers;
 import net.prismarin.core.profile.ConnectionListener;
 import net.prismarin.core.rank.MissingLuckPermsCommand;
 import net.prismarin.core.rank.RankCommand;
+import net.prismarin.core.remote.BackendApis;
 import net.prismarin.core.scoreboard.SidebarManager;
 import net.prismarin.core.social.BackendSocial;
 import net.prismarin.core.social.SocialClient;
@@ -209,11 +210,13 @@ public final class PrismarinCorePlugin extends JavaPlugin {
 
         CoreApi.register(injector);
         PrismarinProvider.register(prismarin);
+        injector.getInstance(PaperApis.class).register();
         getServer().getServicesManager().register(Prismarin.class, prismarin, this, ServicePriority.Normal);
         if (nickManager != null) {
             getServer().getServicesManager().register(NickService.class, nickManager, this, ServicePriority.Normal);
         }
         injector.getInstance(BackendSocial.class).register();
+        injector.getInstance(BackendApis.class).register(nickManager);
         injector.getInstance(PaperPlayers.class).enable();
         if (modules.enabled(CoreModules.PLACEHOLDER_API) && pluginManager.getPlugin("PlaceholderAPI") != null) {
             placeholderBridge = PlaceholderBridge.enable(prismarin, nickManager, services.formatter(),
@@ -243,8 +246,10 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         }
         getServer().getServicesManager().unregisterAll(this);
         SocialApi.unregister();
+        PaperApis.unregister();
         if (injector != null) {
             injector.getInstance(PaperPlayers.class).disable();
+            injector.getInstance(BackendApis.class).unregister();
         }
         PrismarinProvider.unregister();
         CoreApi.unregister();

@@ -72,7 +72,7 @@ injector = CoreApi.get().injector().createChildInjector(new MeinModul(this));
 ```
 
 Eigene Services im `AbstractModule` binden; Core-Services (`ProfileService`, `LocaleService`, `EconomyService`, `MenuService`, `SidebarManager`, `MessageBus`, `ExecutorService`, `MiniMessage`) werden automatisch vom Parent aufgelöst.
-4. **Aufräumen**: `onDisable` in umgekehrter Reihenfolge — registrierte Provider (z. B. `SidebarManager.provider(null)`) und Channels abmelden, Referenzen nullen. Kein Schließen von Core-Ressourcen, die gehören dem Core.
+4. **Aufräumen**: `onDisable` in umgekehrter Reihenfolge: Registrierungen (die `Subscription` von `SidebarService.register` und Co.) mit `unsubscribe()` und Channels abmelden, Referenzen nullen. Kein Schließen von Core-Ressourcen, die gehören dem Core.
 5. **Texte**: alle Keys mit Modul-Prefix in `core-paper/src/main/resources/messages_de.yml` **und** `messages_en.yml` ergänzen (Key-Sets müssen identisch bleiben).
 6. **Distribution**: neuen `from(...)`-Block im `dist`-Task des Root-Builds ergänzen, damit das Jar unter `dist/` landet.
 

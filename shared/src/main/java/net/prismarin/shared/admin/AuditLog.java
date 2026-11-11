@@ -28,10 +28,19 @@ public final class AuditLog {
     }
 
     public void record(String actor, String action, String target, String details) {
-        long now = clock.millis();
-        Entry entry = new Entry(now + "-" + UUID.randomUUID().toString().substring(0, 8), now, actor, action,
-                target == null ? "" : target, details == null ? "" : details);
+        Entry entry = entry(actor, action, target, details);
         executor.execute(() -> documents.save(COLLECTION, entry.id(), gson.toJson(entry)));
+    }
+
+    public CompletableFuture<Void> store(String actor, String action, String target, String details) {
+        Entry entry = entry(actor, action, target, details);
+        return CompletableFuture.runAsync(() -> documents.save(COLLECTION, entry.id(), gson.toJson(entry)), executor);
+    }
+
+    private Entry entry(String actor, String action, String target, String details) {
+        long now = clock.millis();
+        return new Entry(now + "-" + UUID.randomUUID().toString().substring(0, 8), now, actor, action,
+                target == null ? "" : target, details == null ? "" : details);
     }
 
     public CompletableFuture<List<Entry>> latest(String target, int limit) {

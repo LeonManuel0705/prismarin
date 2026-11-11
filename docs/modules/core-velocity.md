@@ -228,6 +228,10 @@ Events on the proxy: `ServerChangedEvent` after every `ServerPostConnectEvent` (
 
 Classes: `ProxyPlayerService` (service, channel handler, listeners), `ProxyNickClaims`, `ProxyPlayers` (registration). `PlayerLocaleRegistry.onChange` notifies about language changes. Tests: `ProxyPlayerRulesTest`, `PlayerLocaleRegistryTest`.
 
+## Levels for proxy plugins
+
+`PrismarinProvider.get().levels()` returns the same `LevelService` as on Paper while `systems.levels` is on (see `api.md`), so a proxy plugin can reward XP too: `prismarin.levels().ifPresent(levels -> levels.addXp(uuid, 100, "daily-login"))`. `XpGainedEvent` and `LevelChangedEvent` fire on the proxy's event bus for changes made on the proxy. `vanish()` and `staffMode()` are empty on the proxy, both live on the backends.
+
 ## Reports, ban lists and the moderation API
 
 ### `/reports` as a staff menu
@@ -306,3 +310,13 @@ prismarin.punishmentTemplates().ifPresent(templates -> templates.preview(suspect
                 : CompletableFuture.completedFuture(null)));
 ```
 
+
+## Audit log, maintenance and staff alerts for plugins
+
+`ProxyRemote.register` (called at the end of `onProxyInitialize`) registers `AuditService` (`LocalAuditService` on the proxy storage), `MaintenanceService` (`ProxyMaintenance`, only when `maintenance` or `server-maintenance` is on), `NotificationService` (`ProxyNotifications`) and `DataStorage` behind `Prismarin.audit()`, `.maintenance()`, `.notifications()` and `.storage()`. It also answers the backends: `network-request` messages on `prismarin:moderation` from a `ServerConnection` whose player is the `uuid`, and, with Redis, requests on the bus channel `prismarin:network`. `RemoteDispatcher` (`:shared`) turns each request into a call on the same API services, so a backend gets exactly what a proxy plugin gets. Every `ReportFiledEvent` is relayed as `network-event` to every server with players.
+
+- `ProxyMaintenance` is the only place that switches maintenance. `/maintenance` uses it too, so every switch, from a command or a plugin, writes an audit entry (`maintenance`, target `network`, `server:<name>` or `group:<name>`, `on` or `off`) and fires `MaintenanceChangedEvent`. `setNetwork` fails when `modules.maintenance` is off, `setServer` and `setGroup` when `modules.server-maintenance` is off.
+- `ProxyNotifications.notifyStaff` shows `alerts.plugin` (`%source%`, `%server%`, `%message%`) to every player with the alert permission and the console, rendered in the receiver's language, and fires `StaffAlertEvent`. `staffChat` uses `staff.chat` and `prismarin.staff.chat`, `broadcast` uses `alert.message` with the scopes of `/alert` and writes an `alert` audit entry with the server as actor.
+- `%server%` is the backend the request came from (`proxy` for proxy plugins).
+
+Classes: `ProxyRemote`, `ProxyMaintenance`, `ProxyNotifications`; texts `alerts.plugin` in both language files. The wire format and its tests are described in `shared.md`.

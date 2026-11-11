@@ -2,6 +2,7 @@ package net.prismarin.core.scoreboard;
 
 import com.google.inject.Singleton;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
@@ -19,6 +20,10 @@ public final class PlayerBoards {
             player.setScoreboard(board);
             return board;
         });
+    }
+
+    public Optional<Scoreboard> existing(UUID uuid) {
+        return Optional.ofNullable(boards.get(uuid));
     }
 
     public void remove(UUID uuid) {

@@ -2,27 +2,33 @@ package net.prismarin.core.tablist;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.util.ArrayList;
+import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.prismarin.api.brand.Branding;
+import net.prismarin.api.event.Subscription;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.PrismarinCorePlugin;
+import net.prismarin.core.api.TablistContributor;
+import net.prismarin.core.api.TablistService;
+import net.prismarin.core.display.DisplayParts;
+import net.prismarin.core.display.PriorityRegistry;
 import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.core.permission.PermissionSnapshots;
 import net.prismarin.core.rank.RankFormatProvider;
 import net.prismarin.core.scoreboard.AnimatedTitle;
 import net.prismarin.core.scoreboard.PlayerBoards;
 import net.prismarin.core.vanish.VanishService;
-import net.prismarin.shared.text.PrefixStyle;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
 @Singleton
-public final class TablistManager {
+public final class TablistManager implements TablistService {
 
     private static final long REFRESH_INTERVAL_TICKS = 100L;
 
@@ -34,6 +40,7 @@ public final class TablistManager {
     private final ProfileService profiles;
     private final VanishService vanish;
     private final AnimatedTitle title;
+    private final PriorityRegistry<TablistContributor> contributors = new PriorityRegistry<>("tab list contributor");
     private BukkitTask task;
 
     @Inject
@@ -62,6 +69,18 @@ public final class TablistManager {
         }
     }
 
+    @Override
+    public Subscription register(TablistContributor contributor, int priority) {
+        return contributors.register(contributor, priority);
+    }
+
+    @Override
+    public void refresh() {
+        if (task != null) {
+            refreshAll();
+        }
+    }
+
     public void handleJoin(Player player) {
         refreshAll();
     }
@@ -81,7 +100,7 @@ public final class TablistManager {
             if (!previousName.equals(player.getName())) {
                 removeEntry(board, previousName);
             }
-            syncTeams(board);
+            syncTeams(viewer, board);
         }
     }
 
@@ -90,17 +109,19 @@ public final class TablistManager {
         for (Player viewer : plugin.getServer().getOnlinePlayers()) {
             String online = String.valueOf(vanish.visibleCount(null));
             snapshots.refresh(viewer);
+            Component header = locale.render("tablist.header", PlayerLocales.of(viewer, profiles),
+                    viewer.getUniqueId(), Placeholder.component("title", frame),
+                    Placeholder.unparsed("online", online));
+            Component footer = locale.render("tablist.footer", PlayerLocales.of(viewer, profiles),
+                    viewer.getUniqueId(), Placeholder.unparsed("online", online));
             viewer.sendPlayerListHeaderAndFooter(
-                    locale.render("tablist.header", PlayerLocales.of(viewer, profiles), viewer.getUniqueId(),
-                            Placeholder.component("title", frame),
-                            Placeholder.unparsed("online", online)),
-                    locale.render("tablist.footer", PlayerLocales.of(viewer, profiles), viewer.getUniqueId(),
-                            Placeholder.unparsed("online", online)));
-            syncTeams(boards.board(viewer));
+                    DisplayParts.lines(header, contributors.collectAll(contributor -> contributor.header(viewer))),
+                    DisplayParts.lines(footer, contributors.collectAll(contributor -> contributor.footer(viewer))));
+            syncTeams(viewer, boards.board(viewer));
         }
     }
 
-    private void syncTeams(Scoreboard board) {
+    private void syncTeams(Player viewer, Scoreboard board) {
         for (Player target : plugin.getServer().getOnlinePlayers()) {
             String key = TeamSortKeys.sortKey(ranks.weight(target), target.getName());
             Team current = board.getEntryTeam(target.getName());
@@ -114,10 +135,14 @@ public final class TablistManager {
             if (team == null) {
                 team = board.registerNewTeam(key);
             }
-            Component prefix = ranks.prefix(target);
-            Component suffix = ranks.suffix(target);
-            team.prefix(PrefixStyle.visible(prefix) ? prefix.append(Component.space()) : Component.empty());
-            team.suffix(PrefixStyle.visible(suffix) ? Component.space().append(suffix) : Component.empty());
+            List<Component> prefixes = new ArrayList<>(contributors.collect(
+                    contributor -> contributor.prefix(viewer, target)));
+            prefixes.add(ranks.prefix(target));
+            List<Component> suffixes = new ArrayList<>();
+            suffixes.add(ranks.suffix(target));
+            suffixes.addAll(contributors.collect(contributor -> contributor.suffix(viewer, target)));
+            team.prefix(DisplayParts.prefix(prefixes));
+            team.suffix(DisplayParts.suffix(suffixes));
             team.color(ranks.nameColor(target));
             if (!team.hasEntry(target.getName())) {
                 team.addEntry(target.getName());

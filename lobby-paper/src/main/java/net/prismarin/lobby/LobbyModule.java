@@ -10,6 +10,8 @@ import net.prismarin.lobby.command.SetSpawnCommand;
 import net.prismarin.lobby.command.SetVoidCommand;
 import net.prismarin.lobby.config.LobbySettings;
 import net.prismarin.lobby.config.LocationsFile;
+import net.prismarin.lobby.extension.LobbyExtensions;
+import net.prismarin.lobby.extension.PaperLobbyService;
 import net.prismarin.lobby.item.LobbyItems;
 import net.prismarin.lobby.listener.DoubleJumpListener;
 import net.prismarin.lobby.listener.HotbarListener;
@@ -75,6 +77,8 @@ public final class LobbyModule extends AbstractModule {
         bind(LobbyBuildCommand.class);
         bind(SetSpawnCommand.class);
         bind(SetVoidCommand.class);
+        bind(LobbyExtensions.class);
+        bind(PaperLobbyService.class);
     }
 
     @Provides

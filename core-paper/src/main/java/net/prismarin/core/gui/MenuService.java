@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import net.kyori.adventure.key.InvalidKeyException;
 import net.kyori.adventure.key.Key;
 import net.kyori.adventure.sound.Sound;
@@ -25,6 +26,7 @@ public final class MenuService implements Listener {
     private final PrismarinCorePlugin plugin;
     private final Sound clickSound;
     private final Map<UUID, Menu> openMenus = new ConcurrentHashMap<>();
+    private final Map<UUID, Menu> opening = new ConcurrentHashMap<>();
 
     @Inject
     public MenuService(PrismarinCorePlugin plugin, MenuSettings settings) {
@@ -46,13 +48,33 @@ public final class MenuService implements Listener {
             Inventory inventory = plugin.getServer().createInventory(holder, menu.size(), menu.title());
             holder.inventory(inventory);
             holder.buttons().forEach((slot, button) -> inventory.setItem(slot, button.icon()));
-            player.openInventory(inventory);
+            opening.put(player.getUniqueId(), menu);
+            try {
+                player.openInventory(inventory);
+            } finally {
+                opening.remove(player.getUniqueId());
+            }
             openMenus.put(player.getUniqueId(), menu);
         });
     }
 
     public Optional<Menu> openMenu(Player player) {
         return Optional.ofNullable(openMenus.get(player.getUniqueId()));
+    }
+
+    public void refresh(Player player) {
+        Menu menu = openMenus.get(player.getUniqueId());
+        if (menu != null) {
+            open(player, menu);
+        }
+    }
+
+    public void close(Player player) {
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (player.isOnline() && player.getOpenInventory().getTopInventory().getHolder() instanceof MenuHolder) {
+                player.closeInventory();
+            }
+        });
     }
 
     @EventHandler
@@ -84,9 +106,19 @@ public final class MenuService implements Listener {
 
     @EventHandler
     public void onClose(InventoryCloseEvent event) {
-        if (event.getInventory().getHolder() instanceof MenuHolder holder
-                && openMenus.get(event.getPlayer().getUniqueId()) == holder.menu()) {
-            openMenus.remove(event.getPlayer().getUniqueId());
+        if (!(event.getInventory().getHolder() instanceof MenuHolder holder)) {
+            return;
+        }
+        UUID id = event.getPlayer().getUniqueId();
+        if (openMenus.get(id) == holder.menu()) {
+            openMenus.remove(id);
+        }
+        if (opening.get(id) != holder.menu() && event.getPlayer() instanceof Player player) {
+            try {
+                holder.menu().closed(player);
+            } catch (RuntimeException e) {
+                plugin.getLogger().log(Level.WARNING, "A menu close action failed", e);
+            }
         }
     }
 

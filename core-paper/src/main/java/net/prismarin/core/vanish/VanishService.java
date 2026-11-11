@@ -2,11 +2,15 @@ package net.prismarin.core.vanish;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import net.prismarin.api.event.EventBus;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.api.vanish.VanishChangedEvent;
 import net.prismarin.core.PrismarinCorePlugin;
 import net.prismarin.core.config.VanishSettings;
 import net.prismarin.core.moderation.ModerationChannel;
@@ -21,7 +25,6 @@ public final class VanishService {
     public static final String OTHERS = "prismarin.vanish.others";
     public static final String SEE = "prismarin.vanish.see";
     public static final String SETTING = "vanished";
-    private static final String LEVEL_PREFIX = "prismarin.vanish.level.";
     private static final long FALL_GRACE_MILLIS = 15_000L;
 
     private final PrismarinCorePlugin plugin;
@@ -29,14 +32,16 @@ public final class VanishService {
     private final ModerationChannel channel;
     private final VanishSettings settings;
     private final VanishMobs mobs;
+    private final EventBus events;
     private final Map<UUID, Integer> vanished = new ConcurrentHashMap<>();
     private final Set<UUID> grantedFlight = ConcurrentHashMap.newKeySet();
     private final Map<UUID, Long> fallGrace = new ConcurrentHashMap<>();
 
     @Inject
     public VanishService(PrismarinCorePlugin plugin, ProfileService profiles, ModerationChannel channel,
-                         VanishSettings settings, VanishMobs mobs) {
+                         VanishSettings settings, VanishMobs mobs, EventBus events) {
         this.plugin = plugin;
+        this.events = events;
         this.profiles = profiles;
         this.channel = channel;
         this.settings = settings;
@@ -51,12 +56,25 @@ public final class VanishService {
         return vanished.containsKey(player.getUniqueId());
     }
 
+    public boolean vanished(UUID player) {
+        return vanished.containsKey(player);
+    }
+
+    public Set<UUID> vanishedIds() {
+        return Set.copyOf(vanished.keySet());
+    }
+
+    public Integer vanishedLevel(UUID player) {
+        return vanished.get(player);
+    }
+
     public boolean canSee(Player viewer, Player target) {
         Integer level = vanished.get(target.getUniqueId());
-        if (level == null || viewer.getUniqueId().equals(target.getUniqueId())) {
+        boolean self = viewer.getUniqueId().equals(target.getUniqueId());
+        if (level == null || self) {
             return true;
         }
-        return viewer.hasPermission(SEE) && level(viewer) >= level;
+        return VanishRules.canSee(false, level, viewer.hasPermission(SEE), level(viewer));
     }
 
     public int visibleCount(Player viewer) {
@@ -69,7 +87,10 @@ public final class VanishService {
         return count;
     }
 
-    public void vanish(Player player) {
+    public boolean vanish(Player player, VanishChangedEvent.Cause cause) {
+        if (vanished(player)) {
+            return false;
+        }
         int level = level(player);
         vanished.put(player.getUniqueId(), level);
         for (Player viewer : plugin.getServer().getOnlinePlayers()) {
@@ -84,10 +105,14 @@ public final class VanishService {
         applyPerks(player, false);
         remember(player, true);
         channel.sendVanish(player, true, level);
+        events.publish(new VanishChangedEvent(player.getUniqueId(), true, level, cause));
+        return true;
     }
 
-    public void reveal(Player player) {
-        vanished.remove(player.getUniqueId());
+    public boolean reveal(Player player, VanishChangedEvent.Cause cause) {
+        if (vanished.remove(player.getUniqueId()) == null) {
+            return false;
+        }
         for (Player viewer : plugin.getServer().getOnlinePlayers()) {
             viewer.showPlayer(plugin, player);
         }
@@ -101,6 +126,8 @@ public final class VanishService {
         }
         remember(player, false);
         channel.sendVanish(player, false, 0);
+        events.publish(new VanishChangedEvent(player.getUniqueId(), false, 0, cause));
+        return true;
     }
 
     public void hideVanishedFrom(Player viewer) {
@@ -118,7 +145,8 @@ public final class VanishService {
     }
 
     void restoreSilently(Player player) {
-        vanished.put(player.getUniqueId(), level(player));
+        int level = level(player);
+        vanished.put(player.getUniqueId(), level);
         for (Player viewer : plugin.getServer().getOnlinePlayers()) {
             if (!canSee(viewer, player)) {
                 viewer.hidePlayer(plugin, player);
@@ -129,6 +157,7 @@ public final class VanishService {
         player.setSleepingIgnored(true);
         player.setAffectsSpawning(false);
         applyPerks(player, true);
+        events.publish(new VanishChangedEvent(player.getUniqueId(), true, level, VanishChangedEvent.Cause.JOIN));
     }
 
     void announce(Player player) {
@@ -220,18 +249,13 @@ public final class VanishService {
     }
 
     static int level(Player player) {
-        int level = 1;
+        List<String> granted = new ArrayList<>();
         for (PermissionAttachmentInfo info : player.getEffectivePermissions()) {
-            String permission = info.getPermission();
-            if (info.getValue() && permission.startsWith(LEVEL_PREFIX)) {
-                try {
-                    level = Math.max(level, Integer.parseInt(permission.substring(LEVEL_PREFIX.length())));
-                } catch (NumberFormatException ignored) {
-                    continue;
-                }
+            if (info.getValue() && info.getPermission().startsWith(VanishRules.LEVEL_PREFIX)) {
+                granted.add(info.getPermission());
             }
         }
-        return level;
+        return VanishRules.level(granted);
     }
 
     private void remember(Player player, boolean state) {

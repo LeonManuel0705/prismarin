@@ -7,6 +7,7 @@ import java.util.Locale;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.api.vanish.VanishChangedEvent;
 import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.shared.config.CoreConfig;
 import org.bukkit.Bukkit;
@@ -60,9 +61,9 @@ public final class VanishCommand implements TabExecutor {
         }
         boolean nowVanished = !vanish.vanished(target);
         if (nowVanished) {
-            vanish.vanish(target);
+            vanish.vanish(target, VanishChangedEvent.Cause.COMMAND);
         } else {
-            vanish.reveal(target);
+            vanish.reveal(target, VanishChangedEvent.Cause.COMMAND);
         }
         Locale targetLocale = PlayerLocales.of(target, profiles);
         target.sendMessage(locale.render(nowVanished ? "vanish.enabled" : "vanish.disabled", targetLocale));

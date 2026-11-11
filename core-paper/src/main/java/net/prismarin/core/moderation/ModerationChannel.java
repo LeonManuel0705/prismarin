@@ -14,9 +14,11 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import net.prismarin.core.PrismarinCorePlugin;
 import net.prismarin.core.network.ArrivalTracker;
 import net.prismarin.core.social.SocialClient;
+import net.prismarin.shared.network.NetworkCalls;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.messaging.PluginMessageListener;
 
@@ -41,6 +43,8 @@ public final class ModerationChannel implements PluginMessageListener {
     private final Map<UUID, Mute> mutes = new ConcurrentHashMap<>();
     private volatile BiConsumer<Player, JsonObject> playerAnswers;
     private volatile BiConsumer<Player, Locale> localeReports;
+    private volatile BiConsumer<Player, JsonObject> remoteAnswers;
+    private volatile Consumer<JsonObject> remoteEvents;
 
     @Inject
     public ModerationChannel(PrismarinCorePlugin plugin, Provider<ReportMenu> reportMenu, ArrivalTracker arrivals,
@@ -104,6 +108,18 @@ public final class ModerationChannel implements PluginMessageListener {
                     }
                 }
                 case "party-sync" -> social.get().party(message);
+                case NetworkCalls.ANSWER -> {
+                    BiConsumer<Player, JsonObject> handler = remoteAnswers;
+                    if (handler != null && carrier.getUniqueId().equals(uuid)) {
+                        handler.accept(carrier, message);
+                    }
+                }
+                case NetworkCalls.EVENT -> {
+                    Consumer<JsonObject> handler = remoteEvents;
+                    if (handler != null) {
+                        handler.accept(message);
+                    }
+                }
                 case "player-answer" -> {
                     BiConsumer<Player, JsonObject> handler = playerAnswers;
                     if (handler != null && carrier.getUniqueId().equals(uuid)) {
@@ -165,6 +181,11 @@ public final class ModerationChannel implements PluginMessageListener {
 
     public void handlePlayerAnswers(BiConsumer<Player, JsonObject> handler) {
         this.playerAnswers = handler;
+    }
+
+    public void handleRemote(BiConsumer<Player, JsonObject> answers, Consumer<JsonObject> events) {
+        this.remoteAnswers = answers;
+        this.remoteEvents = events;
     }
 
     public void onLocaleReport(BiConsumer<Player, Locale> listener) {

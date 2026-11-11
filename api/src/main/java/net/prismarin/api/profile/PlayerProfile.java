@@ -7,10 +7,18 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import net.prismarin.api.economy.Currency;
+import net.prismarin.api.level.LevelProgress;
+import net.prismarin.api.level.LevelService;
 
 public final class PlayerProfile {
 
     public static final String SETTING_LOCALE_OVERRIDE = "locale-override";
+
+    @FunctionalInterface
+    public interface ProgressListener {
+
+        void progressed(PlayerProfile profile, LevelProgress before, LevelProgress after, long xpAdded, String reason);
+    }
 
     private final UUID uuid;
     private String name;
@@ -21,6 +29,7 @@ public final class PlayerProfile {
     private int level;
     private long xp;
     private final Map<String, String> settings;
+    private volatile ProgressListener progressListener;
 
     public PlayerProfile(UUID uuid, String name, Instant firstJoin, Instant lastSeen, String locale,
                          Map<Currency, Long> balances, int level, long xp, Map<String, String> settings) {
@@ -88,8 +97,31 @@ public final class PlayerProfile {
         return level;
     }
 
-    public synchronized void setLevel(int level) {
-        this.level = level;
+    public void setLevel(int level) {
+        setLevel(level, LevelService.REASON_PLUGIN);
+    }
+
+    public void setLevel(int level, String reason) {
+        LevelProgress before;
+        LevelProgress after;
+        synchronized (this) {
+            before = progress();
+            this.level = level;
+            after = progress();
+        }
+        notifyProgress(before, after, 0L, reason);
+    }
+
+    public void setProgress(int level, long xp, String reason) {
+        LevelProgress before;
+        LevelProgress after;
+        synchronized (this) {
+            before = progress();
+            this.level = level;
+            this.xp = xp;
+            after = progress();
+        }
+        notifyProgress(before, after, 0L, reason);
     }
 
     public synchronized long getXp() {
@@ -105,21 +137,43 @@ public final class PlayerProfile {
     }
 
     public synchronized long xpForNextLevel() {
-        return xpRequirement(level);
+        return LevelProgress.requirement(level);
     }
 
-    public synchronized void addXp(long amount) {
+    public synchronized LevelProgress progress() {
+        return LevelProgress.of(level, xp);
+    }
+
+    public void progressListener(ProgressListener listener) {
+        this.progressListener = listener;
+    }
+
+    public void addXp(long amount) {
+        addXp(amount, LevelService.REASON_PLUGIN);
+    }
+
+    public void addXp(long amount, String reason) {
         if (amount < 0) {
             throw new IllegalArgumentException("amount must not be negative");
         }
-        xp += amount;
-        while (xp >= xpRequirement(level)) {
-            xp -= xpRequirement(level);
-            level++;
+        LevelProgress before;
+        LevelProgress after;
+        synchronized (this) {
+            before = progress();
+            xp += amount;
+            while (xp >= LevelProgress.requirement(level)) {
+                xp -= LevelProgress.requirement(level);
+                level++;
+            }
+            after = progress();
         }
+        notifyProgress(before, after, amount, reason);
     }
 
-    private static long xpRequirement(int level) {
-        return 500L + (long) level * 250L;
+    private void notifyProgress(LevelProgress before, LevelProgress after, long xpAdded, String reason) {
+        ProgressListener listener = progressListener;
+        if (listener != null && (xpAdded > 0L || before.level() != after.level())) {
+            listener.progressed(this, before, after, xpAdded, LevelService.reason(reason));
+        }
     }
 }

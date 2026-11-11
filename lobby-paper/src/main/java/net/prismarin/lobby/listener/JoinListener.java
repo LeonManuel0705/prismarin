@@ -10,10 +10,13 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.title.Title;
+import net.prismarin.api.event.EventBus;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.core.network.ArrivalTracker;
+import net.prismarin.lobby.api.LobbyEnteredEvent;
+import net.prismarin.lobby.api.LobbyLeftEvent;
 import net.prismarin.lobby.config.LobbySettings;
 import net.prismarin.lobby.network.LobbyDirectory;
 import net.prismarin.lobby.player.BuildModeService;
@@ -43,12 +46,14 @@ public final class JoinListener implements Listener {
     private final PlayerHiderService hider;
     private final LobbySettings settings;
     private final ArrivalTracker arrivals;
+    private final EventBus events;
 
     @Inject
     public JoinListener(LobbyWorlds worlds, LobbyDirectory lobbies, LobbyPlayerSetup setup, LocaleService locale,
                         ProfileService profiles, BuildModeService buildMode, PlayerHiderService hider,
-                        LobbySettings settings, ArrivalTracker arrivals) {
+                        LobbySettings settings, ArrivalTracker arrivals, EventBus events) {
         this.arrivals = arrivals;
+        this.events = events;
         this.worlds = worlds;
         this.lobbies = lobbies;
         this.setup = setup;
@@ -72,6 +77,8 @@ public final class JoinListener implements Listener {
             return;
         }
         setup.enter(player, startedInLobby);
+        events.publish(new LobbyEnteredEvent(player.getUniqueId(), player.getWorld().getName(), "",
+                LobbyEnteredEvent.Cause.JOIN));
         if (settings.enabled(LobbySettings.JOIN_TITLE)) {
             arrivals.whenKnown(player, previous -> {
                 if (previous.isEmpty()) {
@@ -91,10 +98,22 @@ public final class JoinListener implements Listener {
         } else if (wasLobby && !isLobby) {
             setup.leave(player);
         }
+        String from = event.getFrom().getName();
+        String to = player.getWorld().getName();
+        if (wasLobby) {
+            events.publish(new LobbyLeftEvent(player.getUniqueId(), from, to, LobbyLeftEvent.Cause.WORLD_CHANGE));
+        }
+        if (isLobby) {
+            events.publish(new LobbyEnteredEvent(player.getUniqueId(), to, from, LobbyEnteredEvent.Cause.WORLD_CHANGE));
+        }
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
+        if (worlds.isLobbyWorld(event.getPlayer().getWorld())) {
+            events.publish(new LobbyLeftEvent(event.getPlayer().getUniqueId(), event.getPlayer().getWorld().getName(),
+                    "", LobbyLeftEvent.Cause.QUIT));
+        }
         hider.clear(event.getPlayer());
         buildMode.clear(event.getPlayer().getUniqueId());
     }

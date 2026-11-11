@@ -18,6 +18,7 @@ import net.prismarin.core.gui.MenuButton;
 import net.prismarin.core.gui.MenuService;
 import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.lobby.config.WorldLobby;
+import net.prismarin.lobby.extension.LobbyExtensions;
 import net.prismarin.lobby.network.LobbyDirectory;
 import net.prismarin.lobby.network.LobbyTarget;
 import net.prismarin.lobby.network.LobbyTarget.ServerTarget;
@@ -41,10 +42,12 @@ public final class LobbySelectorMenu {
     private final LobbyDirectory lobbies;
     private final LobbyTravel travel;
     private final MenuKit kit;
+    private final LobbyExtensions extensions;
 
     @Inject
     public LobbySelectorMenu(MenuService menuService, LocaleService locale, ProfileService profiles,
-                             LobbyDirectory lobbies, LobbyTravel travel, MenuKit kit) {
+                             LobbyDirectory lobbies, LobbyTravel travel, MenuKit kit, LobbyExtensions extensions) {
+        this.extensions = extensions;
         this.menuService = menuService;
         this.locale = locale;
         this.profiles = profiles;
@@ -55,9 +58,13 @@ public final class LobbySelectorMenu {
 
     public void open(Player player, Consumer<Player> back) {
         Locale playerLocale = PlayerLocales.of(player, profiles);
-        List<LobbyTarget> targets = lobbies.selectorTargets();
-        int perRow = targets.size() > PER_ROW * MAX_CONTENT_ROWS ? WIDE_PER_ROW : PER_ROW;
-        int count = Math.min(targets.size(), perRow * MAX_CONTENT_ROWS);
+        List<MenuButton> buttons = new ArrayList<>();
+        for (LobbyTarget target : lobbies.selectorTargets()) {
+            buttons.add(button(player, playerLocale, target));
+        }
+        buttons.addAll(extensions.selectorButtons(player));
+        int perRow = buttons.size() > PER_ROW * MAX_CONTENT_ROWS ? WIDE_PER_ROW : PER_ROW;
+        int count = Math.min(buttons.size(), perRow * MAX_CONTENT_ROWS);
         int contentRows = MenuLayout.rowsFor(count, perRow);
         Menu menu = new Menu(locale.render("lobby.selector.title", playerLocale), contentRows + 2);
         kit.fill(menu);
@@ -68,7 +75,7 @@ public final class LobbySelectorMenu {
         } else {
             List<Integer> slots = MenuLayout.centeredSlots(1, count, perRow);
             for (int i = 0; i < count; i++) {
-                menu.button(slots.get(i), button(player, playerLocale, targets.get(i)));
+                menu.button(slots.get(i), buttons.get(i));
             }
         }
         int bottom = (contentRows + 1) * 9;

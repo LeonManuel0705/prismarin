@@ -31,6 +31,7 @@ import net.prismarin.core.rank.RankFormatProvider;
 import net.prismarin.lobby.action.ItemAction;
 import net.prismarin.lobby.config.LobbySettings;
 import net.prismarin.lobby.config.ProfileLayout;
+import net.prismarin.lobby.extension.LobbyExtensions;
 import net.prismarin.lobby.item.LobbyItems;
 import net.prismarin.lobby.network.LobbyDirectory;
 import net.prismarin.lobby.network.LobbyTravel;
@@ -69,6 +70,7 @@ public final class LobbyMenus {
     private final LanguageMenu languages;
     private final SocialMenus social;
     private final NickToolMenu nickTool;
+    private final LobbyExtensions extensions;
 
     @Inject
     public LobbyMenus(MenuService menuService, LocaleService locale, ProfileService profiles,
@@ -76,7 +78,8 @@ public final class LobbyMenus {
                       Branding branding, CurrencyDisplay currencies, NetworkStatusService status,
                       LobbySettings settings, RankFormatProvider ranks, LobbyDirectory lobbies, LobbyTravel travel,
                       MenuKit kit, LobbySelectorMenu selector, LanguageMenu languages, SocialMenus social,
-                      NickToolMenu nickTool) {
+                      NickToolMenu nickTool, LobbyExtensions extensions) {
+        this.extensions = extensions;
         this.social = social;
         this.nickTool = nickTool;
         this.menuService = menuService;
@@ -153,6 +156,7 @@ public final class LobbyMenus {
                 entries.add(serverButton(playerLocale, server));
             }
         }
+        entries.addAll(extensions.navigatorButtons(player));
         int count = Math.min(entries.size(), NAVIGATOR_PER_ROW * NAVIGATOR_MAX_ROWS);
         int contentRows = MenuLayout.rowsFor(count, NAVIGATOR_PER_ROW);
         Menu menu = new Menu(locale.render("lobby.navigator.title", playerLocale), contentRows + 2);
@@ -190,6 +194,7 @@ public final class LobbyMenus {
                 menu.button(entry.slot() + i, buttons.get(i));
             }
         }
+        actions.addAll(extensions.profileButtons(player));
         if (layout.entryRow() == layout.actionRow()) {
             stats.addAll(actions);
             actions.clear();

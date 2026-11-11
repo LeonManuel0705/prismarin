@@ -31,6 +31,7 @@ import net.prismarin.lobby.config.CustomItem;
 import net.prismarin.lobby.config.HotbarItem;
 import net.prismarin.lobby.config.LobbySettings;
 import net.prismarin.lobby.config.ProfileLayout;
+import net.prismarin.lobby.extension.LobbyExtensions;
 import net.prismarin.lobby.network.LobbyDirectory;
 import net.prismarin.lobby.player.LobbyVisibility;
 import net.prismarin.lobby.util.ConfigText;
@@ -79,12 +80,15 @@ public final class LobbyItems {
     private final Material silentMaterial;
     private final LobbyPlugin plugin;
     private final LobbyVisibility visibility;
+    private final LobbyExtensions extensions;
 
     @Inject
     public LobbyItems(LobbyPlugin plugin, LocaleService locale, ProfileService profiles, LobbySettings settings,
                       CurrencyDisplay currencies, CoreConfig config, RankFormatProvider ranks,
-                      LobbyDirectory lobbies, ConfigText texts, LobbyVisibility visibility) {
+                      LobbyDirectory lobbies, ConfigText texts, LobbyVisibility visibility,
+                      LobbyExtensions extensions) {
         this.plugin = plugin;
+        this.extensions = extensions;
         this.visibility = visibility;
         this.locale = locale;
         this.profiles = profiles;
@@ -141,6 +145,9 @@ public final class LobbyItems {
                     place(inventory, item.slot(), custom(player, playerLocale, item));
                 }
             }
+        }
+        for (LobbyExtensions.HotbarIcon icon : extensions.hotbarIcons(player)) {
+            place(inventory, icon.slot(), tag(icon.item(), LobbyExtensions.HOTBAR_PREFIX + icon.id()));
         }
     }
 
