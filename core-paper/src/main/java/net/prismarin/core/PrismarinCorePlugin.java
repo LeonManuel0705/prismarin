@@ -151,6 +151,10 @@ public final class PrismarinCorePlugin extends JavaPlugin {
             nickManager = injector.getInstance(NickManager.class);
             pluginManager.registerEvents(injector.getInstance(NickListener.class), this);
             nickManager.start();
+            if (pluginManager.getPlugin("TAB") != null) {
+                getLogger().info("TAB is installed. Set its sorting-types to PLACEHOLDER_HIGH_TO_LOW:%prismarin_rank_weight% "
+                        + "so nicked players sort by their fake rank instead of their real LuckPerms group.");
+            }
             registerCommand("nick", injector.getInstance(NickCommand.class));
             registerCommand("unnick", injector.getInstance(UnnickCommand.class));
             registerCommand("realname", injector.getInstance(RealnameCommand.class));

@@ -23,13 +23,17 @@ final class LuckPermsNickHook {
     private final Map<UUID, List<Node>> applied = new ConcurrentHashMap<>();
 
     Optional<FakeRankResolver.GroupLook> group(String name) {
-        Group group = luckPerms().getGroupManager().getGroup(name);
-        if (group == null) {
-            return Optional.empty();
-        }
+        return Optional.ofNullable(luckPerms().getGroupManager().getGroup(name)).map(LuckPermsNickHook::look);
+    }
+
+    List<FakeRankResolver.GroupLook> groups() {
+        return luckPerms().getGroupManager().getLoadedGroups().stream().map(LuckPermsNickHook::look).toList();
+    }
+
+    private static FakeRankResolver.GroupLook look(Group group) {
         CachedMetaData meta = group.getCachedData().getMetaData();
         OptionalInt weight = group.getWeight();
-        return Optional.of(new FakeRankResolver.GroupLook(meta.getPrefix(), weight, meta.getMetaValue(NAME_COLOR_META)));
+        return new FakeRankResolver.GroupLook(meta.getPrefix(), weight, meta.getMetaValue(NAME_COLOR_META));
     }
 
     boolean groupHas(String name, String permission) {

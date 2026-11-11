@@ -2,6 +2,7 @@ package net.prismarin.core.nick;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
@@ -65,8 +66,9 @@ public final class FakeRankFormat {
         if (current != null && now < lookExpires) {
             return current;
         }
-        FakeRankResolver.Look resolved = FakeRankResolver.resolve(settings.fakeRank(),
-                permissions.group(settings.fakeRank().group()));
+        NickSettings.FakeRank rank = settings.fakeRank();
+        FakeRankResolver.Look resolved = FakeRankResolver.resolve(rank, permissions.group(rank.group()),
+                rank.prefix().isBlank() ? List.of() : permissions.groups());
         look = resolved;
         lookExpires = now + LOOK_CACHE_MILLIS;
         return resolved;

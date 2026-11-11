@@ -34,6 +34,10 @@ public final class NickPermissions {
         return luckPerms.group(name);
     }
 
+    public List<FakeRankResolver.GroupLook> groups() {
+        return luckPerms == null ? List.of() : luckPerms.groups();
+    }
+
     public boolean groupHas(String group, String permission) {
         return luckPerms != null && group != null && !group.isBlank() && luckPerms.groupHas(group, permission);
     }

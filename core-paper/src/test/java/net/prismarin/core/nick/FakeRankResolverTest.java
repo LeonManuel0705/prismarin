@@ -61,4 +61,52 @@ class FakeRankResolverTest {
         assertEquals(Optional.empty(), FakeRankResolver.color(""));
         assertEquals(Optional.empty(), FakeRankResolver.color(null));
     }
+
+    @Test
+    void aPrefixOverrideSortsAndColoursLikeTheGroupShowingIt() {
+        FakeRankResolver.GroupLook standard = new FakeRankResolver.GroupLook(null, OptionalInt.empty(), null);
+        List<FakeRankResolver.GroupLook> groups = List.of(
+                new FakeRankResolver.GroupLook("&7Player ", OptionalInt.of(1), null),
+                new FakeRankResolver.GroupLook("&6&lPremium ", OptionalInt.of(50), "yellow"),
+                new FakeRankResolver.GroupLook("&cAdmin ", OptionalInt.of(100), "red"));
+        FakeRankResolver.Look look = FakeRankResolver.resolve(rank("<gold><b>Premium</b></gold>", "", -1),
+                Optional.of(standard), groups);
+        assertEquals(50, look.weight());
+        assertEquals(NamedTextColor.YELLOW, look.nameColor());
+        assertEquals(Optional.of("<gold><b>Premium</b></gold>"), look.prefix());
+    }
+
+    @Test
+    void anExplicitWeightStillWinsOverTheLookalike() {
+        List<FakeRankResolver.GroupLook> groups = List.of(
+                new FakeRankResolver.GroupLook("&6Premium", OptionalInt.of(50), null));
+        FakeRankResolver.Look look = FakeRankResolver.resolve(rank("&6Premium", "", 7), Optional.empty(), groups);
+        assertEquals(7, look.weight());
+    }
+
+    @Test
+    void aPrefixNoGroupShowsFallsBackToTheConfiguredGroup() {
+        FakeRankResolver.GroupLook standard = new FakeRankResolver.GroupLook("&7Player", OptionalInt.of(1), "gray");
+        List<FakeRankResolver.GroupLook> groups = List.of(
+                standard, new FakeRankResolver.GroupLook("&6Premium", OptionalInt.of(50), null));
+        FakeRankResolver.Look look = FakeRankResolver.resolve(rank("&bVIP", "", -1), Optional.of(standard), groups);
+        assertEquals(1, look.weight());
+        assertEquals(NamedTextColor.GRAY, look.nameColor());
+    }
+
+    @Test
+    void theHighestGroupWinsWhenSeveralShowTheSameText() {
+        List<FakeRankResolver.GroupLook> groups = List.of(
+                new FakeRankResolver.GroupLook("&6Premium", OptionalInt.of(20), null),
+                new FakeRankResolver.GroupLook("<#FBBF24>Premium", OptionalInt.of(40), null));
+        assertEquals(OptionalInt.of(40), FakeRankResolver.lookalike("&ePremium", groups).orElseThrow().weight());
+        assertEquals(Optional.empty(), FakeRankResolver.lookalike("&6", groups));
+    }
+
+    @Test
+    void shownTextIgnoresEveryKindOfFormatting() {
+        assertEquals("Premium", FakeRankResolver.shown("&6&lPremium "));
+        assertEquals("Premium", FakeRankResolver.shown("<gradient:#22D3EE:#2DD4BF><b>Premium</b></gradient>"));
+        assertEquals("Premium", FakeRankResolver.shown("&#FBBF24Premium"));
+    }
 }

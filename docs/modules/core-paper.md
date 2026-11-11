@@ -360,6 +360,8 @@ Only PRISMARIN knows whether a name is real or a nick, which language a player c
 
 Ranks are only known for players on this server. For players elsewhere `rank` is `RankDisplay.NONE` (`known()` is false). The real rank of a nicked player is read from his LuckPerms primary group, because the nick disguise overrides his own prefix; user specific prefixes are therefore not part of it.
 
+Nicked players sort in the tab list by the weight of the fake rank: `fake-rank.weight` in `nick.yml`, otherwise the weight of `fake-rank.group`, or, when `fake-rank.prefix` is set, the weight of the LuckPerms group whose prefix shows the same text. They stand between the real members of the rank they show, so the position gives nothing away. TAB sorts by the real LuckPerms group; set its `sorting-types` to `PLACEHOLDER_HIGH_TO_LOW:%prismarin_rank_weight%` so nicked players sort by the fake rank there as well. PRISMARIN logs this hint on start when TAB is installed.
+
 ### Lookups
 
 ```java

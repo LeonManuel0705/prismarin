@@ -281,16 +281,21 @@ public record NickSettings(NickPolicy policy, Set<GameState> roundStates, int ac
         comments.put("fake-rank.group", List.of(
                 "LuckPerms group whose prefix, weight and name-color meta the fake rank copies."));
         comments.put("fake-rank.prefix", List.of(
-                "Overrides the prefix. Empty: the prefix of the group, without LuckPerms rank.default-prefix."));
+                "Overrides the prefix. Empty: the prefix of the group, without LuckPerms rank.default-prefix.",
+                "If a LuckPerms group shows the same text, nicked players sort and colour like that group."));
         comments.put("fake-rank.name-color", List.of(
                 "Overrides the name colour, for example gray. Empty: the name-color meta of the group, else gray."));
-        comments.put("fake-rank.weight", List.of("Tab list sort weight. -1: the weight of the group, else 0."));
+        comments.put("fake-rank.weight", List.of(
+                "Tab list sort weight. -1: the weight of the group above, or of the group whose prefix matches",
+                "fake-rank.prefix, so nicked players stand between the real members of the rank they show."));
         comments.put("fake-rank.perks", List.of(
                 "Cosmetic PRISMARIN perks nicked players keep, for example prismarin.chat.format.",
                 "With LuckPerms the perks of the group above count as well."));
         comments.put("fake-rank.luckperms-disguise", List.of(
                 "Adds a temporary LuckPerms prefix and name-color meta that is never saved, so TAB and chat",
-                "plugins that read LuckPerms show the fake rank as well."));
+                "plugins that read LuckPerms show the fake rank as well.",
+                "TAB sorts by the real LuckPerms group. Set its sorting-types to",
+                "PLACEHOLDER_HIGH_TO_LOW:%prismarin_rank_weight% so nicked players sort by the fake rank."));
         comments.put("fake-rank.luckperms-priority", List.of(
                 "Priority of that prefix. It has to be higher than the priority of every real prefix."));
         return Map.copyOf(comments);
