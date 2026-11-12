@@ -22,8 +22,10 @@ class MenuLayoutTest {
     }
 
     @Test
-    void packsLargeCountsContiguously() {
-        assertEquals(List.of(10, 11, 12, 13, 14, 15), MenuLayout.centeredRowSlots(1, 6));
+    void packsLargeCountsSymmetrically() {
+        assertEquals(List.of(10, 11, 12, 14, 15, 16), MenuLayout.centeredRowSlots(1, 6));
+        assertEquals(List.of(10, 11, 12, 13, 14, 15, 16), MenuLayout.centeredRowSlots(1, 7));
+        assertEquals(List.of(9, 10, 11, 12, 14, 15, 16, 17), MenuLayout.centeredRowSlots(1, 8));
         assertEquals(List.of(9, 10, 11, 12, 13, 14, 15, 16, 17), MenuLayout.centeredRowSlots(1, 9));
     }
 

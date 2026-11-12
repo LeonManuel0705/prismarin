@@ -16,7 +16,10 @@ public final class ModuleState {
                     "DeluxeChat", "CarbonChat", "ChatManager"),
             CoreModules.NICK, List.of("EazyNick", "NickNamer", "BetterNick"),
             CoreModules.ESSENTIALS, List.of("Essentials", "CMI"),
-            CoreModules.CHAT_FILTER, List.of("ChatSentry", "ChatControl", "ChatControlRed"));
+            CoreModules.CHAT_FILTER, List.of("ChatSentry", "ChatControl", "ChatControlRed"),
+            CoreModules.DAILY_REWARDS, List.of("DailyRewards", "DailyRewardsPlus"),
+            CoreModules.VOTE_REWARDS, List.of("VotingPlugin", "SuperbVote"),
+            CoreModules.COSMETICS, List.of("UltraCosmetics", "ProCosmetics", "GadgetsMenu", "HMCCosmetics"));
 
     private static final Map<String, String> REQUIRED_SYSTEMS = Map.of(
             CoreModules.ECONOMY_COMMANDS, PrismarinSystems.ECONOMY,

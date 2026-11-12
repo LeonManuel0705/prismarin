@@ -17,6 +17,7 @@ import net.prismarin.api.economy.Currency;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.api.queue.QueueTarget;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.api.server.ServerGroup;
@@ -35,6 +36,7 @@ import net.prismarin.lobby.extension.LobbyExtensions;
 import net.prismarin.lobby.item.LobbyItems;
 import net.prismarin.lobby.network.LobbyDirectory;
 import net.prismarin.lobby.network.LobbyTravel;
+import net.prismarin.lobby.network.QueueBoard;
 import net.prismarin.lobby.util.CurrencyDisplay;
 import net.prismarin.lobby.util.Languages;
 import net.prismarin.lobby.util.XpProgressBar;
@@ -71,6 +73,7 @@ public final class LobbyMenus {
     private final SocialMenus social;
     private final NickToolMenu nickTool;
     private final LobbyExtensions extensions;
+    private final QueueBoard queues;
 
     @Inject
     public LobbyMenus(MenuService menuService, LocaleService locale, ProfileService profiles,
@@ -78,8 +81,9 @@ public final class LobbyMenus {
                       Branding branding, CurrencyDisplay currencies, NetworkStatusService status,
                       LobbySettings settings, RankFormatProvider ranks, LobbyDirectory lobbies, LobbyTravel travel,
                       MenuKit kit, LobbySelectorMenu selector, LanguageMenu languages, SocialMenus social,
-                      NickToolMenu nickTool, LobbyExtensions extensions) {
+                      NickToolMenu nickTool, LobbyExtensions extensions, QueueBoard queues) {
         this.extensions = extensions;
+        this.queues = queues;
         this.social = social;
         this.nickTool = nickTool;
         this.menuService = menuService;
@@ -129,6 +133,7 @@ public final class LobbyMenus {
             }
             case ItemAction.MENU_FRIENDS -> social.openFriends(player, 0);
             case ItemAction.MENU_PARTY -> social.openParty(player);
+            case ItemAction.MENU_CLAN -> social.openClan(player);
             case ItemAction.MENU_NICK -> nickTool.open(player);
             default -> {
                 return false;
@@ -161,6 +166,7 @@ public final class LobbyMenus {
         int contentRows = MenuLayout.rowsFor(count, NAVIGATOR_PER_ROW);
         Menu menu = new Menu(locale.render("lobby.navigator.title", playerLocale), contentRows + 2);
         kit.fill(menu);
+        kit.accent(menu, List.of(0, 8, menu.size() - 9, menu.size() - 1));
         List<Integer> slots = MenuLayout.centeredSlots(1, count, NAVIGATOR_PER_ROW);
         for (int i = 0; i < count; i++) {
             menu.button(slots.get(i), entries.get(i));
@@ -180,7 +186,7 @@ public final class LobbyMenus {
         Menu menu = new Menu(locale.render("lobby.profile.title", playerLocale), layout.rows());
         kit.fill(menu);
         if (layout.headSlot() >= 0) {
-            menu.button(layout.headSlot(), kit.decoration(items.profileHead(player, playerLocale)));
+            menu.button(layout.headSlot(), kit.decoration(items.profileMenuHead(player, playerLocale)));
         }
         List<MenuButton> stats = new ArrayList<>();
         List<MenuButton> actions = new ArrayList<>();
@@ -236,7 +242,7 @@ public final class LobbyMenus {
             case RANK -> List.of(kit.decoration(rankIcon(player, playerLocale)));
             case LANGUAGE -> languages.languages().size() < 2 ? List.of() : List.of(languageButton(player,
                     playerLocale));
-            case FRIENDS, PARTY -> social.profileEntry(player, playerLocale, kind);
+            case FRIENDS, PARTY, CLAN -> social.profileEntry(player, playerLocale, kind);
         };
     }
 
@@ -255,6 +261,7 @@ public final class LobbyMenus {
                         Placeholder.component("state", GameStateNames.render(locale, entry, playerLocale)),
                         Placeholder.unparsed("players", String.valueOf(entry.players())),
                         Placeholder.unparsed("max", String.valueOf(entry.maxPlayers())))));
+        queueLine(playerLocale, QueueTarget.server(server.name())).ifPresent(lore::add);
         lore.add(Component.empty());
         lore.add(selectorHere ? locale.render("lobby.navigator.lobby-click", playerLocale)
                 : here ? locale.render("lobby.navigator.here", playerLocale)
@@ -295,9 +302,14 @@ public final class LobbyMenus {
         lore.add(locale.render("lobby.navigator.group-lore", playerLocale,
                 Placeholder.unparsed("online", String.valueOf(online)),
                 Placeholder.unparsed("joinable", String.valueOf(joinable))));
+        if (!lobbyGroup) {
+            queueLine(playerLocale, QueueTarget.group(group.name())).ifPresent(lore::add);
+        }
         lore.add(Component.empty());
         lore.add(locale.render(lobbyGroup ? "lobby.navigator.lobby-click"
-                : joinable > 0 ? "lobby.navigator.group-click" : "lobby.navigator.group-none", playerLocale));
+                : joinable > 0 ? "lobby.navigator.group-click"
+                : queueShown() && queues.available() ? "lobby.navigator.group-queue-click"
+                : "lobby.navigator.group-none", playerLocale));
         Material material = group.property("icon").map(Material::matchMaterial).filter(Material::isItem)
                 .orElse(lobbyGroup ? Material.PRISMARINE : Material.ENDER_PEARL);
         ItemStack icon = ItemBuilder.of(material)
@@ -312,6 +324,22 @@ public final class LobbyMenus {
             kit.closeLater(context.player());
             travel.playGroup(context.player(), group.name());
         });
+    }
+
+    private Optional<Component> queueLine(Locale playerLocale, QueueTarget target) {
+        if (!queueShown()) {
+            return Optional.empty();
+        }
+        int waiting = queues.waiting(target);
+        if (waiting <= 0) {
+            return Optional.empty();
+        }
+        return Optional.of(locale.render("lobby.navigator.queue", playerLocale,
+                Placeholder.unparsed("waiting", String.valueOf(waiting))));
+    }
+
+    private boolean queueShown() {
+        return settings.enabled(LobbySettings.NAVIGATOR_QUEUE);
     }
 
     private ItemStack currencyIcon(Locale playerLocale, PlayerProfile profile, Currency currency) {

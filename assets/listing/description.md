@@ -1,6 +1,6 @@
 ![PRISMARIN, a framework for Minecraft networks on Paper and Velocity](https://raw.githubusercontent.com/LeonManuel0705/prismarin/main/assets/listing/banner.png)
 
-PRISMARIN is a framework for Minecraft networks on Paper and Velocity. Installed on its own it is a complete network system: lobby, ranks, currencies, friends, parties, nicks, reports and moderation. Next to your existing plugins it becomes the shared layer they connect to, so a BedWars plugin can pay out network coins, show its game state in the navigator and nick players per round.
+PRISMARIN is a framework for Minecraft networks on Paper and Velocity. Installed on its own it is a complete network system: lobby, ranks, currencies, friends, parties, clans, nicks, reports and moderation. Next to your existing plugins it becomes the shared layer they connect to, so a BedWars plugin can pay out network coins, show its game state in the navigator and nick players per round.
 
 Every system can be switched off, every text lives in YAML with MiniMessage, `&` codes and hex colours, and every feature has a public API with events.
 
@@ -32,6 +32,8 @@ The pictures recreate the in-game views with PRISMARIN's default English texts.
 * `/reports` opens a staff menu with filters, sorting and claims that free themselves after a set time
 * Punishment templates escalate on repeat offences, a punishment closes open reports and thanks the reporters
 * Bans, temporary bans, IP bans, mutes, kicks and warnings, `/check`, history, `/banlist`, `/mutelist` and an audit log
+* Chat filter for words, capital letters, links, repeats and spam on every server, repeated hits run a punishment template
+* `/alts` lists accounts that share an address, stored only as salted hashes, with an alert when a banned player joins on an alt
 
 ### Friends and parties
 
@@ -41,6 +43,39 @@ The pictures recreate the in-game views with PRISMARIN's default English texts.
 * Parties with leader, moderators and members, party chat, invites and a leader who pulls everyone to the next server
 * Network wide `/msg` and `/r`, social spy for staff
 * All of it also in the lobby profile menu
+
+### Clans
+
+![Tab list and chat with clan tags, the clan chat with roles, /clan info and a friend tooltip with the clan line](https://raw.githubusercontent.com/LeonManuel0705/prismarin/main/assets/listing/clans.png)
+
+* `/clan create <name> <tag>`, the tag `&7[&f%name%&7]` shows next to the name in chat and tab list, each clan picks its colour
+* Four roles: member, moderator, co-leader and leader, which role may invite, kick, promote or change the colour is set in `social.yml`
+* Clan chat with `/cc`, invites with buttons, open or invite only clans, `/clan info` and `/clan list`
+* The clan shows up in friend lists, party lists, `/pinfo` and the lobby menus, a clan menu sits in the lobby profile
+* Full API with events, some of them cancellable, so other plugins can build clan wars or clan rankings on top
+
+### Stats, leaderboards and rewards
+
+* Network wide stats with weekly and monthly periods, `/stats [player] [game]` grouped by game
+* Floating leaderboards in the lobby, placed with `/leaderboard create`
+* Stats of other plugins show up too: through the API, as a pull source for plugins with their own database, or from a PlaceholderAPI placeholder set in `stats.yml`
+* `/daily` with a login streak, rewards per day and milestones in any currency
+* Vote rewards through NuVotifier with `/vote`, streaks and rewards that wait for offline players
+
+### Queue and JoinMe
+
+* Full servers and groups put players in a queue instead of refusing them, with the place in the action bar
+* Priorities by permission, parties wait as one and only go in together, staff can pause, clear and push queues
+* `/joinme` sends a clickable invite with the creator's skin face drawn in chat to the lobbies
+* Game plugins decide through the API where a JoinMe player lands, otherwise it is the same server and world
+* `/joinme preview` shows your own JoinMe to you only
+
+### Cosmetics
+
+* 81 cosmetics in hats, auras, trails, arrow trails, kill effects and win effects, bought with the network's currencies
+* Arrow trails and kill effects work on game servers without any integration, win effects through `/cosmetics play` in the win commands of your game plugin
+* Menu with rarities, previews and a buy confirmation, opened from a hotbar chest or `/cosmetics`
+* Effects never change the game: no damage, no knockback, nothing to pick up, no block changes
 
 ### Nicks
 
@@ -82,10 +117,11 @@ The pictures recreate the in-game views with PRISMARIN's default English texts.
 * German and English included, another language is one more `messages_<tag>.yml`
 * Network name, colours and chat prefix come from the config
 * `/prismarin migrate` moves all data from one storage backend to another
+* `/prismarin reload` reloads texts and settings, an update check tells staff about new versions
 
 ## For developers
 
-Every system is reachable from other plugins: players, economy, levels, vanish, staff mode, nicks, friends, parties, reports, punishment templates, storage, audit log, maintenance and staff notifications, plus sidebar, tab list, chat and menu services on Paper.
+Every system is reachable from other plugins: players, economy, levels, vanish, staff mode, nicks, friends, parties, clans, stats, daily rewards, votes, queue, JoinMe, cosmetics, reports, chat filter, alt accounts, punishment templates, storage, audit log, maintenance and staff notifications, plus sidebar, tab list, chat and menu services on Paper.
 
 ```kotlin
 repositories {
@@ -93,7 +129,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.LeonManuel0705:prismarin:v1.0.4")
+    compileOnly("com.github.LeonManuel0705:prismarin:v1.1.0")
 }
 ```
 

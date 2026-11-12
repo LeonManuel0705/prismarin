@@ -48,7 +48,9 @@ public final class ConfigComments {
                     "when TAB, a scoreboard plugin or a chat plugin is installed.")),
             Map.entry("systems", List.of("Whole systems. false removes the commands, displays and data of a system,",
                     "for example economy: false when you keep your own coin plugin.")),
-            Map.entry("modules", List.of("Single features. false turns one off without touching the rest.")));
+            Map.entry("modules", List.of("Single features. false turns one off without touching the rest.")),
+            Map.entry("modules.joinme", List.of("JoinMe: /joinme on game servers sends a clickable invite through the",
+                    "proxy, see joinme.yml. Needs the module on the proxy and on the game servers.")));
 
     private ConfigComments() {
         throw new AssertionError();

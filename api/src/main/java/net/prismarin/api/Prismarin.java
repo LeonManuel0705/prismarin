@@ -10,8 +10,12 @@ import net.prismarin.api.admin.PlatformApi;
 import net.prismarin.api.admin.ReloadService;
 import net.prismarin.api.admin.UpdateService;
 import net.prismarin.api.brand.Branding;
+import net.prismarin.api.cosmetics.CosmeticApi;
+import net.prismarin.api.cosmetics.CosmeticService;
 import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.event.EventBus;
+import net.prismarin.api.joinme.JoinMeApi;
+import net.prismarin.api.joinme.JoinMeService;
 import net.prismarin.api.level.LevelApi;
 import net.prismarin.api.level.LevelService;
 import net.prismarin.api.locale.LocaleService;
@@ -27,15 +31,25 @@ import net.prismarin.api.nick.NickService;
 import net.prismarin.api.player.PlayerApi;
 import net.prismarin.api.player.PlayerService;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.api.reward.DailyRewardService;
+import net.prismarin.api.reward.RewardApi;
+import net.prismarin.api.reward.VoteService;
+import net.prismarin.api.queue.QueueApi;
+import net.prismarin.api.queue.QueueService;
 import net.prismarin.api.server.GameStateService;
 import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.api.server.ServerStatusService;
+import net.prismarin.api.skin.SkinFaceApi;
+import net.prismarin.api.skin.SkinFaces;
+import net.prismarin.api.social.ClanService;
 import net.prismarin.api.social.FriendService;
 import net.prismarin.api.social.PartyService;
 import net.prismarin.api.social.SocialApi;
 import net.prismarin.api.staff.StaffModeApi;
 import net.prismarin.api.staff.StaffModeService;
+import net.prismarin.api.stats.StatsApi;
+import net.prismarin.api.stats.StatsService;
 import net.prismarin.api.storage.DataStorage;
 import net.prismarin.api.storage.StorageApi;
 import net.prismarin.api.vanish.VanishApi;
@@ -85,6 +99,10 @@ public interface Prismarin {
         return SocialApi.parties();
     }
 
+    default Optional<ClanService> clans() {
+        return SocialApi.clans();
+    }
+
     default Optional<ReportService> reports() {
         return ModerationApi.reports();
     }
@@ -115,6 +133,34 @@ public interface Prismarin {
 
     default Optional<NickService> nicks() {
         return NickApi.service();
+    }
+
+    default Optional<StatsService> stats() {
+        return StatsApi.service();
+    }
+
+    default Optional<DailyRewardService> dailyRewards() {
+        return RewardApi.daily();
+    }
+
+    default Optional<VoteService> votes() {
+        return RewardApi.votes();
+    }
+
+    default Optional<QueueService> queue() {
+        return QueueApi.service();
+    }
+
+    default Optional<JoinMeService> joinMe() {
+        return JoinMeApi.service();
+    }
+
+    default Optional<CosmeticService> cosmetics() {
+        return CosmeticApi.service();
+    }
+
+    default Optional<SkinFaces> skinFaces() {
+        return SkinFaceApi.service();
     }
 
     default DataStorage storage() {

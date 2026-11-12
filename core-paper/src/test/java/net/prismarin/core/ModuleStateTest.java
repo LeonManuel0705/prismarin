@@ -56,4 +56,24 @@ class ModuleStateTest {
         ModuleState state = ModuleState.compute(config(Map.of("vault", false), Map.of(), true), name -> false);
         assertEquals("it is switched off in config.yml", state.disabledReasons().get(CoreModules.VAULT));
     }
+
+    @Test
+    void rewardPluginsTakeOverTheRewardModules() {
+        ModuleState state = ModuleState.compute(config(Map.of(), Map.of(), true),
+                Set.of("VotingPlugin", "DailyRewards")::contains);
+
+        assertFalse(state.enabled(CoreModules.VOTE_REWARDS));
+        assertFalse(state.enabled(CoreModules.DAILY_REWARDS));
+        assertTrue(state.enabled(CoreModules.STATS));
+    }
+
+    @Test
+    void otherCosmeticPluginsTakeOverTheCosmetics() {
+        ModuleState state = ModuleState.compute(config(Map.of(), Map.of(), true), Set.of("UltraCosmetics")::contains);
+        ModuleState own = ModuleState.compute(config(Map.of(), Map.of(), true), name -> false);
+
+        assertFalse(state.enabled(CoreModules.COSMETICS));
+        assertTrue(own.enabled(CoreModules.COSMETICS));
+        assertTrue(state.disabledReasons().get(CoreModules.COSMETICS).startsWith("UltraCosmetics is installed"));
+    }
 }

@@ -1,6 +1,7 @@
 package net.prismarin.lobby.listener;
 
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import java.time.Duration;
 import java.util.List;
@@ -14,6 +15,7 @@ import net.prismarin.lobby.action.ItemClick;
 import net.prismarin.lobby.api.HotbarClick;
 import net.prismarin.lobby.api.LobbyHotbarItem;
 import net.prismarin.lobby.config.CustomItem;
+import net.prismarin.lobby.cosmetics.CosmeticEntries;
 import net.prismarin.lobby.extension.LobbyExtensions;
 import net.prismarin.lobby.item.LobbyItems;
 import net.prismarin.lobby.menu.LobbyMenus;
@@ -54,14 +56,17 @@ public final class HotbarListener implements Listener {
     private final NickToolMenu nickTool;
     private final SilentLobbyService silent;
     private final LobbyExtensions extensions;
+    private final Provider<CosmeticEntries> cosmetics;
     private final CooldownTracker debounce = new CooldownTracker(CLICK_DEBOUNCE);
     private final Map<UUID, Long> lastDrop = new ConcurrentHashMap<>();
 
     @Inject
     public HotbarListener(LobbyItems items, LobbyMenus menus, PlayerHiderService hider, BuildModeService buildMode,
                           LobbyWorlds worlds, LobbyTravel travel, ActionRunner actions, NickToolMenu nickTool,
-                          SilentLobbyService silent, LobbyExtensions extensions) {
+                          SilentLobbyService silent, LobbyExtensions extensions,
+                          Provider<CosmeticEntries> cosmetics) {
         this.extensions = extensions;
+        this.cosmetics = cosmetics;
         this.nickTool = nickTool;
         this.silent = silent;
         this.items = items;
@@ -118,6 +123,7 @@ public final class HotbarListener implements Listener {
             case LobbyItems.HIDER_ID -> hider.toggle(player);
             case LobbyItems.NICK_TOOL_ID -> nickTool.open(player);
             case LobbyItems.SILENT_ID -> silent.toggle(player);
+            case LobbyItems.COSMETICS_ID -> cosmetics.get().open(player, null);
             default -> {
             }
         }

@@ -13,18 +13,24 @@ import net.prismarin.api.moderation.PunishmentTemplates;
 import net.prismarin.api.moderation.ReportService;
 import net.prismarin.api.nick.NickApi;
 import net.prismarin.api.nick.NickService;
+import net.prismarin.api.queue.QueueApi;
+import net.prismarin.api.queue.QueueService;
+import net.prismarin.api.reward.RewardApi;
+import net.prismarin.api.reward.VoteService;
 import net.prismarin.api.storage.DataStorage;
 import net.prismarin.api.storage.StorageApi;
 import net.prismarin.core.PrismarinCorePlugin;
 import net.prismarin.core.social.BackendFriendService;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.network.ModerationCatalog;
+import net.prismarin.shared.network.QueueCalls;
 import net.prismarin.shared.network.RemoteAlts;
 import net.prismarin.shared.network.RemoteAudit;
 import net.prismarin.shared.network.RemoteMaintenance;
 import net.prismarin.shared.network.RemoteNotifications;
 import net.prismarin.shared.network.RemoteReports;
 import net.prismarin.shared.network.RemoteTemplates;
+import net.prismarin.shared.network.RemoteVotes;
 import net.prismarin.shared.platform.CoreServices;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -62,11 +68,15 @@ public final class BackendApis implements Listener {
         ReportService reports = new RemoteReports(link, catalog);
         PunishmentTemplates templates = new RemoteTemplates(link, catalog);
         AltService alts = new RemoteAlts(link);
+        VoteService votes = new RemoteVotes(link);
+        QueueService queue = new QueueCalls(link);
         StorageApi.register(storage);
         AdminApi.register(audit, maintenance, notifications);
         ModerationApi.registerReports(reports);
         ModerationApi.registerTemplates(templates);
         ModerationApi.registerAlts(alts);
+        RewardApi.registerVotes(votes);
+        QueueApi.register(queue);
         ServicesManager manager = plugin.getServer().getServicesManager();
         manager.register(DataStorage.class, storage, plugin, ServicePriority.Normal);
         manager.register(AuditService.class, audit, plugin, ServicePriority.Normal);
@@ -75,6 +85,8 @@ public final class BackendApis implements Listener {
         manager.register(ReportService.class, reports, plugin, ServicePriority.Normal);
         manager.register(PunishmentTemplates.class, templates, plugin, ServicePriority.Normal);
         manager.register(AltService.class, alts, plugin, ServicePriority.Normal);
+        manager.register(VoteService.class, votes, plugin, ServicePriority.Normal);
+        manager.register(QueueService.class, queue, plugin, ServicePriority.Normal);
         if (nicks != null) {
             NickApi.register(nicks);
         }
@@ -82,8 +94,10 @@ public final class BackendApis implements Listener {
     }
 
     public void unregister() {
+        QueueApi.unregister();
         NickApi.unregister();
         ModerationApi.unregister();
+        RewardApi.registerVotes(null);
         AdminApi.unregister();
         StorageApi.unregister();
     }

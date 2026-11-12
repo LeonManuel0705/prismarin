@@ -45,6 +45,7 @@ public final class ModerationChannel implements PluginMessageListener {
     private volatile BiConsumer<Player, Locale> localeReports;
     private volatile BiConsumer<Player, JsonObject> remoteAnswers;
     private volatile Consumer<JsonObject> remoteEvents;
+    private volatile BiConsumer<Player, JsonObject> joinMeArrivals;
 
     @Inject
     public ModerationChannel(PrismarinCorePlugin plugin, Provider<ReportMenu> reportMenu, ArrivalTracker arrivals,
@@ -108,6 +109,7 @@ public final class ModerationChannel implements PluginMessageListener {
                     }
                 }
                 case "party-sync" -> social.get().party(message);
+                case "clan-sync" -> social.get().clan(message);
                 case NetworkCalls.ANSWER -> {
                     BiConsumer<Player, JsonObject> handler = remoteAnswers;
                     if (handler != null && carrier.getUniqueId().equals(uuid)) {
@@ -118,6 +120,12 @@ public final class ModerationChannel implements PluginMessageListener {
                     Consumer<JsonObject> handler = remoteEvents;
                     if (handler != null) {
                         handler.accept(message);
+                    }
+                }
+                case "joinme-arrival" -> {
+                    BiConsumer<Player, JsonObject> handler = joinMeArrivals;
+                    if (handler != null && carrier.getUniqueId().equals(uuid)) {
+                        handler.accept(carrier, message);
                     }
                 }
                 case "player-answer" -> {
@@ -186,6 +194,10 @@ public final class ModerationChannel implements PluginMessageListener {
     public void handleRemote(BiConsumer<Player, JsonObject> answers, Consumer<JsonObject> events) {
         this.remoteAnswers = answers;
         this.remoteEvents = events;
+    }
+
+    public void handleJoinMe(BiConsumer<Player, JsonObject> arrivals) {
+        this.joinMeArrivals = arrivals;
     }
 
     public void onLocaleReport(BiConsumer<Player, Locale> listener) {

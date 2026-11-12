@@ -19,6 +19,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import net.prismarin.api.social.ClanAccess;
+import net.prismarin.api.social.ClanRole;
 import net.prismarin.api.social.PartyRole;
 import net.prismarin.shared.text.TextFormatter;
 import org.junit.jupiter.api.Test;
@@ -28,7 +30,7 @@ import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 class SocialMessagesTest {
 
     private static final Pattern PLACEHOLDER = Pattern.compile("%[a-z_-]+%");
-    private static final List<String> BLOCKS = List.of("friends", "party", "msg");
+    private static final List<String> BLOCKS = List.of("friends", "party", "msg", "clan");
 
     @Test
     void bothLanguagesShareTheSameKeys() throws IOException {
@@ -72,6 +74,23 @@ class SocialMessagesTest {
                 assertTrue(english.containsKey("party.value." + value), value);
             }
         }
+        for (String action : SubCommands.CLANS.actions()) {
+            assertTrue(english.containsKey("clan.help." + action), action);
+        }
+        for (ClanRole role : ClanRole.values()) {
+            assertTrue(english.containsKey("clan.role." + role.id()), role.id());
+            assertTrue(english.containsKey("clan.chat-line." + role.id()), role.id());
+            assertTrue(english.containsKey("clan.list-" + role.id()), role.id());
+            assertTrue(english.containsKey("clan.list-" + role.id() + "-offline"), role.id());
+        }
+        for (ClanAccess access : ClanAccess.values()) {
+            assertTrue(english.containsKey("clan.access." + access.id()), access.id());
+        }
+        for (String kind : List.of("name", "tag")) {
+            for (String check : List.of("too-short", "too-long", "characters", "blocked")) {
+                assertTrue(english.containsKey("clan." + kind + "-" + check), kind + check);
+            }
+        }
         for (PartyRole role : PartyRole.values()) {
             assertTrue(english.containsKey("party.role." + role.id()), role.id());
             assertTrue(english.containsKey("party.list-" + role.id()), role.id());
@@ -106,6 +125,8 @@ class SocialMessagesTest {
         assertEquals(" /cmd promote <player> » make a member moderator (leader)",
                 plain(formatter, english.get("party.help.promote")));
         assertEquals(" /cmd list [<page>] » show your friends", plain(formatter, english.get("friends.help.list")));
+        assertEquals(" /cmd create <name> <tag> » found a clan", plain(formatter, english.get("clan.help.create")));
+        assertFalse(plain(formatter, english.get("clan.usage-color")).contains("&"));
     }
 
     private static String plain(TextFormatter formatter, String text) {

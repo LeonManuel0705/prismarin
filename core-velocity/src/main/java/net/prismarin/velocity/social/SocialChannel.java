@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import net.prismarin.api.social.ClanAccess;
 import net.prismarin.api.social.SocialResult;
 import net.prismarin.shared.social.PartyCodec;
 import net.prismarin.velocity.admin.ModerationChannel;
@@ -22,12 +23,15 @@ public final class SocialChannel implements ModerationChannel.SocialHandler {
     private final SocialContext context;
     private final FriendService friends;
     private final PartyService party;
+    private final ClanService clans;
     private final SocialViews views;
 
-    public SocialChannel(SocialContext context, FriendService friends, PartyService party, SocialViews views) {
+    public SocialChannel(SocialContext context, FriendService friends, PartyService party, ClanService clans,
+                         SocialViews views) {
         this.context = context;
         this.friends = friends;
         this.party = party;
+        this.clans = clans;
         this.views = views;
     }
 
@@ -132,23 +136,48 @@ public final class SocialChannel implements ModerationChannel.SocialHandler {
             case FRIEND_DENY -> friendsOn ? friends.deny(player, target) : disabled();
             case FRIEND_CANCEL -> friendsOn ? friends.cancel(player, target) : disabled();
             case FRIEND_REMOVE -> friendsOn ? friends.remove(player, target) : disabled();
-            case FRIEND_JUMP -> friendsOn ? friends.jump(player, target) : disabled();
+            case FRIEND_JUMP -> friendsOn && on(SocialSetting.Feature.FRIENDS, "jump") ? friends.jump(player, target)
+                    : disabled();
             case PARTY_INVITE -> partyOn ? party.invite(player, target) : disabled();
             case PARTY_ACCEPT -> partyOn ? party.accept(player, target) : disabled();
             case PARTY_DENY -> partyOn ? party.deny(player, target) : disabled();
-            case PARTY_JOIN -> partyOn ? party.join(player, target) : disabled();
+            case PARTY_JOIN -> partyOn && partyOn("join") ? party.join(player, target) : disabled();
             case PARTY_LEAVE -> partyOn ? party.leave(player) : disabled();
-            case PARTY_KICK -> partyOn ? party.kick(player, target) : disabled();
-            case PARTY_PROMOTE -> partyOn ? party.promote(player, target) : disabled();
-            case PARTY_DEMOTE -> partyOn ? party.demote(player, target) : disabled();
-            case PARTY_TRANSFER -> partyOn ? party.transfer(player, target) : disabled();
-            case PARTY_DISBAND -> partyOn ? party.disband(player) : disabled();
-            case PARTY_WARP -> partyOn ? party.warp(player) : disabled();
-            case PARTY_SETTING -> partyOn ? configure(player, request.options()) : disabled();
-            case SETTING -> context.enabled(request.setting().feature())
+            case PARTY_KICK -> partyOn && partyOn("kick") ? party.kick(player, target) : disabled();
+            case PARTY_PROMOTE -> partyOn && partyOn("promote") ? party.promote(player, target) : disabled();
+            case PARTY_DEMOTE -> partyOn && partyOn("demote") ? party.demote(player, target) : disabled();
+            case PARTY_TRANSFER -> partyOn && partyOn("transfer") ? party.transfer(player, target) : disabled();
+            case PARTY_DISBAND -> partyOn && partyOn("disband") ? party.disband(player) : disabled();
+            case PARTY_WARP -> partyOn && partyOn("warp") ? party.warp(player) : disabled();
+            case PARTY_SETTING -> partyOn && partyOn("settings") ? configure(player, request.options()) : disabled();
+            case CLAN_ACCEPT -> clanOn("accept") ? clans.accept(player, target) : disabled();
+            case CLAN_DENY -> clanOn("deny") ? clans.deny(player, target) : disabled();
+            case CLAN_JOIN -> clanOn("join") ? clans.join(player, target) : disabled();
+            case CLAN_LEAVE -> clans != null ? clans.leave(player) : disabled();
+            case CLAN_KICK -> clanOn("kick") ? clans.kick(player, target) : disabled();
+            case CLAN_PROMOTE -> clanOn("promote") ? clans.promote(player, target) : disabled();
+            case CLAN_DEMOTE -> clanOn("demote") ? clans.demote(player, target) : disabled();
+            case CLAN_TRANSFER -> clanOn("transfer") ? clans.transfer(player, target) : disabled();
+            case CLAN_DISBAND -> clanOn("disband") ? clans.disbandConfirmed(player) : disabled();
+            case CLAN_SETTING -> clanOn("settings")
+                    ? clans.access(player, ClanAccess.byId(request.value()).orElse(ClanAccess.INVITE_ONLY))
+                    : disabled();
+            case SETTING -> context.personalSettings() && context.settingVisible(request.setting())
                     ? friends.change(player, request.setting(), request.value()).thenApply(done -> SocialResult.SUCCESS)
                     : disabled();
         };
+    }
+
+    private boolean on(SocialSetting.Feature feature, String action) {
+        return context.available(feature, action);
+    }
+
+    private boolean partyOn(String action) {
+        return on(SocialSetting.Feature.PARTY, action);
+    }
+
+    private boolean clanOn(String action) {
+        return clans != null && on(SocialSetting.Feature.CLANS, action);
     }
 
     private CompletableFuture<SocialResult> configure(Player player, Map<PartyOption, String> options) {

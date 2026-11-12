@@ -391,12 +391,14 @@ public final class FriendService {
                     Placeholder.unparsed("pages", String.valueOf(page.pages())));
             long now = System.currentTimeMillis();
             for (Entry entry : page.entries()) {
+                Component clan = context.clanBadge(player, "friends", entry.uuid());
                 if (entry.online()) {
                     context.send(player, "friends.list-online", Placeholder.unparsed("player", entry.name()),
-                            Placeholder.unparsed("server", entry.server()));
+                            Placeholder.unparsed("server", entry.server()), Placeholder.component("clan", clan));
                 } else {
                     context.send(player, "friends.list-offline", Placeholder.unparsed("player", entry.name()),
-                            Placeholder.component("time", context.time(player, TimeAgo.since(entry.lastSeen(), now))));
+                            Placeholder.component("time", context.time(player, TimeAgo.since(entry.lastSeen(), now))),
+                            Placeholder.component("clan", clan));
                 }
             }
             if (page.pages() > 1) {
@@ -502,7 +504,7 @@ public final class FriendService {
             SocialProfile mine = context.store().cached(player.getUniqueId());
             context.send(player, "friends.settings-header");
             for (SocialSetting setting : SocialSetting.values()) {
-                if (!context.enabled(setting.feature())) {
+                if (!context.settingVisible(setting)) {
                     continue;
                 }
                 String value = context.setting(mine, setting);

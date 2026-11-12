@@ -42,10 +42,13 @@ public record LobbySettings(Map<String, Boolean> features, List<String> worlds, 
     public static final String JOIN_TITLE = "join-title";
     public static final String NICK_TOOL = "nick-tool";
     public static final String SILENT_LOBBY = "silent-lobby";
+    public static final String LEADERBOARDS = "leaderboards";
+    public static final String NAVIGATOR_QUEUE = "navigator-queue";
+    public static final String COSMETICS = "cosmetics";
 
     public static final List<String> ALL = List.of(NAVIGATOR, LOBBY_SELECTOR, PROFILE_MENU, PLAYER_HIDER,
             PREMIUM_LOBBY, CUSTOM_ITEMS, DOUBLE_JUMP, PROTECTION, VOID_TELEPORT, SPAWN_ON_JOIN, LOBBY_DISTRIBUTION,
-            SIDEBAR, JOIN_TITLE, NICK_TOOL, SILENT_LOBBY);
+            SIDEBAR, JOIN_TITLE, NICK_TOOL, SILENT_LOBBY, LEADERBOARDS, NAVIGATOR_QUEUE, COSMETICS);
 
     public static final String NAVIGATOR_ITEM = "navigator";
     public static final String LOBBY_SELECTOR_ITEM = "lobby-selector";
@@ -54,6 +57,7 @@ public record LobbySettings(Map<String, Boolean> features, List<String> worlds, 
     public static final String HIDER_ITEM = "player-hider";
     public static final String NICK_TOOL_ITEM = "nick-tool";
     public static final String SILENT_ITEM = "silent-lobby";
+    public static final String COSMETICS_ITEM = "cosmetics";
     public static final String SILENT_PERMISSION = "prismarin.lobby.silent";
 
     public static final String DEFAULT_WORLD = "world";
@@ -67,7 +71,8 @@ public record LobbySettings(Map<String, Boolean> features, List<String> worlds, 
             new HotbarItem(PREMIUM_ITEM, true, 7, "TNT", "", ""),
             new HotbarItem(HIDER_ITEM, true, 8, "LIME_DYE", "GRAY_DYE", ""),
             new HotbarItem(NICK_TOOL_ITEM, true, 2, "NAME_TAG", "", "", ""),
-            new HotbarItem(SILENT_ITEM, true, 6, "AMETHYST_SHARD", "ECHO_SHARD", "", SILENT_PERMISSION));
+            new HotbarItem(SILENT_ITEM, true, 6, "AMETHYST_SHARD", "ECHO_SHARD", "", SILENT_PERMISSION),
+            new HotbarItem(COSMETICS_ITEM, true, 5, "CHEST", "", ""));
 
     private static final int HOTBAR_SLOTS = 9;
 
@@ -421,7 +426,7 @@ public record LobbySettings(Map<String, Boolean> features, List<String> worlds, 
                 Optional<ProfileLayout.Entry.Kind> kind = ProfileLayout.Entry.Kind.byId(key);
                 if (kind.isEmpty()) {
                     warnings.add("profile.menu.entries." + key + ": unknown entry, use currencies, level, rank, "
-                            + "language, friends or party");
+                            + "language, friends, party or clan");
                     continue;
                 }
                 List<ProfileLayout.Entry> target = kind.get().social() ? social : entries;
@@ -530,15 +535,26 @@ public record LobbySettings(Map<String, Boolean> features, List<String> worlds, 
                 "Nick tool in the hotbar for players with a nick permission. Needs the nick module of PrismarinCore."));
         comments.put("features.silent-lobby", List.of(
                 "Silent lobby item: players who switch it on see nobody, nobody sees them and lobby chat stays quiet."));
+        comments.put("features.leaderboards", List.of(
+                "Floating leaderboards placed with /leaderboard, see leaderboards.yml. Needs the stats module of",
+                "PrismarinCore."));
+        comments.put("features.navigator-queue", List.of(
+                "Shows in the navigator how many wait in the queue of a group or server. Needs modules.queue",
+                "on the proxy and in PrismarinCore."));
         comments.put("items.nick-tool", List.of(
                 "Opens a small nick menu. permission empty means every player with a prismarin.nick.* permission."));
+        comments.put("features.cosmetics", List.of(
+                "Cosmetics item in the hotbar, opens the cosmetics menu. Needs the cosmetics module of",
+                "PrismarinCore, see cosmetics.yml there."));
+        comments.put("items.cosmetics", List.of("Opens the cosmetics menu, the same as /cosmetics."));
         comments.put("items.silent-lobby", List.of(
                 "Toggles the silent lobby. active-material shows while it is on, permission decides who gets it."));
         comments.put("custom-items", List.of(
                 "Your own hotbar items. Actions run per click: right-click, left-click, shift-right-click and",
                 "shift-left-click. Shift clicks fall back to the plain click, a plain list means right click.",
                 "Actions: 'player: <command>', 'console: <command>', 'message: <text>', 'actionbar: <text>',",
-                "'menu: navigator|lobbies|profile|languages|friends|party|nick', 'server: <name>', 'group: <group>',",
+                "'menu: navigator|lobbies|profile|languages|friends|party|clan|nick', 'server: <name>',",
+                "'group: <group>',",
                 "'lobby: <lobby id>' and 'sound: <key> [volume] [pitch]'.",
                 "%player% works in commands and texts, PlaceholderAPI placeholders too when it is installed.",
                 "name and lore also accept message keys from messages_<language>.yml."));
@@ -548,21 +564,21 @@ public record LobbySettings(Map<String, Boolean> features, List<String> worlds, 
                 "Only players with this permission get the item. Empty means everyone."));
         comments.put("profile", List.of("What the profile head item and the profile menu show."));
         comments.put("profile.head", List.of(
-                "Lore of the profile head item, line by line: currencies, 'currency: <id>', level, rank, empty",
+                "Lore of the profile head item, line by line: currencies, 'currency: <id>', level, rank, clan, empty",
                 "or 'text: <text>'. Text lines may use PlaceholderAPI placeholders.",
                 "Lines from other plugins: 'attribute: <key>' shows one, attributes shows all others there.",
                 "Without an attributes line they follow at the end."));
         comments.put("profile.menu", List.of("Layout of the profile menu. Slots count from 0 (top left), -1 hides."));
         comments.put("profile.menu.entry-row", List.of("Row of currencies, level and rank (0 is the top row)."));
         comments.put("profile.menu.action-row", List.of(
-                "Row of language, friends and party. Use the same number as entry-row for one shared row."));
+                "Row of language, friends, party and clan. Use the same number as entry-row for one shared row."));
         comments.put("profile.menu.language-click", List.of(
                 "menu (or auto) opens a list of every language with flag heads, toggle switches directly",
                 "between two languages."));
         comments.put("profile.menu.entries", List.of(
                 "auto centers the entry in its row, a number pins it to that slot, off hides it.",
                 "currencies takes one slot per currency. language needs at least two languages.",
-                "friends and party show up when the PRISMARIN proxy has the friends or party module on."));
+                "friends, party and clan show up when the PRISMARIN proxy has the friends, party or clans module on."));
         return Map.copyOf(comments);
     }
 }

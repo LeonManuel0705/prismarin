@@ -26,6 +26,14 @@ public final class MenuLayout {
             for (int i = 0; i < count; i++) {
                 slots.add(row * COLUMNS + start + i * 2);
             }
+        } else if (count % 2 == 0) {
+            int half = count / 2;
+            for (int i = 0; i < half; i++) {
+                slots.add(row * COLUMNS + CENTER_COLUMN - half + i);
+            }
+            for (int i = 0; i < half; i++) {
+                slots.add(row * COLUMNS + CENTER_COLUMN + 1 + i);
+            }
         } else {
             int start = (COLUMNS - count) / 2;
             for (int i = 0; i < count; i++) {

@@ -28,10 +28,15 @@ public final class ProxyModules {
     public static final String FRIENDS = "friends";
     public static final String PARTY = "party";
     public static final String PRIVATE_MESSAGES = "private-messages";
+    public static final String CLANS = "clans";
+    public static final String VOTES = "votes";
+    public static final String QUEUE = "queue";
+    public static final String JOINME = "joinme";
 
     public static final List<String> ALL = List.of(MOTD, MAINTENANCE, HUB_COMMAND, SENDALL_COMMAND, LOBBY_FALLBACK,
             LOBBY_BALANCING, STAFF_CHAT, STAFF_LIST, FIND, SEND, GOTO, ALERT, PUNISHMENTS, REPORTS, PLAYER_INFO, AUDIT,
-            CHAT_FILTER, ALTS, NETEXEC, SERVER_MAINTENANCE, NETWORK_ALERTS, FRIENDS, PARTY, PRIVATE_MESSAGES);
+            CHAT_FILTER, ALTS, NETEXEC, SERVER_MAINTENANCE, NETWORK_ALERTS, FRIENDS, PARTY, PRIVATE_MESSAGES, CLANS,
+            VOTES, QUEUE, JOINME);
 
     private ProxyModules() {
         throw new AssertionError();

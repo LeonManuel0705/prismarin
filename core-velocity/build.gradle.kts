@@ -13,6 +13,12 @@ dependencies {
 
     compileOnly(libs.velocity.api)
     annotationProcessor(libs.velocity.api)
+    compileOnly(libs.nuvotifier.velocity) {
+        isTransitive = false
+    }
+    compileOnly(libs.nuvotifier.api) {
+        isTransitive = false
+    }
 
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)

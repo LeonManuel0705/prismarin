@@ -11,6 +11,11 @@ public final class ExamplePlugin extends JavaPlugin {
     private EventLog events;
     private StatsDisplay display;
     private RoundState round;
+    private NetworkStats network;
+    private Queueing queueing;
+    private ArenaJoinMe arena;
+    private ArenaStats arenaStats;
+    private Cosmetics cosmetics;
 
     @Override
     public void onEnable() {
@@ -24,14 +29,27 @@ public final class ExamplePlugin extends JavaPlugin {
         display.register(prismarin.players());
         round = new RoundState(prismarin.gameState());
         round.open();
+        network = new NetworkStats(prismarin);
+        network.define();
+        arenaStats = new ArenaStats(stats);
+        arenaStats.register(prismarin);
+        queueing = new Queueing(prismarin);
+        queueing.subscribe(getLogger());
+        arena = new ArenaJoinMe(this, prismarin, texts);
+        arena.register();
+        cosmetics = new Cosmetics(prismarin, getLogger());
+        cosmetics.register();
         ExampleCommand command = new ExampleCommand(prismarin, new PlayerLookup(prismarin.players(), stats, texts),
-                stats, new Rewards(prismarin), new Moderation(prismarin), round, texts);
+                stats, new Rewards(prismarin), new Moderation(prismarin), round, queueing, texts, network, arena,
+                cosmetics);
         PluginCommand example = Objects.requireNonNull(getCommand("example"), "example command");
         example.setExecutor(command);
         example.setTabCompleter(command);
         getLogger().info("Running on " + prismarin.serverId() + ", nicks "
                 + (prismarin.nicks().isPresent() ? "on" : "off") + ", reports "
-                + (prismarin.reports().isPresent() ? "on" : "off"));
+                + (prismarin.reports().isPresent() ? "on" : "off") + ", stats "
+                + (prismarin.stats().isPresent() ? "on" : "off") + ", cosmetics "
+                + (prismarin.cosmetics().isPresent() ? "on" : "off"));
     }
 
     @Override
@@ -44,6 +62,21 @@ public final class ExamplePlugin extends JavaPlugin {
         }
         if (round != null) {
             round.close();
+        }
+        if (network != null) {
+            network.undefine();
+        }
+        if (arenaStats != null) {
+            arenaStats.unregister();
+        }
+        if (queueing != null) {
+            queueing.unsubscribe();
+        }
+        if (arena != null) {
+            arena.unregister();
+        }
+        if (cosmetics != null) {
+            cosmetics.unregister();
         }
     }
 }

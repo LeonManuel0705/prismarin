@@ -7,7 +7,7 @@ depend:
 commands:
   example:
     description: Shows what a game plugin can do with the PRISMARIN API.
-    usage: /example <whois|win|top|report|reward|punish|alert|state|maintenance>
+    usage: /example <whois|win|top|report|queue|joinme|cosmetic|reward|punish|alert|state|maintenance|lock>
     permission: prismarin.example.use
 permissions:
   prismarin.example.use:

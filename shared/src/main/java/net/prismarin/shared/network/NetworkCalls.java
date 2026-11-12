@@ -41,7 +41,30 @@ public final class NetworkCalls {
         TEMPLATE_UNREGISTER,
         TEMPLATE_PREVIEW,
         TEMPLATE_PUNISH,
-        ALTS_FIND;
+        ALTS_FIND,
+        CLAN_LOOKUP,
+        CLAN_GET,
+        CLAN_FIND,
+        CLAN_LIST,
+        CLAN_ACT,
+        CLAN_MANAGE,
+        VOTE_SITES,
+        VOTE_CAST,
+        VOTE_STATS,
+        VOTE_PENDING,
+        VOTE_CLAIM,
+        QUEUE_JOIN,
+        QUEUE_LEAVE,
+        QUEUE_POSITIONS,
+        QUEUE_LIST,
+        QUEUE_MANAGE,
+        JOINME_CHECK,
+        JOINME_CREATE,
+        JOINME_LIST,
+        JOINME_FIND,
+        JOINME_JOIN,
+        JOINME_CANCEL,
+        JOINME_PREVIEW;
 
         public String id() {
             return name().toLowerCase(Locale.ROOT).replace('_', '-');

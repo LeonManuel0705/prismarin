@@ -22,10 +22,17 @@ public final class CoreModules {
     public static final String STAFF_MODE = "staff-mode";
     public static final String ESSENTIALS = "essentials";
     public static final String CHAT_FILTER = "chat-filter";
+    public static final String STATS = "stats";
+    public static final String DAILY_REWARDS = "daily-rewards";
+    public static final String VOTE_REWARDS = "vote-rewards";
+    public static final String QUEUE = "queue";
+    public static final String JOINME = "joinme";
+    public static final String COSMETICS = "cosmetics";
 
     public static final List<String> ALL = List.of(CHAT, TABLIST, SIDEBAR, JOIN_MESSAGES, ECONOMY_COMMANDS,
             NETWORK_MENU, PLAY_COMMAND, VANISH, MUTE_ENFORCEMENT, NETEXEC, VAULT, PLACEHOLDER_API, LEVEL_COMMANDS,
-            RANK_COMMANDS, NICK, ESSENTIALS, CHAT_FILTER);
+            RANK_COMMANDS, NICK, ESSENTIALS, CHAT_FILTER, STATS, DAILY_REWARDS, VOTE_REWARDS, QUEUE, JOINME,
+            COSMETICS);
 
     private CoreModules() {
         throw new AssertionError();

@@ -24,8 +24,15 @@ import net.prismarin.api.moderation.Report;
 import net.prismarin.api.moderation.ReportReason;
 import net.prismarin.api.moderation.ReportService;
 import net.prismarin.api.moderation.ReportVerdict;
+import net.prismarin.api.reward.Vote;
+import net.prismarin.api.reward.VoteService;
+import net.prismarin.api.queue.QueueService;
+import net.prismarin.api.social.ClanService;
+import net.prismarin.shared.joinme.JoinMeEndpoint;
 
 public final class RemoteDispatcher {
+
+    public static final int CLAIM_BATCH = 10;
 
     public interface NoticeSink {
 
@@ -42,22 +49,40 @@ public final class RemoteDispatcher {
     private final Supplier<Optional<ReportService>> reports;
     private final Supplier<Optional<PunishmentTemplates>> templates;
     private final Supplier<Optional<AltService>> alts;
+    private final Supplier<Optional<ClanService>> clans;
+    private final Supplier<Optional<VoteService>> votes;
+    private final Supplier<Optional<QueueService>> queue;
+    private final Supplier<Optional<JoinMeEndpoint>> joinMe;
 
     public RemoteDispatcher(AuditService audit, Supplier<Optional<MaintenanceService>> maintenance, NoticeSink notices,
                             Supplier<Optional<ReportService>> reports,
                             Supplier<Optional<PunishmentTemplates>> templates) {
-        this(audit, maintenance, notices, reports, templates, Optional::empty);
+        this(audit, maintenance, notices, reports, templates, Optional::empty, Optional::empty, Optional::empty,
+                Optional::empty, Optional::empty);
     }
 
     public RemoteDispatcher(AuditService audit, Supplier<Optional<MaintenanceService>> maintenance, NoticeSink notices,
                             Supplier<Optional<ReportService>> reports,
                             Supplier<Optional<PunishmentTemplates>> templates, Supplier<Optional<AltService>> alts) {
+        this(audit, maintenance, notices, reports, templates, alts, Optional::empty, Optional::empty, Optional::empty,
+                Optional::empty);
+    }
+
+    public RemoteDispatcher(AuditService audit, Supplier<Optional<MaintenanceService>> maintenance, NoticeSink notices,
+                            Supplier<Optional<ReportService>> reports,
+                            Supplier<Optional<PunishmentTemplates>> templates, Supplier<Optional<AltService>> alts,
+                            Supplier<Optional<ClanService>> clans, Supplier<Optional<VoteService>> votes,
+                            Supplier<Optional<QueueService>> queue, Supplier<Optional<JoinMeEndpoint>> joinMe) {
         this.audit = Objects.requireNonNull(audit, "audit");
         this.maintenance = Objects.requireNonNull(maintenance, "maintenance");
         this.notices = Objects.requireNonNull(notices, "notices");
         this.reports = Objects.requireNonNull(reports, "reports");
         this.templates = Objects.requireNonNull(templates, "templates");
         this.alts = Objects.requireNonNull(alts, "alts");
+        this.clans = Objects.requireNonNull(clans, "clans");
+        this.votes = Objects.requireNonNull(votes, "votes");
+        this.queue = Objects.requireNonNull(queue, "queue");
+        this.joinMe = Objects.requireNonNull(joinMe, "joinMe");
     }
 
     public CompletableFuture<JsonObject> dispatch(NetworkCalls.Request request, String origin) {
@@ -110,7 +135,31 @@ public final class RemoteDispatcher {
                     ApiJson.stringOr(body, "actor", ""), ApiJson.stringOr(body, "note", ""))
                     .thenApply(punishment -> single("punishment", ApiJson.tree(punishment)));
             case ALTS_FIND -> alts().alts(ApiJson.uuid(body, "player")).thenApply(found -> listed("alts", found));
+            case CLAN_LOOKUP, CLAN_GET, CLAN_FIND, CLAN_LIST, CLAN_ACT, CLAN_MANAGE ->
+                    ClanCalls.dispatch(clans(), action, body);
+            case VOTE_SITES -> votes().sites().thenApply(sites -> listed("sites", sites));
+            case VOTE_CAST -> castVote(body).thenApply(vote -> single("vote", ApiJson.tree(vote)));
+            case VOTE_STATS -> votes().stats(ApiJson.uuid(body, "player"))
+                    .thenApply(stats -> single("stats", ApiJson.tree(stats)));
+            case VOTE_PENDING -> votes().pending(ApiJson.uuid(body, "player"))
+                    .thenApply(found -> listed("votes", found));
+            case VOTE_CLAIM -> votes().claim(ApiJson.uuid(body, "player"), ApiJson.stringOr(body, "name", ""),
+                    Math.clamp(ApiJson.number(body, "limit", CLAIM_BATCH), 1, CLAIM_BATCH))
+                    .thenApply(found -> listed("votes", found));
+            case QUEUE_JOIN, QUEUE_LEAVE, QUEUE_POSITIONS, QUEUE_LIST, QUEUE_MANAGE ->
+                    QueueCalls.dispatch(queue(), action, body);
+            case JOINME_CHECK, JOINME_CREATE, JOINME_LIST, JOINME_FIND, JOINME_JOIN, JOINME_CANCEL, JOINME_PREVIEW ->
+                    JoinMeCalls.dispatch(joinMe(), action, body);
         };
+    }
+
+    private CompletableFuture<Vote> castVote(JsonObject body) {
+        String service = ApiJson.stringOr(body, "service", "");
+        String player = ApiJson.stringOr(body, "player", "");
+        if (!player.isEmpty()) {
+            return votes().vote(ApiJson.uuid(body, "player"), service);
+        }
+        return votes().vote(ApiJson.string(body, "name"), service);
     }
 
     private CompletableFuture<Boolean> setMaintenance(JsonObject body) {
@@ -156,6 +205,22 @@ public final class RemoteDispatcher {
 
     private AltService alts() {
         return alts.get().orElseThrow(() -> new IllegalStateException("alt detection is off on the proxy"));
+    }
+
+    private ClanService clans() {
+        return clans.get().orElseThrow(() -> new IllegalStateException("clans are off on the proxy"));
+    }
+
+    private VoteService votes() {
+        return votes.get().orElseThrow(() -> new IllegalStateException("votes are off on the proxy"));
+    }
+
+    private QueueService queue() {
+        return queue.get().orElseThrow(() -> new IllegalStateException("the queue is off on the proxy"));
+    }
+
+    private JoinMeEndpoint joinMe() {
+        return joinMe.get().orElseThrow(() -> new IllegalStateException(JoinMeCalls.OFF));
     }
 
     private static CompletableFuture<JsonObject> done(Runnable action) {

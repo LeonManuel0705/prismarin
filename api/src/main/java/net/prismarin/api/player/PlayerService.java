@@ -8,6 +8,8 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import net.prismarin.api.social.Clan;
+import net.prismarin.api.social.ClanService;
 import net.prismarin.api.social.FriendService;
 import net.prismarin.api.social.Party;
 import net.prismarin.api.social.PartyService;
@@ -80,6 +82,19 @@ public interface PlayerService {
 
     default Optional<Party> party(UUID player) {
         return parties().flatMap(service -> service.partyOf(player));
+    }
+
+    default Optional<ClanService> clans() {
+        return SocialApi.clans();
+    }
+
+    default Optional<Clan> clan(UUID player) {
+        return clans().flatMap(service -> service.clanOf(player));
+    }
+
+    default CompletableFuture<Optional<Clan>> lookupClan(UUID player) {
+        return clans().map(service -> service.lookup(player))
+                .orElseGet(() -> CompletableFuture.completedFuture(Optional.empty()));
     }
 
     default CompletableFuture<Boolean> areFriends(UUID first, UUID second) {

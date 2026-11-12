@@ -3,6 +3,7 @@ package net.prismarin.shared.storage;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 
 public interface DocumentStore extends AutoCloseable {
 
@@ -17,6 +18,8 @@ public interface DocumentStore extends AutoCloseable {
     List<String> findBy(String collection, String field, String value);
 
     boolean delete(String collection, String id);
+
+    Optional<String> update(String collection, String id, UnaryOperator<String> change);
 
     List<String> collections();
 

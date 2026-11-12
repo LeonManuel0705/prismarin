@@ -10,9 +10,14 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import net.prismarin.api.social.ClanAccess;
+import net.prismarin.api.social.ClanAction;
+import net.prismarin.api.social.ClanRights;
+import net.prismarin.api.social.ClanRole;
 import net.prismarin.api.social.PartyAccess;
 import net.prismarin.api.social.PartyRole;
 import net.prismarin.api.social.PartySettings;
+import net.prismarin.shared.social.ClanTagFormat;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -40,7 +45,22 @@ class SocialSettingsTest {
         assertEquals(SocialSetting.ON, settings.defaultValue(SocialSetting.NOTIFICATIONS));
         assertEquals(List.of(), settings.warnings());
         String text = Files.readString(file);
-        assertTrue(text.startsWith("# PRISMARIN friends, parties and private messages on the proxy."));
+        assertTrue(text.startsWith("# PRISMARIN friends, parties and private messages on the proxy, clans included."));
+        SocialSettings.Clans clans = settings.clans();
+        assertEquals(20, clans.maxMembers());
+        assertEquals(Map.of("prismarin.clan.size.vip", 40), clans.sizePermissions());
+        assertEquals(300_000L, clans.inviteExpiryMillis());
+        assertEquals(ClanAccess.INVITE_ONLY, clans.defaultAccess());
+        assertEquals("", clans.createPermission());
+        assertEquals(SocialSettings.CLAN_COLOR_PERMISSION, clans.colorPermission());
+        assertEquals(ClanRights.DEFAULT, clans.rights());
+        assertEquals(ClanTagFormat.DEFAULT, clans.tag());
+        assertEquals(List.of("clan"), clans.commands());
+        assertEquals(List.of("cc", "clanchat"), clans.chatCommands());
+        assertEquals(SubCommands.CLANS.visible(), clans.subCommands().visible());
+        assertTrue(clans.showIn("friends") && clans.showIn("party") && clans.showIn("player-info"));
+        assertTrue(text.contains("    format: '&7[&f%name%&7]'") || text.contains("    format: \"&7[&f%name%&7]\""));
+        assertTrue(text.contains("# Lowest role that may do something: member, moderator, co-leader or leader."));
         assertTrue(text.contains("# Parties live in the memory of this proxy and end with a restart."));
         assertEquals(text, reload(file));
     }
@@ -156,6 +176,47 @@ class SocialSettingsTest {
                 settings.party().defaults());
         assertEquals(1, settings.warnings().size());
         assertTrue(settings.warnings().getFirst().startsWith("party.defaults.chat"));
+    }
+
+    @Test
+    void clanSettingsAreReadAndCheckedAgainstTheirLimits() throws IOException {
+        Path file = directory.resolve(SocialSettings.FILE_NAME);
+        Files.writeString(file, """
+                clans:
+                  max-members: 5000
+                  name:
+                    min-length: 4
+                    max-length: 12
+                  tag:
+                    format: "<dark_gray>{%name%}"
+                    position: before
+                    chat: false
+                  allowed-characters: "[a-z"
+                  blocked-names: [Staff, OWNER]
+                  default-access: everyone
+                  rights:
+                    invite: members
+                    kick: boss
+                    color: member
+                  show-in:
+                    party: false
+                """);
+        SocialSettings settings = SocialSettings.load(file);
+        SocialSettings.Clans clans = settings.clans();
+        assertEquals(500, clans.maxMembers());
+        assertEquals(4, clans.naming().nameMin());
+        assertEquals(12, clans.naming().nameMax());
+        assertEquals(ClanNaming.DEFAULT_PATTERN, clans.naming().allowed().pattern());
+        assertEquals(Set.of("staff", "owner"), clans.naming().blocked());
+        assertEquals(ClanAccess.OPEN, clans.defaultAccess());
+        assertEquals(new ClanTagFormat("<dark_gray>{%name%}", ClanTagFormat.Position.BEFORE, false, true),
+                clans.tag());
+        assertEquals(ClanRole.MEMBER, clans.rights().role(ClanAction.INVITE));
+        assertEquals(ClanRole.MODERATOR, clans.rights().role(ClanAction.KICK));
+        assertEquals(ClanRole.CO_LEADER, clans.rights().role(ClanAction.COLOR));
+        assertFalse(clans.showIn("party"));
+        assertTrue(clans.showIn("friends"));
+        assertEquals(4, settings.warnings().size());
     }
 
     @Test

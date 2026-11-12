@@ -7,6 +7,7 @@ public enum LobbyMenu {
     LANGUAGES("languages"),
     FRIENDS("friends"),
     PARTY("party"),
+    CLAN("clan"),
     NICK_TOOL("nick");
 
     private final String id;

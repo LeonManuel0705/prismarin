@@ -23,7 +23,7 @@ import org.spongepowered.configurate.yaml.YamlConfigurationLoader;
 class SocialTextsTest {
 
     private static final Pattern PLACEHOLDER = Pattern.compile("%[a-z_-]+%");
-    private static final List<String> BLOCKS = List.of("friends", "party", "lobby");
+    private static final List<String> BLOCKS = List.of("friends", "party", "lobby", "clan");
 
     @Test
     void bothLanguagesShareTheSameKeys() throws IOException {
@@ -48,7 +48,11 @@ class SocialTextsTest {
                 "lobby.silent.on", "lobby.silent.off", "lobby.nick-tool.title", "lobby.nick-tool.auto.on",
                 "lobby.profile.friends.name", "lobby.profile.party.name", "friends.menu.title",
                 "friends.menu.unavailable", "friends.value.on", "friends.value.friends-of-friends",
-                "friends.time.months", "party.menu.title", "party.menu.disband.yes", "friends.menu.confirm.no")) {
+                "friends.time.months", "party.menu.title", "party.menu.disband.yes", "friends.menu.confirm.no",
+                "lobby.profile.clan.name", "lobby.profile.clan.member", "lobby.item.profile.lore.clan",
+                "friends.menu.friend.clan", "party.menu.member.clan", "friends.menu.setting.clan-invites",
+                "clan.menu.title", "clan.menu.disband.yes", "clan.menu.transfer.yes", "clan.menu.access.open",
+                "clan.menu.access.invite-only", "clan.role.co-leader", "clan.menu.member.co-leader")) {
             assertTrue(english.containsKey(key), key);
         }
     }

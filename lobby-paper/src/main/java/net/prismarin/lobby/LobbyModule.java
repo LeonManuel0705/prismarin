@@ -13,6 +13,9 @@ import net.prismarin.lobby.config.LocationsFile;
 import net.prismarin.lobby.extension.LobbyExtensions;
 import net.prismarin.lobby.extension.PaperLobbyService;
 import net.prismarin.lobby.item.LobbyItems;
+import net.prismarin.lobby.leaderboard.LeaderboardCommand;
+import net.prismarin.lobby.leaderboard.LeaderboardDisplays;
+import net.prismarin.lobby.leaderboard.LeaderboardsFile;
 import net.prismarin.lobby.listener.DoubleJumpListener;
 import net.prismarin.lobby.listener.HotbarListener;
 import net.prismarin.lobby.listener.JoinListener;
@@ -31,6 +34,8 @@ import net.prismarin.lobby.player.LobbyPlayerSetup;
 import net.prismarin.lobby.player.LobbyVisibility;
 import net.prismarin.lobby.player.PlayerHiderService;
 import net.prismarin.lobby.player.SilentLobbyService;
+import net.prismarin.lobby.joinme.JoinMeEntries;
+import net.prismarin.lobby.profile.ProfileEntries;
 import net.prismarin.lobby.server.ServerConnector;
 import net.prismarin.lobby.sidebar.LobbySidebarProvider;
 import net.prismarin.lobby.util.ConfigText;
@@ -79,6 +84,10 @@ public final class LobbyModule extends AbstractModule {
         bind(SetVoidCommand.class);
         bind(LobbyExtensions.class);
         bind(PaperLobbyService.class);
+        bind(LeaderboardDisplays.class);
+        bind(LeaderboardCommand.class);
+        bind(ProfileEntries.class);
+        bind(JoinMeEntries.class);
     }
 
     @Provides
@@ -92,6 +101,12 @@ public final class LobbyModule extends AbstractModule {
     @Singleton
     LocationsFile locationsFile() {
         return LocationsFile.load(plugin.getDataFolder().toPath().resolve("locations.yml"));
+    }
+
+    @Provides
+    @Singleton
+    LeaderboardsFile leaderboardsFile() {
+        return LeaderboardsFile.load(plugin.getDataFolder().toPath().resolve(LeaderboardsFile.FILE_NAME));
     }
 
     private String mainWorld() {

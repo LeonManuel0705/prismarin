@@ -13,6 +13,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -21,6 +22,7 @@ import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.prismarin.api.event.PrismarinEvent;
 import net.prismarin.api.moderation.PunishmentType;
+import net.prismarin.api.social.Clan;
 import net.prismarin.api.social.SocialResult;
 import net.prismarin.shared.platform.CoreServices;
 import net.prismarin.shared.text.TimeAgo;
@@ -35,6 +37,7 @@ public final class SocialContext {
     public static final String REAL_NAMES = "prismarin.nick.realname";
     public static final String SPY = "prismarin.msg.spy";
     public static final String MESSAGE_BYPASS = "prismarin.msg.bypass";
+    public static final int MAX_CLAN_SIZE = 100;
 
     private final Object plugin;
     private final ProxyServer proxy;
@@ -50,13 +53,15 @@ public final class SocialContext {
     private final boolean friends;
     private final boolean party;
     private final boolean privateMessages;
+    private final boolean clans;
     private final Set<UUID> announced = ConcurrentHashMap.newKeySet();
     private final Set<UUID> spies = ConcurrentHashMap.newKeySet();
+    private volatile Function<UUID, Optional<Clan>> clanLookup = uuid -> Optional.empty();
 
     public SocialContext(Object plugin, ProxyServer proxy, Logger logger, CoreServices services,
                          ProxyMessages messages, SocialSettings settings, SocialStore store, VanishRegistry vanish,
                          NickDirectory nicks, ModerationChannel channel, Executor executor, boolean friends,
-                         boolean party, boolean privateMessages) {
+                         boolean party, boolean privateMessages, boolean clans) {
         this.plugin = plugin;
         this.proxy = proxy;
         this.logger = logger;
@@ -71,6 +76,7 @@ public final class SocialContext {
         this.friends = friends;
         this.party = party;
         this.privateMessages = privateMessages;
+        this.clans = clans;
     }
 
     public Object plugin() {
@@ -121,12 +127,41 @@ public final class SocialContext {
         return privateMessages;
     }
 
+    public boolean clansEnabled() {
+        return clans;
+    }
+
     public boolean enabled(SocialSetting.Feature feature) {
         return switch (feature) {
             case FRIENDS -> friends;
             case PARTY -> party;
             case MESSAGES -> privateMessages;
+            case CLANS -> clans;
         };
+    }
+
+    public SubCommands subCommands(SocialSetting.Feature feature) {
+        return switch (feature) {
+            case FRIENDS -> settings.friends().subCommands();
+            case PARTY -> settings.party().subCommands();
+            case MESSAGES -> settings.messages().subCommands();
+            case CLANS -> settings.clans().subCommands();
+        };
+    }
+
+    public boolean available(SocialSetting.Feature feature, String action) {
+        return enabled(feature) && subCommands(feature).enabled(action);
+    }
+
+    public boolean settingVisible(SocialSetting setting) {
+        if (!enabled(setting.feature())) {
+            return false;
+        }
+        return setting != SocialSetting.JUMP || settings.friends().subCommands().enabled("jump");
+    }
+
+    public boolean personalSettings() {
+        return settings.friends().subCommands().enabled("settings");
     }
 
     public Set<UUID> spies() {
@@ -330,6 +365,35 @@ public final class SocialContext {
         return proxy.getPlayer(leader)
                 .map(online -> FriendRules.limit(base, settings.party().sizePermissions(), online::hasPermission))
                 .orElse(base);
+    }
+
+    public void clanLookup(Function<UUID, Optional<Clan>> lookup) {
+        this.clanLookup = lookup == null ? uuid -> Optional.empty() : lookup;
+    }
+
+    public Optional<Clan> clanOf(UUID player) {
+        return clans ? clanLookup.apply(player) : Optional.empty();
+    }
+
+    public Optional<Clan> clanShownTo(CommandSource viewer, String place, UUID subject) {
+        if (!clans || !settings.clans().showIn(place) || masked(viewer, friendsOf(viewer), subject)) {
+            return Optional.empty();
+        }
+        return clanOf(subject);
+    }
+
+    public Component clanBadge(CommandSource viewer, String place, UUID subject) {
+        return clanShownTo(viewer, place, subject)
+                .map(clan -> Component.space().append(settings.clans().tag().render(services.formatter(), clan)))
+                .orElse(Component.empty());
+    }
+
+    public int clanLimit(UUID leader) {
+        int base = settings.clans().maxMembers();
+        int limit = proxy.getPlayer(leader)
+                .map(online -> FriendRules.limit(base, settings.clans().sizePermissions(), online::hasPermission))
+                .orElse(base);
+        return Math.min(MAX_CLAN_SIZE, limit);
     }
 
     public CompletableFuture<Boolean> muted(UUID player) {

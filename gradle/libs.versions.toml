@@ -14,6 +14,7 @@ mysql-connector = "26.10.0"
 guice = "7.0.0"
 jar-relocator = "1.7"
 bstats = "3.1.0"
+nuvotifier = "2.7.2"
 gson = "2.11.0"
 adventure = "4.24.0"
 junit = "5.11.4"
@@ -40,6 +41,8 @@ jar-relocator = { module = "me.lucko:jar-relocator", version.ref = "jar-relocato
 bstats-bukkit = { module = "org.bstats:bstats-bukkit", version.ref = "bstats" }
 bstats-velocity = { module = "org.bstats:bstats-velocity", version.ref = "bstats" }
 bstats-base = { module = "org.bstats:bstats-base", version.ref = "bstats" }
+nuvotifier-api = { module = "com.github.NuVotifier.NuVotifier:nuvotifier-api", version.ref = "nuvotifier" }
+nuvotifier-velocity = { module = "com.github.NuVotifier.NuVotifier:nuvotifier-velocity", version.ref = "nuvotifier" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 adventure-api = { module = "net.kyori:adventure-api", version.ref = "adventure" }
 adventure-minimessage = { module = "net.kyori:adventure-text-minimessage", version.ref = "adventure" }

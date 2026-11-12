@@ -30,6 +30,7 @@ public final class SocialClient implements Listener {
     public static final String VIEW_PARTY = "party";
     public static final String VIEW_PARTY_INVITE = "party-invite";
     public static final String VIEW_SETTINGS = "settings";
+    public static final String VIEW_CLAN = "clan";
 
     private static final long TIMEOUT_SECONDS = 4L;
     private static final long HELLO_DELAY_TICKS = 30L;
@@ -50,6 +51,7 @@ public final class SocialClient implements Listener {
     private final PrismarinCorePlugin plugin;
     private final ModerationChannel channel;
     private final PartyMirror mirror;
+    private final ClanMirror clans;
     private final AtomicInteger ids = new AtomicInteger();
     private final Map<Integer, Pending> pending = new ConcurrentHashMap<>();
     private final Map<Integer, PendingQuery> queries = new ConcurrentHashMap<>();
@@ -57,10 +59,20 @@ public final class SocialClient implements Listener {
     private final Set<UUID> busy = ConcurrentHashMap.newKeySet();
 
     @Inject
-    public SocialClient(PrismarinCorePlugin plugin, ModerationChannel channel, PartyMirror mirror) {
+    public SocialClient(PrismarinCorePlugin plugin, ModerationChannel channel, PartyMirror mirror,
+                        ClanMirror clans) {
         this.plugin = plugin;
         this.channel = channel;
         this.mirror = mirror;
+        this.clans = clans;
+    }
+
+    public ClanMirror clans() {
+        return clans;
+    }
+
+    public CompletableFuture<SocialView> clanSetting(Player player, String key, String value) {
+        return request(player, "clan-setting", null, key, value, VIEW_CLAN, 0);
     }
 
     public SocialView.Features features(Player player) {
@@ -189,6 +201,9 @@ public final class SocialClient implements Listener {
     public void receive(Player carrier, JsonObject message) {
         SocialView view = SocialView.parse(message);
         features.put(carrier.getUniqueId(), view.features());
+        if (view.clanDisplay() != null) {
+            clans.display(view.clanDisplay());
+        }
         Optional.ofNullable(pending.remove(view.id()))
                 .filter(entry -> entry.player().equals(carrier.getUniqueId()))
                 .ifPresent(entry -> entry.future().complete(view));
@@ -203,6 +218,10 @@ public final class SocialClient implements Listener {
 
     public void party(JsonObject message) {
         mirror.receive(message, uuid -> plugin.getServer().getPlayer(uuid) != null);
+    }
+
+    public void clan(JsonObject message) {
+        clans.receive(message, uuid -> plugin.getServer().getPlayer(uuid) != null);
     }
 
     @EventHandler
@@ -221,6 +240,7 @@ public final class SocialClient implements Listener {
         features.remove(uuid);
         busy.remove(uuid);
         mirror.forget(uuid, other -> plugin.getServer().getPlayer(other) != null);
+        clans.forget(uuid, other -> plugin.getServer().getPlayer(other) != null);
         pending.values().removeIf(entry -> {
             if (entry.player().equals(uuid)) {
                 entry.future().cancel(false);

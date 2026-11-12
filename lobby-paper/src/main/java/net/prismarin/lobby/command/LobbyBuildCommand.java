@@ -65,6 +65,9 @@ public final class LobbyBuildCommand implements TabExecutor {
         }
         if (buildMode.toggle(player)) {
             player.setGameMode(GameMode.CREATIVE);
+            if (worlds.isLobbyWorld(player.getWorld())) {
+                setup.startBuilding(player);
+            }
             player.sendMessage(locale.render("lobby.build.enabled", playerLocale));
         } else {
             finish(player);
@@ -104,7 +107,7 @@ public final class LobbyBuildCommand implements TabExecutor {
             player.setGameMode(plugin.getServer().getDefaultGameMode());
             return;
         }
-        setup.enter(player, false);
+        setup.stopBuilding(player);
         voidTeleport.rescueIfFalling(player);
     }
 

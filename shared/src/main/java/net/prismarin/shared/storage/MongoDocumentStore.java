@@ -3,6 +3,8 @@ package net.prismarin.shared.storage;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
+import com.mongodb.ErrorCategory;
+import com.mongodb.MongoWriteException;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoDatabase;
@@ -19,6 +21,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.UnaryOperator;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 
@@ -27,6 +30,7 @@ public final class MongoDocumentStore implements DocumentStore {
     private static final String PREFIX = "documents_";
     private static final String BODY = "body";
     private static final String FIELDS = "fields";
+    private static final int UPDATE_ATTEMPTS = 16;
 
     private final MongoDatabase database;
     private final Set<String> indexed = ConcurrentHashMap.newKeySet();
@@ -81,6 +85,36 @@ public final class MongoDocumentStore implements DocumentStore {
     public boolean delete(String collection, String id) {
         MongoCollection<Document> target = collectionFor(collection);
         return target.deleteOne(Filters.eq("_id", DocumentKeys.id(id))).getDeletedCount() > 0;
+    }
+
+    @Override
+    public Optional<String> update(String collection, String id, UnaryOperator<String> change) {
+        MongoCollection<Document> target = collectionFor(collection);
+        String key = DocumentKeys.id(id);
+        Objects.requireNonNull(change, "change");
+        for (int attempt = 0; attempt < UPDATE_ATTEMPTS; attempt++) {
+            Document found = target.find(Filters.eq("_id", key)).projection(Projections.include(BODY)).first();
+            String current = found == null ? null : found.getString(BODY);
+            String updated = change.apply(current);
+            if (updated == null || updated.equals(current)) {
+                return Optional.ofNullable(current);
+            }
+            Document document = new Document("_id", key).append(BODY, updated).append(FIELDS, fields(updated));
+            if (current == null) {
+                try {
+                    target.insertOne(document);
+                    return Optional.of(updated);
+                } catch (MongoWriteException e) {
+                    if (e.getError().getCategory() != ErrorCategory.DUPLICATE_KEY) {
+                        throw e;
+                    }
+                }
+            } else if (target.replaceOne(Filters.and(Filters.eq("_id", key), Filters.eq(BODY, current)), document)
+                    .getMatchedCount() > 0) {
+                return Optional.of(updated);
+            }
+        }
+        throw new StorageException("the document " + key + " in " + collection + " changed too often", null);
     }
 
     @Override

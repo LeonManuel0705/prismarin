@@ -18,7 +18,9 @@ PRISMARIN Lobby is the ready-made lobby for PRISMARIN networks. Put it next to P
 
 ![The profile menu with the player head, name tag for the rank, gold ingot, emerald, experience bottle, totem for friends, a flag head for the language and cake for the party](https://raw.githubusercontent.com/LeonManuel0705/prismarin/main/assets/listing/lobby/profile.png)
 
-* Profile menu behind the player's own head with rank, currencies, level, friends and party
+* Profile menu behind the player's own head with rank, currencies, level, friends, party, clan, stats and the daily reward
+* Floating leaderboards placed with `/leaderboard create`, a cosmetics chest in the hotbar and JoinMe invites in the navigator
+* `/lobbybuild` (or `/build`) puts the lobby items away for building and gives them back afterwards
 * Language menu with German and English included, another language is one more messages file
 
 ## Installation
@@ -31,7 +33,8 @@ PRISMARIN Lobby is the ready-made lobby for PRISMARIN networks. Put it next to P
 
 | Command | Permission | Default |
 |:---|:---|:---|
-| `/lobbybuild [player]` | `prismarin.lobby.build`, `prismarin.lobby.build.others` | op |
+| `/lobbybuild [player]`, alias `/build` | `prismarin.lobby.build`, `prismarin.lobby.build.others` | op |
+| `/leaderboard create\|remove\|move\|list` | `prismarin.lobby.leaderboard` | op |
 | `/setspawn [clear]` | `prismarin.lobby.setspawn` | op |
 | `/setvoid <height\|here\|off> [world]` | `prismarin.lobby.setvoid` | op |
 | Premium lobbies | `prismarin.lobby.premium` | nobody |
@@ -43,4 +46,4 @@ PRISMARIN Lobby is the ready-made lobby for PRISMARIN networks. Put it next to P
 
 ## Requirements
 
-Paper 1.21.7 to 1.21.11, Java 21 and PRISMARIN 1.0.4 or newer on the same server. MIT licensed, source code: https://github.com/LeonManuel0705/prismarin
+Paper 1.21.7 to 1.21.11, Java 21 and PRISMARIN 1.1.0 or newer on the same server. MIT licensed, source code: https://github.com/LeonManuel0705/prismarin

@@ -18,11 +18,6 @@ import net.prismarin.api.social.PartyRole;
 
 public final class SocialCommands {
 
-    private static final List<String> FRIEND_ACTIONS = List.of("add", "accept", "deny", "cancel", "remove", "list",
-            "requests", "jump", "settings", "help");
-    private static final List<String> PARTY_ACTIONS = List.of("invite", "accept", "deny", "join", "leave", "kick",
-            "promote", "demote", "transfer", "disband", "list", "warp", "chat", "settings", "help");
-
     private SocialCommands() {
         throw new AssertionError();
     }
@@ -37,11 +32,16 @@ public final class SocialCommands {
                 }
                 String[] args = invocation.arguments();
                 String label = "/" + invocation.alias();
+                SubCommands sub = context.settings().friends().subCommands();
                 if (args.length == 0) {
-                    help(context, player, "friends", label, FRIEND_ACTIONS);
+                    help(context, player, "friends", label, sub.visible());
                     return;
                 }
                 String action = args[0].toLowerCase(Locale.ROOT);
+                if (sub.actions().contains(action) && !sub.enabled(action)) {
+                    help(context, player, "friends", label, sub.visible());
+                    return;
+                }
                 switch (action) {
                     case "add" -> named(context, player, args, "friends.usage-add", label,
                             name -> friends.add(player, name));
@@ -58,12 +58,12 @@ public final class SocialCommands {
                     case "list" -> friends.list(player, args.length > 1 ? page(args[1]) : 0);
                     case "requests" -> friends.showRequests(player);
                     case "settings" -> settings(context, friends, player, args, label);
-                    case "help" -> help(context, player, "friends", label, FRIEND_ACTIONS);
+                    case "help" -> help(context, player, "friends", label, sub.visible());
                     default -> {
                         if (args.length == 1 && FriendService.validName(args[0])) {
                             friends.add(player, args[0]);
                         } else {
-                            help(context, player, "friends", label, FRIEND_ACTIONS);
+                            help(context, player, "friends", label, sub.visible());
                         }
                     }
                 }
@@ -75,12 +75,14 @@ public final class SocialCommands {
                     return CompletableFuture.completedFuture(List.of());
                 }
                 String[] args = invocation.arguments();
+                SubCommands sub = context.settings().friends().subCommands();
                 if (args.length <= 1) {
-                    return CompletableFuture.completedFuture(FriendService.filter(FRIEND_ACTIONS,
+                    return CompletableFuture.completedFuture(FriendService.filter(sub.visible(),
                             args.length == 0 ? "" : args[0]));
                 }
                 String prefix = args[args.length - 1];
-                if (args.length > 2 && !args[0].equalsIgnoreCase("settings")) {
+                if (args.length > 2 && !args[0].equalsIgnoreCase("settings")
+                        || !sub.enabled(args[0].toLowerCase(Locale.ROOT))) {
                     return CompletableFuture.completedFuture(List.of());
                 }
                 return context.supply(() -> switch (args[0].toLowerCase(Locale.ROOT)) {
@@ -111,15 +113,20 @@ public final class SocialCommands {
                 }
                 String[] args = invocation.arguments();
                 String label = "/" + invocation.alias();
+                SubCommands sub = context.settings().party().subCommands();
                 if (args.length == 0) {
                     if (party.parties().partyOf(player.getUniqueId()).isPresent()) {
                         party.list(player);
                     } else {
-                        help(context, player, "party", label, PARTY_ACTIONS);
+                        help(context, player, "party", label, sub.visible());
                     }
                     return;
                 }
                 String action = args[0].toLowerCase(Locale.ROOT);
+                if (sub.actions().contains(action) && !sub.enabled(action)) {
+                    help(context, player, "party", label, sub.visible());
+                    return;
+                }
                 switch (action) {
                     case "invite" -> named(context, player, args, "party.usage-invite", label,
                             name -> party.invite(player, name));
@@ -149,12 +156,12 @@ public final class SocialCommands {
                         party.chat(player, String.join(" ", Arrays.copyOfRange(args, 1, args.length)));
                     }
                     case "settings" -> partySettings(context, party, friends, player, args, label);
-                    case "help" -> help(context, player, "party", label, PARTY_ACTIONS);
+                    case "help" -> help(context, player, "party", label, sub.visible());
                     default -> {
                         if (args.length == 1 && FriendService.validName(args[0])) {
                             party.invite(player, args[0]);
                         } else {
-                            help(context, player, "party", label, PARTY_ACTIONS);
+                            help(context, player, "party", label, sub.visible());
                         }
                     }
                 }
@@ -166,12 +173,14 @@ public final class SocialCommands {
                     return CompletableFuture.completedFuture(List.of());
                 }
                 String[] args = invocation.arguments();
+                SubCommands sub = context.settings().party().subCommands();
                 if (args.length <= 1) {
-                    return CompletableFuture.completedFuture(FriendService.filter(PARTY_ACTIONS,
+                    return CompletableFuture.completedFuture(FriendService.filter(sub.visible(),
                             args.length == 0 ? "" : args[0]));
                 }
                 String prefix = args[args.length - 1];
-                if (args.length > 2 && !args[0].equalsIgnoreCase("settings")) {
+                if (args.length > 2 && !args[0].equalsIgnoreCase("settings")
+                        || !sub.enabled(args[0].toLowerCase(Locale.ROOT))) {
                     return CompletableFuture.completedFuture(List.of());
                 }
                 return context.supply(() -> switch (args[0].toLowerCase(Locale.ROOT)) {
@@ -268,13 +277,12 @@ public final class SocialCommands {
         };
     }
 
-    private static void settings(SocialContext context, FriendService friends, Player player, String[] args,
-                                 String label) {
+    static void settings(SocialContext context, FriendService friends, Player player, String[] args, String label) {
         if (args.length == 1) {
             friends.showSettings(player, label);
             return;
         }
-        Optional<SocialSetting> setting = SocialSetting.byId(args[1]).filter(found -> context.enabled(found.feature()));
+        Optional<SocialSetting> setting = SocialSetting.byId(args[1]).filter(context::settingVisible);
         if (setting.isEmpty() || args.length != 3) {
             context.send(player, "friends.usage-settings", Placeholder.unparsed("command", label));
             return;
@@ -292,13 +300,21 @@ public final class SocialCommands {
     private static void partySettings(SocialContext context, PartyService party, FriendService friends, Player player,
                                       String[] args, String label) {
         if (args.length == 1) {
-            party.showSettings(player).thenRun(() -> friends.showSettings(player, label));
+            party.showSettings(player).thenRun(() -> {
+                if (context.personalSettings()) {
+                    friends.showSettings(player, label);
+                }
+            });
             return;
         }
         Optional<PartyOption> option = PartyOption.byId(args[1])
                 .filter(found -> context.settings().party().options().contains(found));
         if (option.isEmpty()) {
-            settings(context, friends, player, args, label);
+            if (context.personalSettings()) {
+                settings(context, friends, player, args, label);
+            } else {
+                context.send(player, "party.usage-settings", Placeholder.unparsed("command", label));
+            }
             return;
         }
         if (args.length != 3) {
@@ -320,7 +336,9 @@ public final class SocialCommands {
         if (args.length == 2) {
             List<String> keys = new ArrayList<>();
             options.forEach(option -> keys.add(option.id()));
-            keys.addAll(settingSuggestions(context, args));
+            if (context.personalSettings()) {
+                keys.addAll(settingSuggestions(context, args));
+            }
             return FriendService.filter(keys, args[1]);
         }
         if (args.length == 3) {
@@ -329,7 +347,7 @@ public final class SocialCommands {
                 return FriendService.filter(option.get().options(), args[2]);
             }
         }
-        return settingSuggestions(context, args);
+        return context.personalSettings() ? settingSuggestions(context, args) : List.of();
     }
 
     private static List<String> joinSuggestions(SocialContext context, PartyService party, Player player,
@@ -339,24 +357,25 @@ public final class SocialCommands {
         return List.copyOf(names);
     }
 
-    private static List<String> settingSuggestions(SocialContext context, String[] args) {
+    static List<String> settingSuggestions(SocialContext context, String[] args) {
         if (args.length == 2) {
             List<String> keys = new ArrayList<>();
             for (SocialSetting setting : SocialSetting.values()) {
-                if (context.enabled(setting.feature())) {
+                if (context.settingVisible(setting)) {
                     keys.add(setting.id());
                 }
             }
             return FriendService.filter(keys, args[1]);
         }
         if (args.length == 3) {
-            return SocialSetting.byId(args[1]).map(setting -> FriendService.filter(setting.options(), args[2]))
+            return SocialSetting.byId(args[1]).filter(context::settingVisible)
+                    .map(setting -> FriendService.filter(setting.options(), args[2]))
                     .orElse(List.of());
         }
         return List.of();
     }
 
-    private static void named(SocialContext context, Player player, String[] args, String usage, String label,
+    static void named(SocialContext context, Player player, String[] args, String usage, String label,
                               Consumer<String> action) {
         if (args.length != 2) {
             context.send(player, usage, Placeholder.unparsed("command", label));
@@ -365,14 +384,14 @@ public final class SocialCommands {
         action.accept(args[1]);
     }
 
-    private static void help(SocialContext context, Player player, String block, String label, List<String> actions) {
+    static void help(SocialContext context, Player player, String block, String label, List<String> actions) {
         context.send(player, block + ".help-header");
         for (String action : actions) {
             context.send(player, block + ".help." + action, Placeholder.unparsed("command", label));
         }
     }
 
-    private static int page(String raw) {
+    static int page(String raw) {
         try {
             return Math.max(0, Integer.parseInt(raw) - 1);
         } catch (NumberFormatException e) {
@@ -380,7 +399,7 @@ public final class SocialCommands {
         }
     }
 
-    private static Player player(SocialContext context, CommandSource source) {
+    static Player player(SocialContext context, CommandSource source) {
         if (source instanceof Player player) {
             return player;
         }

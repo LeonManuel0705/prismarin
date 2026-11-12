@@ -11,6 +11,8 @@ import net.prismarin.api.nick.NickChangedEvent;
 import net.prismarin.api.player.ServerChangedEvent;
 import net.prismarin.api.profile.ProfileLoadedEvent;
 import net.prismarin.api.profile.ProfileUnloadedEvent;
+import net.prismarin.api.reward.VoteRewardGivenEvent;
+import net.prismarin.api.stats.StatRecordEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.Plugin;
 
@@ -42,6 +44,10 @@ final class EventLog {
         subscriptions.add(events.subscribe(ReportFiledEvent.class, event ->
                 logger.info("Report " + event.report().id() + " against " + event.report().targetName() + ": "
                         + event.report().reason())));
+        subscriptions.add(events.subscribe(StatRecordEvent.class, event ->
+                logger.info(event.player() + " set a new best in " + event.key() + ": " + event.value())));
+        subscriptions.add(events.subscribe(VoteRewardGivenEvent.class, event ->
+                logger.info(event.player() + " got the reward for a vote on " + event.vote().service())));
         subscriptions.add(events.subscribe(ServerChangedEvent.class, event -> {
             if (event.joinedNetwork()) {
                 plugin.getServer().getScheduler().runTask(plugin, () -> {

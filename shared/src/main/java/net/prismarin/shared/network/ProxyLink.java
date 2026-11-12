@@ -15,6 +15,10 @@ public interface ProxyLink {
         return call(action, body, null);
     }
 
+    default CompletableFuture<JsonObject> callAs(UUID carrier, NetworkCalls.Action action, JsonObject body) {
+        return call(action, body, null);
+    }
+
     static <T> CompletableFuture<T> orNoRoute(CompletableFuture<T> remote, Supplier<CompletableFuture<T>> fallback) {
         return remote.exceptionallyCompose(error -> noRoute(error) ? fallback.get()
                 : CompletableFuture.failedFuture(error));

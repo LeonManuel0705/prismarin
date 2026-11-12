@@ -60,7 +60,8 @@ class ProfileLayoutTest {
         assertTrue(ProfileLayout.classicDefaults(3, 4, 1, 18, 26));
         assertFalse(ProfileLayout.classicDefaults(5, 13, 2, 36, 44));
         assertEquals(List.of(ProfileLayout.Entry.Kind.CURRENCIES, ProfileLayout.Entry.Kind.LEVEL,
-                ProfileLayout.Entry.Kind.LANGUAGE), layout.entries().stream().map(ProfileLayout.Entry::kind).toList());
+                ProfileLayout.Entry.Kind.RANK, ProfileLayout.Entry.Kind.LANGUAGE),
+                layout.entries().stream().map(ProfileLayout.Entry::kind).toList());
         assertEquals(List.of(Line.Kind.CURRENCIES, Line.Kind.LEVEL), layout.head().stream().map(Line::kind).toList());
     }
 }

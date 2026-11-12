@@ -9,7 +9,8 @@ import net.prismarin.api.profile.PlayerProfile;
 
 public final class StorageMigration {
 
-    public static final List<String> COLLECTIONS = List.of("names", "punishments", "reports", "audit", "maintenance");
+    public static final List<String> COLLECTIONS = List.of("names", "punishments", "reports", "audit", "maintenance",
+            "player-stats", "stat-catalog", "daily-rewards", "vote-players", "vote-queue");
 
     public record Result(int profiles, int balances, int documents) {
     }

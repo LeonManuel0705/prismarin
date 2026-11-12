@@ -147,6 +147,24 @@ commands:
     description: Gives you the head of a player.
     usage: /skull [name]
     permission: prismarin.essentials.skull
+  stats:
+    description: Shows the stats of you or another player.
+    usage: /stats [player] [game]
+    aliases: [statistics]
+    permission: prismarin.command.stats
+  daily:
+    description: Claims your daily reward.
+    aliases: [dailyreward]
+    permission: prismarin.command.daily
+  joinme:
+    description: Invites the network to your game or lists the open JoinMes.
+    usage: /joinme [preview|list|cancel]
+    permission: prismarin.command.joinme
+  cosmetics:
+    description: Opens your cosmetics, trails, auras and hats.
+    usage: /cosmetics [category|hide]
+    aliases: [cosmetic]
+    permission: prismarin.command.cosmetics
 permissions:
   prismarin.command.coins:
     default: true
@@ -250,3 +268,29 @@ permissions:
     default: op
   prismarin.essentials.skull:
     default: op
+  prismarin.command.stats:
+    default: true
+  prismarin.command.stats.others:
+    default: true
+  prismarin.command.daily:
+    default: true
+  prismarin.command.joinme:
+    default: true
+  prismarin.joinme:
+    default: op
+  prismarin.joinme.cancel:
+    default: op
+  prismarin.command.cosmetics:
+    default: true
+  prismarin.command.cosmetics.give:
+    default: op
+  prismarin.command.cosmetics.take:
+    default: op
+  prismarin.command.cosmetics.play:
+    default: op
+  prismarin.cosmetics.all:
+    default: false
+  prismarin.cosmetics.vip:
+    default: false
+  prismarin.cosmetics.team:
+    default: false

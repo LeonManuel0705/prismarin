@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 
 public final class SqlDocumentStore implements DocumentStore {
@@ -22,14 +23,18 @@ public final class SqlDocumentStore implements DocumentStore {
             + "AND body LIKE ? ESCAPE '!' ORDER BY id";
     private static final String DELETE = "DELETE FROM prismarin_documents WHERE collection = ? AND id = ?";
     private static final String COLLECTIONS = "SELECT DISTINCT collection FROM prismarin_documents";
+    private static final String INSERT = "INSERT INTO prismarin_documents (collection, id, body) VALUES (?, ?, ?)";
+    private static final String REPLACE = "UPDATE prismarin_documents SET body = ? WHERE collection = ? AND id = ?";
 
     private final SqlDatabase database;
     private final String upsert;
+    private final String lock;
 
     public SqlDocumentStore(SqlDatabase database) {
         this.database = database;
         SqlDialect dialect = database.dialect();
         this.upsert = dialect.upsert("prismarin_documents", "body", "collection", "id");
+        this.lock = FIND + dialect.lockClause();
         String table = "CREATE TABLE IF NOT EXISTS prismarin_documents ("
                 + "collection VARCHAR(64) NOT NULL, "
                 + "id " + dialect.binaryType() + " NOT NULL, "
@@ -119,6 +124,43 @@ public final class SqlDocumentStore implements DocumentStore {
                 statement.setBytes(2, key);
                 return statement.executeUpdate() > 0;
             }
+        });
+    }
+
+    @Override
+    public Optional<String> update(String collection, String id, UnaryOperator<String> change) {
+        DocumentKeys.collection(collection);
+        byte[] key = key(id);
+        Objects.requireNonNull(change, "change");
+        return database.transaction(connection -> {
+            String current;
+            try (PreparedStatement statement = connection.prepareStatement(lock)) {
+                statement.setString(1, collection);
+                statement.setBytes(2, key);
+                try (ResultSet rows = statement.executeQuery()) {
+                    current = rows.next() ? rows.getString(1) : null;
+                }
+            }
+            String updated = change.apply(current);
+            if (updated == null || updated.equals(current)) {
+                return Optional.ofNullable(current);
+            }
+            if (current == null) {
+                try (PreparedStatement statement = connection.prepareStatement(INSERT)) {
+                    statement.setString(1, collection);
+                    statement.setBytes(2, key);
+                    statement.setString(3, updated);
+                    statement.executeUpdate();
+                }
+            } else {
+                try (PreparedStatement statement = connection.prepareStatement(REPLACE)) {
+                    statement.setString(1, updated);
+                    statement.setString(2, collection);
+                    statement.setBytes(3, key);
+                    statement.executeUpdate();
+                }
+            }
+            return Optional.of(updated);
         });
     }
 

@@ -8,6 +8,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -18,15 +19,17 @@ public final class PresenceTracker {
     private final FriendService friends;
     private final PartyService party;
     private final MessageService messages;
+    private final ClanService clans;
     private final Set<UUID> pending = ConcurrentHashMap.newKeySet();
     private final Set<UUID> shown = ConcurrentHashMap.newKeySet();
 
     public PresenceTracker(SocialContext context, FriendService friends, PartyService party,
-                           MessageService messages) {
+                           MessageService messages, ClanService clans) {
         this.context = context;
         this.friends = friends;
         this.party = party;
         this.messages = messages;
+        this.clans = clans;
         context.vanish().onChange(this::vanishChanged);
     }
 
@@ -40,6 +43,9 @@ public final class PresenceTracker {
         UUID uuid = player.getUniqueId();
         if (context.partyEnabled()) {
             context.async(() -> party.arrived(player));
+        }
+        if (clans != null) {
+            context.async(() -> clans.arrived(player));
         }
         if (!context.announced(uuid)) {
             if (pending.add(uuid)) {
@@ -74,10 +80,14 @@ public final class PresenceTracker {
             context.async(() -> {
                 int count = friends.incoming(player).size();
                 if (count > 0) {
-                    player.sendMessage(context.render(player, "friends.join-summary",
-                                    Placeholder.unparsed("count", String.valueOf(count)))
-                            .clickEvent(ClickEvent.runCommand(friends.command() + " requests"))
-                            .hoverEvent(HoverEvent.showText(context.render(player, "friends.join-summary-hover"))));
+                    Component summary = context.render(player, "friends.join-summary",
+                            Placeholder.unparsed("count", String.valueOf(count)));
+                    if (context.available(SocialSetting.Feature.FRIENDS, "requests")) {
+                        summary = summary.clickEvent(ClickEvent.runCommand(friends.command() + " requests"))
+                                .hoverEvent(HoverEvent.showText(context.render(player,
+                                        "friends.join-summary-hover")));
+                    }
+                    player.sendMessage(summary);
                 }
             });
         }

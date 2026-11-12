@@ -8,7 +8,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 
 abstract class DocumentStoreContract {
@@ -189,5 +193,95 @@ abstract class DocumentStoreContract {
 
         assertEquals(Map.of("a", "{\"v\":1}", "b", "{\"v\":2}"), store().entries(collection));
         assertTrue(store().entries(collection + "_none").isEmpty());
+    }
+
+    @Test
+    void updateCreatesAMissingDocument() {
+        Optional<String> result = store().update(collection, "counter",
+                current -> current == null ? "{\"n\":1}" : null);
+
+        assertEquals(Optional.of("{\"n\":1}"), result);
+        assertEquals(Optional.of("{\"n\":1}"), store().find(collection, "counter"));
+    }
+
+    @Test
+    void updateSeesTheStoredDocument() {
+        store().save(collection, "counter", "{\"n\":4}");
+
+        Optional<String> result = store().update(collection, "counter",
+                current -> "{\"n\":" + (count(current) + 1) + "}");
+
+        assertEquals(Optional.of("{\"n\":5}"), result);
+        assertEquals(Optional.of("{\"n\":5}"), store().find(collection, "counter"));
+    }
+
+    @Test
+    void updateReturningNullWritesNothing() {
+        store().save(collection, "kept", "{\"n\":2}");
+
+        assertEquals(Optional.of("{\"n\":2}"), store().update(collection, "kept", current -> null));
+        assertEquals(Optional.empty(), store().update(collection, "absent", current -> null));
+        assertTrue(store().find(collection, "absent").isEmpty());
+        assertEquals(Optional.of("{\"n\":2}"), store().find(collection, "kept"));
+    }
+
+    @Test
+    void concurrentUpdatesNeverLoseAChange() {
+        int threads = 6;
+        int rounds = 20;
+        AtomicInteger decided = new AtomicInteger();
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        try {
+            CompletableFuture<?>[] work = new CompletableFuture<?>[threads];
+            for (int thread = 0; thread < threads; thread++) {
+                work[thread] = CompletableFuture.runAsync(() -> {
+                    for (int round = 0; round < rounds; round++) {
+                        store().update(collection, "shared", current -> "{\"n\":" + (count(current) + 1) + "}");
+                        decided.incrementAndGet();
+                    }
+                }, executor);
+            }
+            CompletableFuture.allOf(work).join();
+        } finally {
+            executor.shutdown();
+        }
+
+        assertEquals(threads * rounds, decided.get());
+        assertEquals(Optional.of("{\"n\":" + threads * rounds + "}"), store().find(collection, "shared"));
+    }
+
+    @Test
+    void onlyOneOfManyClaimsWins() {
+        int threads = 6;
+        AtomicInteger winners = new AtomicInteger();
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        try {
+            CompletableFuture<?>[] work = new CompletableFuture<?>[threads];
+            for (int thread = 0; thread < threads; thread++) {
+                String claimer = "{\"by\":\"" + thread + "\"}";
+                work[thread] = CompletableFuture.runAsync(() -> {
+                    boolean[] won = new boolean[1];
+                    store().update(collection, "claim", current -> {
+                        won[0] = current == null;
+                        return current == null ? claimer : null;
+                    });
+                    if (won[0]) {
+                        winners.incrementAndGet();
+                    }
+                }, executor);
+            }
+            CompletableFuture.allOf(work).join();
+        } finally {
+            executor.shutdown();
+        }
+
+        assertEquals(1, winners.get());
+    }
+
+    private static int count(String json) {
+        if (json == null) {
+            return 0;
+        }
+        return Integer.parseInt(json.replaceAll("[^0-9]", ""));
     }
 }

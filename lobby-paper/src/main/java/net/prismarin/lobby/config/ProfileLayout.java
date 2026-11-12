@@ -21,9 +21,10 @@ public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRo
     public static final ProfileLayout DEFAULT = new ProfileLayout(
             DEFAULT_HEAD.stream().map(Line::parse).toList(), 5, 13, 2, 3, 36, 44,
             List.of(new Entry(Entry.Kind.CURRENCIES, -1), new Entry(Entry.Kind.LEVEL, -1),
-                    new Entry(Entry.Kind.LANGUAGE, -1)),
+                    new Entry(Entry.Kind.RANK, -1), new Entry(Entry.Kind.LANGUAGE, -1)),
             LanguageClick.MENU,
-            List.of(new Entry(Entry.Kind.FRIENDS, -1), new Entry(Entry.Kind.PARTY, -1)));
+            List.of(new Entry(Entry.Kind.FRIENDS, -1), new Entry(Entry.Kind.PARTY, -1),
+                    new Entry(Entry.Kind.CLAN, -1)));
 
     public ProfileLayout {
         head = List.copyOf(head);
@@ -76,7 +77,8 @@ public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRo
             EMPTY,
             TEXT,
             ATTRIBUTE,
-            ATTRIBUTES
+            ATTRIBUTES,
+            CLAN
         }
 
         public Line {
@@ -101,6 +103,7 @@ public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRo
                 case "text" -> Kind.TEXT;
                 case "attribute" -> Kind.ATTRIBUTE;
                 case "attributes" -> Kind.ATTRIBUTES;
+                case "clan" -> Kind.CLAN;
                 default -> throw new IllegalArgumentException("unknown profile line '" + trimmed + "'");
             };
             if ((kind == Kind.CURRENCY || kind == Kind.TEXT || kind == Kind.ATTRIBUTE) && argument.isEmpty()) {
@@ -119,10 +122,11 @@ public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRo
             RANK,
             LANGUAGE,
             FRIENDS,
-            PARTY;
+            PARTY,
+            CLAN;
 
             public boolean social() {
-                return this == FRIENDS || this == PARTY;
+                return this == FRIENDS || this == PARTY || this == CLAN;
             }
 
             public String id() {
@@ -194,10 +198,11 @@ public record ProfileLayout(List<Line> head, int rows, int headSlot, int entryRo
         Map<String, String> entries = new LinkedHashMap<>();
         entries.put("currencies", AUTO);
         entries.put("level", AUTO);
-        entries.put("rank", OFF);
+        entries.put("rank", AUTO);
         entries.put("language", AUTO);
         entries.put("friends", AUTO);
         entries.put("party", AUTO);
+        entries.put("clan", AUTO);
         return Collections.unmodifiableMap(entries);
     }
 }

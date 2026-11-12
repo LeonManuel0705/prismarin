@@ -14,6 +14,7 @@ public record ItemAction(Type type, String argument) {
     public static final String MENU_LANGUAGES = "languages";
     public static final String MENU_FRIENDS = "friends";
     public static final String MENU_PARTY = "party";
+    public static final String MENU_CLAN = "clan";
     public static final String MENU_NICK = "nick";
 
     private static final Map<String, String> MENU_ALIASES = Map.ofEntries(
@@ -28,6 +29,8 @@ public record ItemAction(Type type, String argument) {
             Map.entry(MENU_FRIENDS, MENU_FRIENDS),
             Map.entry("friend", MENU_FRIENDS),
             Map.entry(MENU_PARTY, MENU_PARTY),
+            Map.entry(MENU_CLAN, MENU_CLAN),
+            Map.entry("clans", MENU_CLAN),
             Map.entry(MENU_NICK, MENU_NICK),
             Map.entry("nick-tool", MENU_NICK));
 

@@ -56,10 +56,20 @@ public final class PaperProxyLink implements ProxyLink, Listener {
 
     @Override
     public CompletableFuture<JsonObject> call(NetworkCalls.Action action, JsonObject body, UUID avoid) {
+        return send(action, body, null, avoid);
+    }
+
+    @Override
+    public CompletableFuture<JsonObject> callAs(UUID carrier, NetworkCalls.Action action, JsonObject body) {
+        return send(action, body, carrier, null);
+    }
+
+    private CompletableFuture<JsonObject> send(NetworkCalls.Action action, JsonObject body, UUID preferred,
+                                               UUID avoid) {
         CompletableFuture<JsonObject> result = new CompletableFuture<>();
         Runnable send = () -> {
             try {
-                route(action, body, avoid).whenComplete((answer, error) -> {
+                route(action, body, preferred, avoid).whenComplete((answer, error) -> {
                     if (error != null) {
                         result.completeExceptionally(error);
                     } else {
@@ -82,9 +92,10 @@ public final class PaperProxyLink implements ProxyLink, Listener {
         return result;
     }
 
-    private CompletableFuture<JsonObject> route(NetworkCalls.Action action, JsonObject body, UUID avoid) {
+    private CompletableFuture<JsonObject> route(NetworkCalls.Action action, JsonObject body, UUID preferred,
+                                                UUID avoid) {
         List<UUID> online = plugin.getServer().getOnlinePlayers().stream().map(Player::getUniqueId).toList();
-        Route route = Route.choose(online, avoid, config.redisEnabled());
+        Route route = Route.prefer(online, preferred, avoid, config.redisEnabled());
         if (!route.reachable()) {
             return CompletableFuture.failedFuture(new NoRouteException());
         }

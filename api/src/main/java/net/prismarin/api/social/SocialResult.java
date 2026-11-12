@@ -28,6 +28,17 @@ public enum SocialResult {
     COOLDOWN,
     DISABLED,
     UNAVAILABLE,
+    NOT_IN_CLAN,
+    ALREADY_IN_CLAN,
+    TARGET_IN_CLAN,
+    NAME_TAKEN,
+    TAG_TAKEN,
+    INVALID_NAME,
+    INVALID_TAG,
+    INVALID_COLOR,
+    TRANSFER_FIRST,
+    INVALID_DATA,
+    CANCELLED,
     FAILED;
 
     public boolean success() {

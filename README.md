@@ -14,14 +14,18 @@ The point of the architecture is that a game mode never talks to a database. It 
 | Text | MiniMessage, `&` colour codes, `&#RRGGBB` and `&x&R&R&G&G&B&B` hex, placeholders written as `%name%` |
 | Servers | A directory with groups and properties per server, used by the navigator and by plugins |
 | Game servers | Game states (waiting, starting, running, ending, full) from the API or from a placeholder of any game plugin, visible to lobbies even without Redis, plus `/play <group>` and `connectToGroup` that pick the best free server |
+| Server queue | Full servers and groups, and servers with a running round, put players into a queue on the proxy instead of an error: priority levels by permission, first come first served, parties that queue together and go in together, a reconnect grace time, action bar or boss bar with the place, `/queue` for players and pause, clear and send for staff, all from `queue.yml` and the API |
 | Admin | Staff chat, staff list, `/find`, `/send`, `/goto`, bans, temporary bans, IP bans, mutes, kicks and warnings with templates that escalate on repeat offences, a punish menu, `/check` and history, reports, broadcasts, maintenance per server or group, player records, an audit log, outage alerts with Discord webhook, `/netexec`, a SuperVanish style vanish with silent containers, and `/prismarin migrate` to move all data between storage backends |
 | Essentials | `/tpall`, `/tphere`, `/heal`, `/feed`, `/fly`, `/gm`, `/speed`, `/clearinventory`, `/invsee`, `/enderchest`, `/day`, `/night`, `/sun`, `/rain`, `/thunder`, `/ping`, `/hat` and `/skull`, each with its own permission and switch, stepping aside when EssentialsX or CMI is installed |
 | Reports | `/report` opens a reason menu, bundles reports against the same player into one case, attaches the recent chat as evidence, shows staff the client, ping and record with one click actions, closes cases when a punishment is issued and thanks the reporters, also for offline players |
 | Nicks | A cross server nick system that changes the name and the skin, with a fake rank that keeps real permissions, auto nick, rules per server group, per round and per world |
 | Friends and parties | Friend requests, online status and jump, parties with chat and follow the leader, network wide `/msg` and `/r`, all reachable from the lobby profile menu |
+| JoinMe | `/joinme` sends a clickable invite with the creator's skin face drawn in chat to the lobbies, the whole network or only friends, party and clan; tiers for cooldown, cost, lifetime and joins by permission; a click brings the player to the creator's server and world, or a game plugin's handler puts him into the arena or team; works without Redis |
+| Clans | Persistent clans across the network with member, moderator, co-leader and leader, a coloured tag next to the name in chat, tab list and name tag, clan chat, a lobby menu and a full API for plugins such as clan wars |
+| Cosmetics | Particle trails, auras and wings, hats from any item or head texture, arrow trails and kill effects that play by themselves, win effects through one command for any minigame plugin, effects with real fireworks, lightning, squids and sheep that never touch the game; bought with the network's currencies in a colourful paged menu with preview and confirmation, unlocked by permission, daily rewards, votes or the API; network wide ownership, particles only for players who may see the wearer and on one task that only runs while someone wears them |
 | Ranks and levels | `/rank` sets, adds or removes LuckPerms groups with optional durations, LuckPerms prefixes with `&` codes colour the name, `/level` sets, adds or removes levels and XP, a balance command per currency plus `/balance` |
 | Network overview | `/network` opens a live inventory with status, players, ping, version, TPS, memory and uptime per server |
-| Events | Profiles, balances, server switches, nicks, punishments, reports, friends, parties, maintenance and staff alerts, listed in `docs/api.md` |
+| Events | Profiles, balances, server switches, nicks, punishments, reports, friends, parties, clans, maintenance and staff alerts, listed in `docs/api.md` |
 | Plugin API | One interface for every service, storage for other plugins, audit log, maintenance and staff alerts reachable from backends, see `docs/api.md` |
 | Vault | Registers as the Vault economy for the classic API and the multi currency VaultUnlocked API, so every shop or game plugin pays out network currency |
 | PlaceholderAPI | `%prismarin_balance%`, `%prismarin_group_online_bedwars%`, `%prismarin_rank_prefix%`, `%prismarin_language%`, `%prismarin_data_<key>%` for attributes of other plugins and more, and PlaceholderAPI placeholders inside PRISMARIN's own tablist, sidebar and chat |
@@ -72,7 +76,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("com.github.LeonManuel0705:prismarin:v1.0.4")
+    compileOnly("com.github.LeonManuel0705:prismarin:v1.1.0")
 }
 ```
 

@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -106,6 +107,18 @@ public final class JsonFileDocumentStore implements DocumentStore {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+    }
+
+    @Override
+    public synchronized Optional<String> update(String collection, String id, UnaryOperator<String> change) {
+        Path file = fileFor(collection, id);
+        String current = Files.notExists(file) ? null : read(file);
+        String updated = change.apply(current);
+        if (updated == null || updated.equals(current)) {
+            return Optional.ofNullable(current);
+        }
+        save(collection, id, updated);
+        return Optional.of(updated);
     }
 
     @Override

@@ -24,6 +24,13 @@ public record Route(UUID carrier, boolean bus) {
         return NONE;
     }
 
+    public static Route prefer(Collection<UUID> online, UUID carrier, UUID avoid, boolean busAvailable) {
+        if (carrier != null && !carrier.equals(avoid) && online.contains(carrier)) {
+            return new Route(carrier, false);
+        }
+        return choose(online, avoid, busAvailable);
+    }
+
     public Optional<UUID> player() {
         return Optional.ofNullable(carrier);
     }

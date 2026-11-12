@@ -7,6 +7,7 @@ import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
+import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
@@ -25,10 +26,15 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import net.prismarin.api.PrismarinProvider;
 import net.prismarin.api.PrismarinSystems;
+import net.prismarin.api.joinme.JoinMeApi;
 import net.prismarin.api.level.LevelApi;
 import net.prismarin.api.moderation.ModerationApi;
+import net.prismarin.api.player.PlayerService;
+import net.prismarin.api.queue.QueueApi;
+import net.prismarin.api.reward.RewardApi;
 import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
+import net.prismarin.api.skin.SkinFaceApi;
 import net.prismarin.shared.chatfilter.ChatFilterSettings;
 import net.prismarin.shared.config.ConfigComments;
 import net.prismarin.shared.config.ConfigLoader;
@@ -40,6 +46,7 @@ import net.prismarin.shared.moderation.DocumentAltService;
 import net.prismarin.shared.platform.CoreServices;
 import net.prismarin.shared.server.YamlServerDirectory;
 import net.prismarin.shared.status.NetworkStatusService;
+import net.prismarin.shared.status.QueueingConnector;
 import net.prismarin.shared.status.SelectingConnector;
 import net.prismarin.shared.status.SimpleGameStateService;
 import net.prismarin.velocity.admin.AddressKeys;
@@ -73,6 +80,7 @@ import net.prismarin.velocity.command.HubCommand;
 import net.prismarin.velocity.command.MaintenanceCommand;
 import net.prismarin.velocity.command.SendAllCommand;
 import net.prismarin.velocity.config.ProxyConfigStore;
+import net.prismarin.velocity.joinme.JoinMeModule;
 import net.prismarin.velocity.library.RuntimeLibraries;
 import net.prismarin.velocity.listener.LobbyRedirectListener;
 import net.prismarin.velocity.listener.MaintenanceLoginListener;
@@ -82,14 +90,19 @@ import net.prismarin.velocity.locale.ProxyMessages;
 import net.prismarin.velocity.motd.MotdBuilder;
 import net.prismarin.velocity.platform.ProxyPlatform;
 import net.prismarin.velocity.player.ProxyPlayers;
+import net.prismarin.velocity.queue.QueueManager;
+import net.prismarin.velocity.queue.QueueModule;
 import net.prismarin.velocity.server.LobbyBalancer;
 import net.prismarin.velocity.server.ProxyConnectorTransport;
 import net.prismarin.velocity.server.ProxyServerDirectory;
 import net.prismarin.velocity.social.SocialModule;
+import net.prismarin.velocity.vote.VoteModule;
+import net.prismarin.velocity.social.SocialSettings;
 import org.bstats.velocity.Metrics;
 import org.slf4j.Logger;
 
-@Plugin(id = "prismarin-core", name = "PrismarinCore", version = BuildConstants.VERSION, authors = {"Leon"})
+@Plugin(id = "prismarin-core", name = "PrismarinCore", version = BuildConstants.VERSION, authors = {"Leon"},
+        dependencies = {@Dependency(id = "nuvotifier", optional = true)})
 public final class PrismarinVelocityPlugin {
 
     private final ProxyServer proxy;
@@ -171,7 +184,10 @@ public final class PrismarinVelocityPlugin {
 
         NetworkStatusService networkStatus = new NetworkStatusService(directory, services.messageBus(), executor);
         lobbies.start(this, networkStatus, serverMaintenance);
-        NetworkConnector connector = new SelectingConnector(directory, networkStatus, new ProxyConnectorTransport(proxy));
+        QueueManager queue = QueueModule.create(this, proxy, logger, coreConfig, directory, networkStatus, messages,
+                services.events(), dataDirectory);
+        NetworkConnector connector = new QueueingConnector(new SelectingConnector(directory, networkStatus,
+                new ProxyConnectorTransport(proxy)), directory, QueueApi::service);
         PrismarinProvider.register(services.prismarin(directory, networkStatus, new SimpleGameStateService(),
                 connector));
         if (coreConfig.systemEnabled(PrismarinSystems.LEVELS)) {
@@ -181,8 +197,18 @@ public final class PrismarinVelocityPlugin {
                 directory, networkStatus, AdminSettings.load(dataDirectory.resolve("admin.yml")));
         registerAdmin(coreConfig, admin);
         ProxyRemote.register(admin, maintenance, logger);
-        ProxyPlayers.register(this, admin, executor);
-        SocialModule.register(this, logger, coreConfig, admin, executor, dataDirectory);
+        PlayerService players = ProxyPlayers.register(this, admin, executor);
+        SocialSettings social = SocialModule.register(this, logger, coreConfig, admin, executor, dataDirectory);
+        if (coreConfig.moduleEnabled(ProxyModules.VOTES)) {
+            VoteModule.register(this, logger, admin, executor, dataDirectory);
+        }
+        if (queue != null) {
+            QueueModule.start(queue, this, proxy, logger, messages,
+                    serverMaintenance == null ? null : serverMaintenance::blocked, social, platform.reloads());
+        }
+        if (coreConfig.moduleEnabled(ProxyModules.JOINME)) {
+            JoinMeModule.register(this, logger, admin, players, executor, dataDirectory);
+        }
         logger.info("PRISMARIN proxy core enabled as '{}' with {}, systems {} and modules {}",
                 coreConfig.serverId(), services.messageBus().getClass().getSimpleName(),
                 services.enabledSystems().stream().sorted().toList(),
@@ -296,7 +322,11 @@ public final class PrismarinVelocityPlugin {
         }
         PrismarinProvider.unregister();
         ModerationApi.unregister();
+        RewardApi.unregister();
+        JoinMeApi.unregister();
+        SkinFaceApi.unregister();
         LevelApi.unregister();
+        QueueApi.unregister();
         ProxyRemote.unregister();
         if (services != null) {
             services.close();
@@ -313,7 +343,8 @@ public final class PrismarinVelocityPlugin {
         seedResource(file, "config.yml");
         CoreConfig config = ConfigLoader.load(file, ProxyModules.ALL);
         platformSettings = PlatformSettings.load(file);
-        ConfigComments.apply(file, Map.of());
+        ConfigComments.apply(file, Map.of("modules.votes", List.of(
+                "Vote rewards through NuVotifier and /vote, see votes.yml. Backends hand the rewards out.")));
         return config;
     }
 

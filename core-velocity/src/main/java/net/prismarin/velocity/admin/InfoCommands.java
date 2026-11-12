@@ -81,6 +81,7 @@ public final class InfoCommands {
                                                         .collect(Collectors.joining(", "))));
                                     }
                                 });
+                                PlayerInfoLines.render(source, target.uuid()).forEach(source::sendMessage);
                                 long now = System.currentTimeMillis();
                                 context.send(source, "info.punishments",
                                         Placeholder.unparsed("count", String.valueOf(history.size())),

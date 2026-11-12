@@ -8,12 +8,18 @@ commands:
   lobbybuild:
     description: Toggles the lobby build mode, or ends it for another player.
     usage: /lobbybuild [player]
+    aliases: [build]
   setspawn:
     description: Saves the current position as the lobby spawn of this world.
     usage: /setspawn [clear]
   setvoid:
     description: Sets the height below which players are brought back to the spawn.
     usage: /setvoid <height|here|off> [world]
+  leaderboard:
+    description: Places, moves and removes floating leaderboards.
+    usage: /leaderboard <create|remove|move|list>
+    aliases: [leaderboards, lb]
+    permission: prismarin.lobby.leaderboard
 permissions:
   prismarin.lobby.build:
     default: op
@@ -22,6 +28,8 @@ permissions:
   prismarin.lobby.setspawn:
     default: op
   prismarin.lobby.setvoid:
+    default: op
+  prismarin.lobby.leaderboard:
     default: op
   prismarin.lobby.premium:
     default: false

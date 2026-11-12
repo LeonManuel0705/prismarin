@@ -14,6 +14,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.prismarin.api.PrismarinSystems;
+import net.prismarin.api.cosmetics.CosmeticApi;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.nick.NickService;
@@ -22,6 +23,8 @@ import net.prismarin.api.player.PlayerApi;
 import net.prismarin.api.player.PlayerService;
 import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.api.social.ClanRole;
+import net.prismarin.api.social.SocialApi;
 import net.prismarin.core.gui.ItemBuilder;
 import net.prismarin.core.locale.PlayerLocales;
 import net.prismarin.core.nick.NickManager;
@@ -54,6 +57,7 @@ public final class LobbyItems {
     public static final String HIDER_ID = LobbySettings.HIDER_ITEM;
     public static final String NICK_TOOL_ID = LobbySettings.NICK_TOOL_ITEM;
     public static final String SILENT_ID = LobbySettings.SILENT_ITEM;
+    public static final String COSMETICS_ID = LobbySettings.COSMETICS_ITEM;
     public static final String CUSTOM_PREFIX = "custom:";
 
     private static final Map<String, Material> FALLBACK_MATERIALS = Map.of(
@@ -63,7 +67,8 @@ public final class LobbyItems {
             PREMIUM_ID, Material.TNT,
             HIDER_ID, Material.LIME_DYE,
             NICK_TOOL_ID, Material.NAME_TAG,
-            SILENT_ID, Material.AMETHYST_SHARD);
+            SILENT_ID, Material.AMETHYST_SHARD,
+            COSMETICS_ID, Material.CHEST);
 
     private final LocaleService locale;
     private final ProfileService profiles;
@@ -139,6 +144,9 @@ public final class LobbyItems {
         if (shown(SILENT_ID) && permitted(player, SILENT_ID)) {
             place(inventory, slot(SILENT_ID), silentItem(playerLocale, visibility.silent(player.getUniqueId())));
         }
+        if (shown(COSMETICS_ID)) {
+            place(inventory, slot(COSMETICS_ID), cosmetics(playerLocale));
+        }
         if (settings.enabled(LobbySettings.CUSTOM_ITEMS)) {
             for (CustomItem item : settings.customItems()) {
                 if (item.enabled() && (item.permission().isEmpty() || player.hasPermission(item.permission()))) {
@@ -171,6 +179,7 @@ public final class LobbyItems {
             case HIDER_ID -> settings.enabled(LobbySettings.PLAYER_HIDER);
             case NICK_TOOL_ID -> settings.enabled(LobbySettings.NICK_TOOL) && nickService().isPresent();
             case SILENT_ID -> settings.enabled(LobbySettings.SILENT_LOBBY);
+            case COSMETICS_ID -> settings.enabled(LobbySettings.COSMETICS) && CosmeticApi.service().isPresent();
             default -> false;
         };
     }
@@ -201,6 +210,13 @@ public final class LobbyItems {
                 .name(locale.render("lobby.item.nick-tool.name", playerLocale))
                 .lore(locale.render("lobby.item.nick-tool.lore", playerLocale))
                 .build(), NICK_TOOL_ID);
+    }
+
+    public ItemStack cosmetics(Locale playerLocale) {
+        return tag(ItemBuilder.of(materials.get(COSMETICS_ID))
+                .name(locale.render("lobby.item.cosmetics.name", playerLocale))
+                .lore(locale.render("lobby.item.cosmetics.lore", playerLocale))
+                .build(), COSMETICS_ID);
     }
 
     public ItemStack silentItem(Locale playerLocale, boolean active) {
@@ -257,6 +273,15 @@ public final class LobbyItems {
                 .build(), PROFILE_ID);
     }
 
+    public ItemStack profileMenuHead(Player player, Locale playerLocale) {
+        return ItemBuilder.of(materials.get(PROFILE_ID))
+                .skullOwner(player)
+                .name(locale.render("lobby.item.profile.menu-name", playerLocale,
+                        Placeholder.component("player", Component.text(player.getName(), ranks.nameColor(player)))))
+                .lore(profileLore(player, playerLocale))
+                .build();
+    }
+
     public List<Component> profileLore(Player player, Locale playerLocale) {
         Optional<PlayerProfile> profile = profiles.getCached(player.getUniqueId());
         TagResolver name = Placeholder.unparsed("player", player.getName());
@@ -287,6 +312,13 @@ public final class LobbyItems {
                         player.getUniqueId(), target, playerLocale)).ifPresent(lore::add);
                 case ATTRIBUTES -> self.ifPresent(target -> lore.addAll(players.get().attributes()
                         .profileLines(player.getUniqueId(), target, playerLocale, placed)));
+                case CLAN -> SocialApi.clans().ifPresent(clans -> clans.clanOf(player.getUniqueId())
+                        .ifPresent(clan -> lore.add(locale.render("lobby.item.profile.lore.clan", playerLocale,
+                                Placeholder.component("tag", clans.formatTag(clan)),
+                                Placeholder.unparsed("clan", clan.name()),
+                                Placeholder.component("role", locale.render("clan.role."
+                                        + clan.role(player.getUniqueId()).orElse(ClanRole.MEMBER).id(),
+                                        playerLocale))))));
             }
         }
         if (!ProfileLayout.listsAttributes(head)) {

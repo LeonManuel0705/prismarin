@@ -29,7 +29,8 @@ class SocialEntriesSettingsTest {
         assertTrue(settings.enabled(LobbySettings.NICK_TOOL));
         assertTrue(settings.enabled(LobbySettings.SILENT_LOBBY));
         assertEquals(List.of(new ProfileLayout.Entry(ProfileLayout.Entry.Kind.FRIENDS, -1),
-                new ProfileLayout.Entry(ProfileLayout.Entry.Kind.PARTY, -1)), settings.profile().social());
+                new ProfileLayout.Entry(ProfileLayout.Entry.Kind.PARTY, -1),
+                new ProfileLayout.Entry(ProfileLayout.Entry.Kind.CLAN, -1)), settings.profile().social());
         assertEquals(List.of(), settings.warnings());
     }
 
@@ -44,11 +45,13 @@ class SocialEntriesSettingsTest {
                       language: 16
                 """);
         LobbySettings settings = LobbySettings.load(file);
-        assertEquals(List.of(ProfileLayout.Entry.Kind.FRIENDS, ProfileLayout.Entry.Kind.PARTY),
+        assertEquals(List.of(ProfileLayout.Entry.Kind.FRIENDS, ProfileLayout.Entry.Kind.PARTY,
+                        ProfileLayout.Entry.Kind.CLAN),
                 settings.profile().social().stream().map(ProfileLayout.Entry::kind).toList());
         String text = Files.readString(file);
         assertTrue(text.contains("friends: auto"));
         assertTrue(text.contains("party: auto"));
+        assertTrue(text.contains("clan: auto"));
         LobbySettings.load(file);
         assertEquals(text, Files.readString(file));
     }
@@ -71,9 +74,10 @@ class SocialEntriesSettingsTest {
                       party: off
                 """);
         LobbySettings settings = LobbySettings.load(file);
-        assertEquals(List.of(new ProfileLayout.Entry(ProfileLayout.Entry.Kind.FRIENDS, 12)),
-                settings.profile().social());
-        assertEquals(List.of(new ProfileLayout.Entry(ProfileLayout.Entry.Kind.FRIENDS, 12)),
+        assertEquals(List.of(new ProfileLayout.Entry(ProfileLayout.Entry.Kind.FRIENDS, 12),
+                new ProfileLayout.Entry(ProfileLayout.Entry.Kind.CLAN, -1)), settings.profile().social());
+        assertEquals(List.of(new ProfileLayout.Entry(ProfileLayout.Entry.Kind.FRIENDS, 12),
+                        new ProfileLayout.Entry(ProfileLayout.Entry.Kind.CLAN, -1)),
                 settings.profile().allEntries().stream()
                         .filter(entry -> entry.kind().social()).toList());
         assertEquals("ENDER_EYE", settings.item(LobbySettings.SILENT_ITEM).hiddenMaterial());

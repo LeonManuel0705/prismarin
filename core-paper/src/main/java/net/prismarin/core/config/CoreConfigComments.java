@@ -32,6 +32,13 @@ public final class CoreConfigComments {
             Map.entry("rank-display.luckperms-meta", List.of(
                     "LuckPerms meta key that sets %rank% directly, for example",
                     "/lp group admin meta set rank-label \"&cAdmin\". Empty: always the trimmed prefix.")),
+            Map.entry("modules.stats", List.of("Stats and leaderboards for game plugins, /stats and the",
+                    "%prismarin_stat_...% placeholders, see stats.yml.")),
+            Map.entry("modules.daily-rewards", List.of("/daily with a login streak, see daily-rewards.yml.")),
+            Map.entry("modules.vote-rewards", List.of("Hands out the vote rewards the proxy queued,",
+                    "see votes.yml on the proxy.")),
+            Map.entry("modules.cosmetics", List.of("Trails, auras, hats and game effects with /cosmetics,",
+                    "see cosmetics.yml. Steps aside when another cosmetics plugin is installed.")),
             Map.entry("vanish", List.of("Vanish hides staff completely, like SuperVanish, instead of an invisibility effect.")),
             Map.entry("vanish.silent-containers", List.of("Open chests and other containers without animation or sound.")),
             Map.entry("vanish.silent-blocks", List.of("Break blocks without sound and particles for other players.")),

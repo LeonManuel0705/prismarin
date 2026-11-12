@@ -47,6 +47,7 @@ class LobbyModelTest {
         Set<String> ids = Arrays.stream(LobbyMenu.values()).map(LobbyMenu::id).collect(Collectors.toSet());
 
         assertEquals(Set.of(ItemAction.MENU_NAVIGATOR, ItemAction.MENU_PROFILE, ItemAction.MENU_LOBBIES,
-                ItemAction.MENU_LANGUAGES, ItemAction.MENU_FRIENDS, ItemAction.MENU_PARTY, ItemAction.MENU_NICK), ids);
+                ItemAction.MENU_LANGUAGES, ItemAction.MENU_FRIENDS, ItemAction.MENU_PARTY, ItemAction.MENU_CLAN,
+                ItemAction.MENU_NICK), ids);
     }
 }

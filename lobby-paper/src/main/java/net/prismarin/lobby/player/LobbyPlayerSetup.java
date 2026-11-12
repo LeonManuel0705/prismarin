@@ -10,6 +10,8 @@ import org.bukkit.GameMode;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 
 @Singleton
 public final class LobbyPlayerSetup {
@@ -46,7 +48,20 @@ public final class LobbyPlayerSetup {
         if (settings.enabled(LobbySettings.DOUBLE_JUMP) && flightManaged(player)) {
             player.setAllowFlight(true);
         }
-        items.give(player, hider.hiding(player));
+        if (!buildMode.active(player)) {
+            items.give(player, hider.hiding(player));
+        }
+    }
+
+    public void startBuilding(Player player) {
+        items.removeAll(player);
+    }
+
+    public void stopBuilding(Player player) {
+        PlayerInventory inventory = player.getInventory();
+        inventory.setStorageContents(new ItemStack[inventory.getStorageContents().length]);
+        inventory.setItemInOffHand(null);
+        enter(player, false);
     }
 
     public void leave(Player player) {
@@ -64,7 +79,9 @@ public final class LobbyPlayerSetup {
     }
 
     public void refreshItems(Player player) {
-        items.give(player, hider.hiding(player));
+        if (!buildMode.active(player)) {
+            items.give(player, hider.hiding(player));
+        }
     }
 
     private static boolean flightManaged(Player player) {

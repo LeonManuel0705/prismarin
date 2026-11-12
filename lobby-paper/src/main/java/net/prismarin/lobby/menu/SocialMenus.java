@@ -6,6 +6,7 @@ import com.google.inject.Singleton;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -18,12 +19,15 @@ import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
+import net.prismarin.api.social.ClanAccess;
+import net.prismarin.api.social.ClanRole;
 import net.prismarin.api.social.PartyRole;
 import net.prismarin.core.gui.ItemBuilder;
 import net.prismarin.core.gui.Menu;
 import net.prismarin.core.gui.MenuButton;
 import net.prismarin.core.gui.MenuService;
 import net.prismarin.core.locale.PlayerLocales;
+import net.prismarin.core.social.BackendClanService;
 import net.prismarin.core.social.SocialClient;
 import net.prismarin.core.social.SocialView;
 import net.prismarin.lobby.LobbyPlugin;
@@ -48,6 +52,9 @@ public final class SocialMenus {
     private static final int PARTY_LEAVE = 50;
     private static final int PARTY_DISBAND = 51;
     private static final int PARTY_SETTINGS = 52;
+    private static final int CLAN_SETTINGS = 47;
+    private static final int CLAN_LEAVE = 50;
+    private static final int CLAN_DISBAND = 51;
     private static final int MAX_INCOMING = 21;
     private static final int MAX_OUTGOING = 7;
     private static final Sound SUCCESS = Sound.sound(Key.key("block.note_block.pling"), Sound.Source.MASTER,
@@ -61,10 +68,12 @@ public final class SocialMenus {
     private final SocialClient client;
     private final ServerDirectory directory;
     private final Provider<LobbyMenus> lobbyMenus;
+    private final BackendClanService clanService;
 
     @Inject
     public SocialMenus(LobbyPlugin plugin, MenuService menus, LocaleService locale, ProfileService profiles,
-                       MenuKit kit, SocialClient client, ServerDirectory directory, Provider<LobbyMenus> lobbyMenus) {
+                       MenuKit kit, SocialClient client, ServerDirectory directory, Provider<LobbyMenus> lobbyMenus,
+                       BackendClanService clanService) {
         this.plugin = plugin;
         this.menus = menus;
         this.locale = locale;
@@ -73,6 +82,7 @@ public final class SocialMenus {
         this.client = client;
         this.directory = directory;
         this.lobbyMenus = lobbyMenus;
+        this.clanService = clanService;
     }
 
     public List<MenuButton> profileEntry(Player player, Locale target, ProfileLayout.Entry.Kind kind) {
@@ -95,7 +105,316 @@ public final class SocialMenus {
                             locale.render("lobby.profile.party.click", target))
                     .build(), context -> openParty(context.player())));
         }
+        if (kind == ProfileLayout.Entry.Kind.CLAN && features.clans()) {
+            List<Component> lore = new ArrayList<>();
+            lore.add(clanService.clanOf(player.getUniqueId())
+                    .map(clan -> locale.render("lobby.profile.clan.member", target,
+                            Placeholder.component("tag", clanService.formatTag(clan)),
+                            Placeholder.unparsed("clan", clan.name()),
+                            Placeholder.component("role", clanRole(target,
+                                    clan.role(player.getUniqueId()).orElse(ClanRole.MEMBER)))))
+                    .orElseGet(() -> locale.render("lobby.profile.clan.lore", target)));
+            lore.add(locale.render("lobby.profile.clan.click", target));
+            return List.of(new MenuButton(ItemBuilder.of(Material.WHITE_BANNER)
+                    .name(locale.render("lobby.profile.clan.name", target))
+                    .lore(lore)
+                    .build(), context -> openClan(context.player())));
+        }
         return List.of();
+    }
+
+    public void openClan(Player player) {
+        call(player, client.view(player, SocialClient.VIEW_CLAN, 0), view -> renderClan(player, view));
+    }
+
+    private Component badge(SocialView.ClanBadge badge) {
+        return clanService.formatTag(badge.tag(), badge.name(), badge.color());
+    }
+
+    private Optional<Component> clanLine(Locale target, String key, SocialView.ClanBadge badge) {
+        if (badge == null) {
+            return Optional.empty();
+        }
+        return Optional.of(locale.render(key, target, Placeholder.component("tag", badge(badge)),
+                Placeholder.unparsed("clan", badge.name())));
+    }
+
+    private void renderClan(Player player, SocialView view) {
+        Locale target = locale(player);
+        SocialView.ClanView clan = view.clan();
+        if (clan == null) {
+            player.sendMessage(locale.render("clan.menu.disabled", target));
+            return;
+        }
+        Menu menu = new Menu(clan.inClan() && clan.badge() != null
+                ? locale.render("clan.menu.title", target, Placeholder.unparsed("clan", clan.badge().name()))
+                : locale.render("clan.menu.title-none", target), SocialLayout.ROWS);
+        kit.fill(menu);
+        if (clan.inClan() && clan.badge() != null) {
+            SocialView.ClanBadge badge = clan.badge();
+            menu.button(SocialLayout.INFO, kit.decoration(ItemBuilder.of(Material.WHITE_BANNER)
+                    .name(locale.render("clan.menu.info.name", target, Placeholder.component("tag", badge(badge)),
+                            Placeholder.unparsed("clan", badge.name())))
+                    .lore(locale.render("clan.menu.info.role", target,
+                                    Placeholder.component("role", clanRole(target, clan.role()))),
+                            locale.render("clan.menu.info.members", target,
+                                    Placeholder.unparsed("count", String.valueOf(badge.size())),
+                                    Placeholder.unparsed("max", String.valueOf(clan.max()))),
+                            locale.render("clan.menu.info.access", target, Placeholder.component("value",
+                                    locale.render("clan.menu.access." + clan.access().id(), target))))
+                    .glow(true)
+                    .build()));
+            List<Integer> slots = SocialLayout.contentSlots(Math.min(SocialLayout.PER_PAGE,
+                    clan.members().size() + clan.invited().size()));
+            for (int i = 0; i < slots.size(); i++) {
+                if (i < clan.members().size()) {
+                    menu.button(slots.get(i), clanMemberButton(target, clan.members().get(i), clan, view));
+                } else {
+                    menu.button(slots.get(i), clanInvitedButton(target, clan.invited().get(i - clan.members().size()),
+                            clan));
+                }
+            }
+            if (view.enabled("clans", "settings")) {
+                menu.button(CLAN_SETTINGS, new MenuButton(ItemBuilder.of(Material.WRITABLE_BOOK)
+                        .name(locale.render("clan.menu.settings.name", target))
+                        .lore(locale.render("clan.menu.settings.lore", target))
+                        .build(), context -> openClanSettings(context.player())));
+            }
+            if (clan.canLeave()) {
+                menu.button(CLAN_LEAVE, new MenuButton(ItemBuilder.of(Material.OAK_DOOR)
+                        .name(locale.render("clan.menu.leave.name", target))
+                        .lore(locale.render("clan.menu.leave.lore", target))
+                        .build(), context -> act(context.player(), "clan-leave", null, SocialClient.VIEW_CLAN, 0,
+                        next -> renderClan(context.player(), next))));
+            }
+            if (clan.canDisband()) {
+                menu.button(CLAN_DISBAND, new MenuButton(ItemBuilder.of(Material.TNT)
+                        .name(locale.render("clan.menu.disband.name", target))
+                        .lore(locale.render("clan.menu.disband.lore", target))
+                        .build(), context -> confirmClanDisband(context.player())));
+            }
+        } else {
+            List<Component> lore = new ArrayList<>();
+            lore.add(locale.render("clan.menu.none.lore", target));
+            if (clan.canCreate()) {
+                lore.add(locale.render("clan.menu.none.create", target));
+            }
+            menu.button(SocialLayout.INFO, kit.decoration(ItemBuilder.of(Material.WHITE_BANNER)
+                    .name(locale.render("clan.menu.none.name", target))
+                    .lore(lore)
+                    .build()));
+            List<Integer> slots = SocialLayout.contentSlots(Math.min(SocialLayout.PER_PAGE, clan.incoming().size()));
+            for (int i = 0; i < slots.size(); i++) {
+                SocialView.ClanBadge invite = clan.incoming().get(i);
+                ItemStack icon = ItemBuilder.of(Material.WHITE_BANNER)
+                        .name(locale.render("clan.menu.invite.name", target, Placeholder.component("tag", badge(invite)),
+                                Placeholder.unparsed("clan", invite.name())))
+                        .lore(locale.render("clan.menu.invite.size", target,
+                                        Placeholder.unparsed("count", String.valueOf(invite.size()))),
+                                Component.empty(),
+                                locale.render("clan.menu.invite.click", target))
+                        .glow(true)
+                        .build();
+                menu.button(slots.get(i), new MenuButton(icon, context -> act(context.player(),
+                        context.clickType().isRightClick() ? "clan-deny" : "clan-accept", invite.id(),
+                        SocialClient.VIEW_CLAN, 0, next -> renderClan(context.player(), next))));
+            }
+            if (clan.incoming().isEmpty()) {
+                menu.button(SocialLayout.EMPTY, kit.decoration(ItemBuilder.of(Material.PAPER)
+                        .name(locale.render("clan.menu.none.hint", target))
+                        .build()));
+            }
+        }
+        menu.button(SocialLayout.BACK, kit.back(target, back -> lobbyMenus.get().openProfile(back)));
+        if (view.features().settings()) {
+            menu.button(PARTY_SETTINGS, settingsButton(target, this::openClan));
+        }
+        menu.button(SocialLayout.CLOSE, kit.close(target));
+        menus.open(player, menu);
+    }
+
+    private MenuButton clanMemberButton(Locale target, SocialView.ClanMemberView member, SocialView.ClanView clan,
+                                        SocialView view) {
+        SocialView.Person person = member.person();
+        String key = person.self() ? "clan.menu.member.self" : switch (member.role()) {
+            case LEADER -> "clan.menu.member.leader";
+            case CO_LEADER -> "clan.menu.member.co-leader";
+            case MODERATOR -> "clan.menu.member.moderator";
+            case MEMBER -> "clan.menu.member.name";
+        };
+        List<Component> lore = new ArrayList<>();
+        lore.add(locale.render("clan.menu.member.role", target,
+                Placeholder.component("role", clanRole(target, member.role()))));
+        lore.add(person.online()
+                ? locale.render("clan.menu.member.server", target,
+                        Placeholder.component("server", serverName(person.server())))
+                : locale.render("clan.menu.member.offline", target));
+        boolean actions = !person.self() && !clanActions(person, view.features()).isEmpty();
+        if (actions) {
+            lore.add(Component.empty());
+            lore.add(locale.render("clan.menu.member.click", target));
+        }
+        ItemStack icon = head(person.uuid(), person.showSkin())
+                .name(locale.render(key, target, Placeholder.unparsed("player", person.name())))
+                .lore(lore)
+                .glow(member.role() == ClanRole.LEADER)
+                .build();
+        if (!actions) {
+            return kit.decoration(icon);
+        }
+        return new MenuButton(icon, context -> openClanMember(context.player(), member, view.features()));
+    }
+
+    private MenuButton clanInvitedButton(Locale target, SocialView.Person person, SocialView.ClanView clan) {
+        List<Component> lore = new ArrayList<>();
+        lore.add(locale.render("clan.menu.invited.lore", target));
+        if (clan.canInvite()) {
+            lore.add(Component.empty());
+            lore.add(locale.render("clan.menu.invited.click", target));
+        }
+        ItemStack icon = ItemBuilder.of(Material.PAPER)
+                .name(locale.render("clan.menu.invited.name", target, Placeholder.unparsed("player", person.name())))
+                .lore(lore)
+                .build();
+        if (!clan.canInvite()) {
+            return kit.decoration(icon);
+        }
+        return new MenuButton(icon, context -> act(context.player(), "clan-kick", person.ref(),
+                SocialClient.VIEW_CLAN, 0, next -> renderClan(context.player(), next)));
+    }
+
+    private List<SocialLayout.MemberAction> clanActions(SocialView.Person person, SocialView.Features features) {
+        SocialView.Permissions allowed = person.permissions();
+        return SocialLayout.memberActions(allowed.promote(), allowed.demote(), allowed.transfer(),
+                features.friends() && !person.friend() && !person.masked(), allowed.kick());
+    }
+
+    private void openClanMember(Player player, SocialView.ClanMemberView member, SocialView.Features features) {
+        Locale target = locale(player);
+        SocialView.Person person = member.person();
+        Menu menu = new Menu(locale.render("clan.menu.member.title", target,
+                Placeholder.unparsed("player", person.name())), SMALL_ROWS);
+        kit.fill(menu);
+        menu.button(SMALL_INFO, kit.decoration(head(person.uuid(), person.showSkin())
+                .name(locale.render("clan.menu.member.name", target, Placeholder.unparsed("player", person.name())))
+                .lore(locale.render("clan.menu.member.role", target,
+                        Placeholder.component("role", clanRole(target, member.role()))))
+                .build()));
+        List<SocialLayout.MemberAction> actions = clanActions(person, features);
+        List<Integer> slots = actions.isEmpty() ? List.of() : MenuLayout.centeredRowSlots(1, actions.size());
+        for (int i = 0; i < actions.size(); i++) {
+            menu.button(slots.get(i), clanAction(target, actions.get(i), member, features));
+        }
+        menu.button(SMALL_BACK, kit.back(target, this::openClan));
+        menu.button(SMALL_CLOSE, kit.close(target));
+        menus.open(player, menu);
+    }
+
+    private MenuButton clanAction(Locale target, SocialLayout.MemberAction action, SocialView.ClanMemberView member,
+                                  SocialView.Features features) {
+        SocialView.Person person = member.person();
+        return switch (action) {
+            case PROMOTE -> clanButton(target, Material.GOLDEN_HELMET, "clan.menu.promote", person, "clan-promote");
+            case DEMOTE -> clanButton(target, Material.LEATHER_HELMET, "clan.menu.demote", person, "clan-demote");
+            case KICK -> clanButton(target, Material.IRON_DOOR, "clan.menu.kick", person, "clan-kick");
+            case BEFRIEND -> clanButton(target, Material.TOTEM_OF_UNDYING, "clan.menu.befriend", person,
+                    "friend-request");
+            case TRANSFER -> new MenuButton(ItemBuilder.of(Material.GOLDEN_APPLE)
+                    .name(locale.render("clan.menu.transfer.name", target))
+                    .lore(locale.render("clan.menu.transfer.lore", target,
+                            Placeholder.unparsed("player", person.name())))
+                    .build(), context -> confirmClanTransfer(context.player(), member, features));
+        };
+    }
+
+    private MenuButton clanButton(Locale target, Material icon, String key, SocialView.Person person, String action) {
+        return new MenuButton(ItemBuilder.of(icon)
+                .name(locale.render(key + ".name", target))
+                .lore(locale.render(key + ".lore", target, Placeholder.unparsed("player", person.name())))
+                .build(), context -> act(context.player(), action, person.ref(), SocialClient.VIEW_CLAN, 0,
+                next -> renderClan(context.player(), next)));
+    }
+
+    private void confirmClanTransfer(Player player, SocialView.ClanMemberView member, SocialView.Features features) {
+        Locale target = locale(player);
+        SocialView.Person person = member.person();
+        Menu menu = new Menu(locale.render("clan.menu.transfer.title", target), SMALL_ROWS);
+        kit.fill(menu);
+        menu.button(SMALL_MIDDLE, kit.decoration(head(person.uuid(), person.showSkin())
+                .name(locale.render("clan.menu.member.name", target, Placeholder.unparsed("player", person.name())))
+                .build()));
+        menu.button(SMALL_LEFT, new MenuButton(ItemBuilder.of(Material.GOLD_BLOCK)
+                .name(locale.render("clan.menu.transfer.yes", target, Placeholder.unparsed("player", person.name())))
+                .build(), context -> act(context.player(), "clan-transfer", person.ref(), SocialClient.VIEW_CLAN, 0,
+                next -> renderClan(context.player(), next))));
+        menu.button(SMALL_RIGHT, new MenuButton(ItemBuilder.of(Material.LIME_CONCRETE)
+                .name(locale.render("clan.menu.transfer.no", target)).build(),
+                context -> openClanMember(context.player(), member, features)));
+        menus.open(player, menu);
+    }
+
+    private void confirmClanDisband(Player player) {
+        Locale target = locale(player);
+        Menu menu = new Menu(locale.render("clan.menu.disband.title", target), SMALL_ROWS);
+        kit.fill(menu);
+        menu.button(SMALL_MIDDLE, kit.decoration(ItemBuilder.of(Material.TNT)
+                .name(locale.render("clan.menu.disband.name", target)).build()));
+        menu.button(SMALL_LEFT, new MenuButton(ItemBuilder.of(Material.RED_CONCRETE)
+                .name(locale.render("clan.menu.disband.yes", target)).build(),
+                context -> act(context.player(), "clan-disband", null, SocialClient.VIEW_CLAN, 0,
+                        next -> renderClan(context.player(), next))));
+        menu.button(SMALL_RIGHT, new MenuButton(ItemBuilder.of(Material.LIME_CONCRETE)
+                .name(locale.render("clan.menu.disband.no", target)).build(),
+                context -> openClan(context.player())));
+        menus.open(player, menu);
+    }
+
+    private void openClanSettings(Player player) {
+        call(player, client.view(player, SocialClient.VIEW_CLAN, 0), view -> renderClanSettings(player, view));
+    }
+
+    private void renderClanSettings(Player player, SocialView view) {
+        Locale target = locale(player);
+        SocialView.ClanView clan = view.clan();
+        if (clan == null || !clan.inClan()) {
+            openClan(player);
+            return;
+        }
+        Menu menu = new Menu(locale.render("clan.menu.settings.title", target), SMALL_ROWS);
+        kit.fill(menu);
+        ClanAccess current = clan.access();
+        List<Component> lore = new ArrayList<>();
+        for (ClanAccess option : ClanAccess.values()) {
+            lore.add(locale.render(option == current ? "friends.menu.setting.selected" : "friends.menu.setting.option",
+                    target, Placeholder.component("value",
+                            locale.render("clan.menu.access." + option.id(), target))));
+        }
+        lore.add(Component.empty());
+        lore.add(clan.canSettings()
+                ? locale.render("friends.menu.setting.click", target, Placeholder.component("value",
+                        locale.render("clan.menu.access." + current.next().id(), target)))
+                : locale.render("clan.menu.settings.locked", target));
+        ItemStack icon = ItemBuilder.of(current == ClanAccess.OPEN ? Material.OAK_DOOR : Material.IRON_DOOR)
+                .name(locale.render("clan.menu.setting.access", target))
+                .lore(lore)
+                .build();
+        if (clan.canSettings()) {
+            menu.button(SMALL_MIDDLE, new MenuButton(icon, context -> call(context.player(),
+                    client.clanSetting(context.player(), "access", current.next().id()),
+                    next -> {
+                        context.player().playSound(SUCCESS, Sound.Emitter.self());
+                        renderClanSettings(context.player(), next);
+                    })));
+        } else {
+            menu.button(SMALL_MIDDLE, kit.decoration(icon));
+        }
+        menu.button(SMALL_BACK, kit.back(target, this::openClan));
+        menu.button(SMALL_CLOSE, kit.close(target));
+        menus.open(player, menu);
+    }
+
+    private Component clanRole(Locale target, ClanRole role) {
+        return locale.render("clan.role." + role.id(), target);
     }
 
     public void openFriends(Player player, int page) {
@@ -146,11 +465,12 @@ public final class SocialMenus {
                 .build()));
         List<Integer> slots = SocialLayout.contentSlots(page.entries().size());
         boolean canInvite = view.features().party() && page.canInvite();
+        boolean jumpOn = view.enabled("friends", "jump");
         long now = System.currentTimeMillis();
         for (int i = 0; i < slots.size(); i++) {
             SocialView.Friend friend = page.entries().get(i);
             menu.button(slots.get(i), new MenuButton(friendIcon(target, friend, now),
-                    context -> openFriend(context.player(), friend, page.page(), canInvite)));
+                    context -> openFriend(context.player(), friend, page.page(), canInvite, jumpOn)));
         }
         if (page.entries().isEmpty()) {
             menu.button(SocialLayout.EMPTY, kit.decoration(ItemBuilder.of(Material.WRITABLE_BOOK)
@@ -160,13 +480,15 @@ public final class SocialMenus {
         }
         menu.button(SocialLayout.BACK, kit.back(target, back -> lobbyMenus.get().openProfile(back)));
         int requests = view.counts().requests();
-        menu.button(SocialLayout.REQUESTS, new MenuButton(ItemBuilder.of(Material.WRITABLE_BOOK)
-                .amount(SocialLayout.badge(requests))
-                .glow(requests > 0)
-                .name(locale.render("friends.menu.requests.name", target,
-                        Placeholder.unparsed("count", String.valueOf(requests))))
-                .lore(locale.render("friends.menu.requests.lore", target))
-                .build(), context -> openRequests(context.player())));
+        if (view.enabled("friends", "requests")) {
+            menu.button(SocialLayout.REQUESTS, new MenuButton(ItemBuilder.of(Material.WRITABLE_BOOK)
+                    .amount(SocialLayout.badge(requests))
+                    .glow(requests > 0)
+                    .name(locale.render("friends.menu.requests.name", target,
+                            Placeholder.unparsed("count", String.valueOf(requests))))
+                    .lore(locale.render("friends.menu.requests.lore", target))
+                    .build(), context -> openRequests(context.player())));
+        }
         if (SocialLayout.hasPrevious(page.page())) {
             menu.button(SocialLayout.PREVIOUS, new MenuButton(ItemBuilder.of(Material.ARROW)
                     .name(locale.render("menu.previous", target)).build(),
@@ -183,8 +505,10 @@ public final class SocialMenus {
                     .lore(locale.render("lobby.profile.party.lore", target))
                     .build(), context -> openParty(context.player())));
         }
-        menu.button(SocialLayout.SETTINGS, settingsButton(target,
-                back -> openFriends(back, page.page())));
+        if (view.features().settings()) {
+            menu.button(SocialLayout.SETTINGS, settingsButton(target,
+                    back -> openFriends(back, page.page())));
+        }
         menu.button(SocialLayout.CLOSE, kit.close(target));
         menus.open(player, menu);
     }
@@ -198,6 +522,7 @@ public final class SocialMenus {
             lore.add(locale.render("friends.menu.friend.last-seen", target,
                     Placeholder.component("time", time(target, TimeAgo.since(friend.lastSeen(), now)))));
         }
+        clanLine(target, "friends.menu.friend.clan", friend.clan()).ifPresent(lore::add);
         lore.add(Component.empty());
         lore.add(locale.render("friends.menu.friend.click", target));
         return head(friend.uuid(), true)
@@ -207,7 +532,7 @@ public final class SocialMenus {
                 .build();
     }
 
-    private void openFriend(Player player, SocialView.Friend friend, int page, boolean canInvite) {
+    private void openFriend(Player player, SocialView.Friend friend, int page, boolean canInvite, boolean jumpOn) {
         Locale target = locale(player);
         Menu menu = new Menu(locale.render("friends.menu.friend.title", target,
                 Placeholder.unparsed("player", friend.name())), SMALL_ROWS);
@@ -224,7 +549,7 @@ public final class SocialMenus {
                         client.act(context.player(), "friend-jump", friend.uuid(), SocialClient.VIEW_NONE, 0)
                                 .exceptionally(error -> null);
                     }));
-        } else {
+        } else if (jumpOn) {
             menu.button(SMALL_LEFT, kit.decoration(ItemBuilder.of(Material.GRAY_DYE)
                     .name(locale.render(friend.online() ? "friends.menu.action.jump-off"
                             : "friends.menu.action.jump-offline", target))
@@ -240,13 +565,14 @@ public final class SocialMenus {
         menu.button(SMALL_RIGHT, new MenuButton(ItemBuilder.of(Material.RED_DYE)
                 .name(locale.render("friends.menu.action.remove", target))
                 .lore(locale.render("friends.menu.action.remove-lore", target))
-                .build(), context -> confirmRemove(context.player(), friend, page, canInvite)));
+                .build(), context -> confirmRemove(context.player(), friend, page, canInvite, jumpOn)));
         menu.button(SMALL_BACK, kit.back(target, back -> openFriends(back, page)));
         menu.button(SMALL_CLOSE, kit.close(target));
         menus.open(player, menu);
     }
 
-    private void confirmRemove(Player player, SocialView.Friend friend, int page, boolean canInvite) {
+    private void confirmRemove(Player player, SocialView.Friend friend, int page, boolean canInvite,
+                               boolean jumpOn) {
         Locale target = locale(player);
         Menu menu = new Menu(locale.render("friends.menu.confirm.title", target,
                 Placeholder.unparsed("player", friend.name())), SMALL_ROWS);
@@ -262,7 +588,7 @@ public final class SocialMenus {
                 page, view -> renderFriends(context.player(), view))));
         menu.button(SMALL_RIGHT, new MenuButton(ItemBuilder.of(Material.LIME_CONCRETE)
                 .name(locale.render("friends.menu.confirm.no", target))
-                .build(), context -> openFriend(context.player(), friend, page, canInvite)));
+                .build(), context -> openFriend(context.player(), friend, page, canInvite, jumpOn)));
         menus.open(player, menu);
     }
 
@@ -351,10 +677,12 @@ public final class SocialMenus {
                             locale.render("party.menu.info.role", target,
                                     Placeholder.component("role", role(target, party.role()))))
                     .build()));
-            menu.button(SocialLayout.PARTY_OPTIONS, new MenuButton(ItemBuilder.of(Material.WRITABLE_BOOK)
-                    .name(locale.render("party.menu.settings.name", target))
-                    .lore(locale.render("party.menu.settings.lore", target))
-                    .build(), context -> openPartySettings(context.player())));
+            if (view.enabled("party", "settings")) {
+                menu.button(SocialLayout.PARTY_OPTIONS, new MenuButton(ItemBuilder.of(Material.WRITABLE_BOOK)
+                        .name(locale.render("party.menu.settings.name", target))
+                        .lore(locale.render("party.menu.settings.lore", target))
+                        .build(), context -> openPartySettings(context.player())));
+            }
             List<SocialView.Person> people = new ArrayList<>(party.members());
             int members = people.size();
             people.addAll(party.invited());
@@ -421,7 +749,9 @@ public final class SocialMenus {
                     .build(), context -> act(context.player(), "party-leave", null, SocialClient.VIEW_PARTY, 0,
                     next -> renderParty(context.player(), next))));
         }
-        menu.button(PARTY_SETTINGS, settingsButton(target, this::openParty));
+        if (view.features().settings()) {
+            menu.button(PARTY_SETTINGS, settingsButton(target, this::openParty));
+        }
         menu.button(SocialLayout.CLOSE, kit.close(target));
         menus.open(player, menu);
     }
@@ -440,6 +770,7 @@ public final class SocialMenus {
                 ? locale.render("party.menu.member.server", target,
                         Placeholder.component("server", serverName(person.server())))
                 : locale.render("party.menu.member.offline", target));
+        clanLine(target, "party.menu.member.clan", person.clan()).ifPresent(lore::add);
         boolean actions = !person.self() && !memberActions(person, features).isEmpty();
         if (actions) {
             lore.add(Component.empty());
@@ -723,6 +1054,7 @@ public final class SocialMenus {
             case "jump" -> Material.ENDER_PEARL;
             case "party-invites" -> Material.CAKE;
             case "messages" -> Material.PAPER;
+            case "clan-invites" -> Material.WHITE_BANNER;
             default -> Material.COMPARATOR;
         };
     }

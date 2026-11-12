@@ -2,6 +2,7 @@ package net.prismarin.lobby;
 
 import com.google.inject.Injector;
 import net.prismarin.api.event.Subscription;
+import net.prismarin.api.stats.StatsApi;
 import net.prismarin.core.CoreApi;
 import net.prismarin.core.api.SidebarService;
 import net.prismarin.core.scoreboard.SidebarManager;
@@ -13,13 +14,19 @@ import net.prismarin.lobby.command.SetVoidCommand;
 import net.prismarin.lobby.config.LobbySettings;
 import net.prismarin.lobby.config.LocationsFile;
 import net.prismarin.lobby.extension.PaperLobbyService;
+import net.prismarin.lobby.leaderboard.LeaderboardCommand;
+import net.prismarin.lobby.leaderboard.LeaderboardDisplays;
 import net.prismarin.lobby.listener.DoubleJumpListener;
 import net.prismarin.lobby.listener.HotbarListener;
 import net.prismarin.lobby.listener.JoinListener;
 import net.prismarin.lobby.listener.ProtectionListener;
 import net.prismarin.lobby.listener.VoidTeleportListener;
+import net.prismarin.lobby.network.QueueBoard;
 import net.prismarin.lobby.player.PlayerHiderService;
 import net.prismarin.lobby.player.SilentLobbyService;
+import net.prismarin.lobby.cosmetics.CosmeticEntries;
+import net.prismarin.lobby.joinme.JoinMeEntries;
+import net.prismarin.lobby.profile.ProfileEntries;
 import net.prismarin.lobby.server.ServerConnector;
 import net.prismarin.lobby.sidebar.LobbySidebarProvider;
 import net.prismarin.lobby.world.LobbyWorlds;
@@ -33,6 +40,11 @@ public final class LobbyPlugin extends JavaPlugin {
 
     private Injector injector;
     private Subscription sidebar;
+    private LeaderboardDisplays leaderboards;
+    private ProfileEntries profileEntries;
+    private QueueBoard queues;
+    private JoinMeEntries joinMeEntries;
+    private CosmeticEntries cosmeticEntries;
 
     @Override
     public void onEnable() {
@@ -65,10 +77,33 @@ public final class LobbyPlugin extends JavaPlugin {
         registerCommand("lobbybuild", injector.getInstance(LobbyBuildCommand.class));
         registerCommand("setspawn", injector.getInstance(SetSpawnCommand.class));
         registerCommand("setvoid", injector.getInstance(SetVoidCommand.class));
+        if (settings.enabled(LobbySettings.LEADERBOARDS) && StatsApi.service().isPresent()) {
+            leaderboards = injector.getInstance(LeaderboardDisplays.class);
+            leaderboards.start();
+            registerCommand("leaderboard", injector.getInstance(LeaderboardCommand.class));
+        } else {
+            removeCommand("leaderboard");
+        }
+        if (settings.enabled(LobbySettings.PROFILE_MENU)) {
+            profileEntries = injector.getInstance(ProfileEntries.class);
+            profileEntries.register();
+            if (settings.enabled(LobbySettings.COSMETICS)) {
+                cosmeticEntries = injector.getInstance(CosmeticEntries.class);
+                cosmeticEntries.register();
+            }
+        }
+        if (settings.enabled(LobbySettings.NAVIGATOR)) {
+            joinMeEntries = injector.getInstance(JoinMeEntries.class);
+            joinMeEntries.register();
+        }
 
         if (settings.enabled(LobbySettings.SIDEBAR)) {
             sidebar = injector.getInstance(SidebarManager.class)
                     .register(injector.getInstance(LobbySidebarProvider.class), SidebarService.LOBBY_PRIORITY);
+        }
+        if (settings.enabled(LobbySettings.NAVIGATOR) && settings.enabled(LobbySettings.NAVIGATOR_QUEUE)) {
+            queues = injector.getInstance(QueueBoard.class);
+            queues.start();
         }
         LobbyService lobby = injector.getInstance(PaperLobbyService.class);
         LobbyApi.register(lobby);
@@ -88,14 +123,43 @@ public final class LobbyPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (profileEntries != null) {
+            profileEntries.unregister();
+            profileEntries = null;
+        }
+        if (joinMeEntries != null) {
+            joinMeEntries.unregister();
+            joinMeEntries = null;
+        }
+        if (cosmeticEntries != null) {
+            cosmeticEntries.unregister();
+            cosmeticEntries = null;
+        }
+        if (leaderboards != null) {
+            leaderboards.stop();
+            leaderboards = null;
+        }
         LobbyApi.unregister();
         getServer().getServicesManager().unregisterAll(this);
         if (sidebar != null) {
             sidebar.unsubscribe();
             sidebar = null;
         }
+        if (queues != null) {
+            queues.stop();
+            queues = null;
+        }
         getServer().getMessenger().unregisterOutgoingPluginChannel(this);
         injector = null;
+    }
+
+    private void removeCommand(String name) {
+        PluginCommand command = getCommand(name);
+        if (command == null) {
+            return;
+        }
+        command.unregister(getServer().getCommandMap());
+        getServer().getCommandMap().getKnownCommands().values().removeIf(known -> known == command);
     }
 
     private void registerCommand(String name, TabExecutor executor) {

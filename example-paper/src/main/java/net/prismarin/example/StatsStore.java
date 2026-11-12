@@ -27,6 +27,14 @@ final class StatsStore {
         });
     }
 
+    CompletableFuture<Optional<Stats>> find(UUID player) {
+        Stats cached = cache.get(player);
+        if (cached != null) {
+            return CompletableFuture.completedFuture(Optional.of(cached));
+        }
+        return stats.find(player.toString());
+    }
+
     CompletableFuture<Stats> recordWin(UUID player, String name) {
         return load(player, name).thenCompose(current -> {
             Stats updated = current.won();

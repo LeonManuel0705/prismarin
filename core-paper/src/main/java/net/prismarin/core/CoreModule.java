@@ -5,6 +5,7 @@ import com.google.inject.Provider;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import java.nio.file.Path;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -18,6 +19,7 @@ import net.prismarin.api.nick.NickService;
 import net.prismarin.api.player.PlayerService;
 import net.prismarin.api.player.RankSources;
 import net.prismarin.api.profile.ProfileService;
+import net.prismarin.api.queue.QueueApi;
 import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.core.config.GameStateSettings;
@@ -40,12 +42,15 @@ import net.prismarin.core.rank.ExternalRankFormatProvider;
 import net.prismarin.core.rank.LuckPermsRankFormatProvider;
 import net.prismarin.core.rank.RankDisplayProvider;
 import net.prismarin.core.rank.RankFormatProvider;
+import net.prismarin.core.reward.DailyRewardSettings;
+import net.prismarin.core.stats.StatsSettings;
 import net.prismarin.shared.chatfilter.ChatFilterSettings;
 import net.prismarin.shared.config.ConfigLoader;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.platform.CoreServices;
 import net.prismarin.shared.server.YamlServerDirectory;
 import net.prismarin.shared.status.NetworkStatusService;
+import net.prismarin.shared.status.QueueingConnector;
 import net.prismarin.shared.status.SelectingConnector;
 import net.prismarin.shared.status.SimpleGameStateService;
 import net.prismarin.shared.storage.ProfileRepository;
@@ -168,6 +173,18 @@ public final class CoreModule extends AbstractModule {
 
     @Provides
     @Singleton
+    StatsSettings statsSettings() {
+        return StatsSettings.load(dataDirectory().resolve(StatsSettings.FILE_NAME));
+    }
+
+    @Provides
+    @Singleton
+    DailyRewardSettings dailyRewardSettings() {
+        return DailyRewardSettings.load(dataDirectory().resolve(DailyRewardSettings.FILE_NAME));
+    }
+
+    @Provides
+    @Singleton
     NickStore nickStore(CoreServices services) {
         return new NickStore(services.documents());
     }
@@ -180,8 +197,16 @@ public final class CoreModule extends AbstractModule {
 
     @Provides
     @Singleton
-    NetworkConnector networkConnector(ServerDirectory directory, NetworkStatusService status) {
-        return new SelectingConnector(directory, status, new PaperConnectorTransport(plugin));
+    QueueingConnector queueingConnector(ServerDirectory directory, NetworkStatusService status, ModuleState modules) {
+        boolean queue = modules.enabled(CoreModules.QUEUE);
+        return new QueueingConnector(new SelectingConnector(directory, status, new PaperConnectorTransport(plugin)),
+                directory, () -> queue ? QueueApi.service() : Optional.empty());
+    }
+
+    @Provides
+    @Singleton
+    NetworkConnector networkConnector(QueueingConnector connector) {
+        return connector;
     }
 
     @Provides

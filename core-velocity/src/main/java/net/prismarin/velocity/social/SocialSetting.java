@@ -13,6 +13,8 @@ public enum SocialSetting {
     PARTY_INVITES("party-invites", Feature.PARTY, List.of(SocialSetting.EVERYONE, SocialSetting.FRIENDS,
             SocialSetting.NOBODY)),
     MESSAGES("messages", Feature.MESSAGES, List.of(SocialSetting.EVERYONE, SocialSetting.FRIENDS,
+            SocialSetting.NOBODY)),
+    CLAN_INVITES("clan-invites", Feature.CLANS, List.of(SocialSetting.EVERYONE, SocialSetting.FRIENDS,
             SocialSetting.NOBODY));
 
     public static final String EVERYONE = "everyone";
@@ -25,7 +27,8 @@ public enum SocialSetting {
     public enum Feature {
         FRIENDS,
         PARTY,
-        MESSAGES
+        MESSAGES,
+        CLANS
     }
 
     private final String id;

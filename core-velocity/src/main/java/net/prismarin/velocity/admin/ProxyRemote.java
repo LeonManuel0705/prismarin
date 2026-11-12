@@ -3,15 +3,22 @@ package net.prismarin.velocity.admin;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.proxy.ProxyServer;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import net.prismarin.api.admin.AdminApi;
 import net.prismarin.api.admin.MaintenanceService;
+import net.prismarin.api.event.PrismarinEvent;
+import net.prismarin.api.joinme.JoinMeApi;
 import net.prismarin.api.messaging.NetworkMessage;
 import net.prismarin.api.moderation.ModerationApi;
 import net.prismarin.api.moderation.ReportFiledEvent;
+import net.prismarin.api.queue.QueueApi;
+import net.prismarin.api.reward.RewardApi;
+import net.prismarin.api.social.SocialApi;
 import net.prismarin.api.storage.StorageApi;
+import net.prismarin.shared.joinme.JoinMeEndpoint;
 import net.prismarin.shared.network.NetworkCalls;
 import net.prismarin.shared.network.NetworkEvents;
 import net.prismarin.shared.network.RemoteDispatcher;
@@ -36,7 +43,9 @@ public final class ProxyRemote {
         StorageApi.register(context.services().dataStorage());
         RemoteDispatcher dispatcher = new RemoteDispatcher(context.services().auditService(),
                 () -> Optional.ofNullable(available), notifications, ModerationApi::reports, ModerationApi::templates,
-                ModerationApi::alts);
+                ModerationApi::alts,
+                SocialApi::clans, RewardApi::votes, QueueApi::service, () -> JoinMeApi.service()
+                        .filter(JoinMeEndpoint.class::isInstance).map(JoinMeEndpoint.class::cast));
         new ProxyRemote(context, dispatcher, logger).start();
     }
 
@@ -84,11 +93,15 @@ public final class ProxyRemote {
     }
 
     private void relay(ReportFiledEvent event) {
+        relay(context.proxy(), event);
+    }
+
+    public static void relay(ProxyServer proxy, PrismarinEvent event) {
         NetworkEvents.encode(event).ifPresent(message -> {
             message.addProperty("type", NetworkCalls.EVENT);
             message.addProperty("uuid", NetworkCalls.NOBODY.toString());
             byte[] data = message.toString().getBytes(StandardCharsets.UTF_8);
-            for (RegisteredServer server : context.proxy().getAllServers()) {
+            for (RegisteredServer server : proxy.getAllServers()) {
                 if (!server.getPlayersConnected().isEmpty()) {
                     server.sendPluginMessage(ModerationChannel.ID, data);
                 }

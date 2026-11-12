@@ -255,4 +255,17 @@ class LobbySettingsTest {
         assertTrue(settings.warnings().stream()
                 .anyMatch(warning -> warning.startsWith("custom-items.plain.actions.right-click entry 2")));
     }
+
+    @Test
+    void theCosmeticsItemHasItsOwnSlot() throws IOException {
+        LobbySettings settings = LobbySettings.load(directory.resolve("config.yml"));
+
+        HotbarItem cosmetics = settings.item(LobbySettings.COSMETICS_ITEM);
+        assertTrue(cosmetics.enabled());
+        assertEquals(5, cosmetics.slot());
+        assertEquals("CHEST", cosmetics.material());
+        assertTrue(settings.enabled(LobbySettings.COSMETICS));
+        assertTrue(settings.warnings().isEmpty(), settings.warnings().toString());
+        assertTrue(Files.readString(directory.resolve("config.yml")).contains("# Opens the cosmetics menu"));
+    }
 }

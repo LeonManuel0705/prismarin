@@ -14,7 +14,12 @@ import net.prismarin.api.Prismarin;
 import net.prismarin.api.PrismarinProvider;
 import net.prismarin.api.PrismarinSystems;
 import net.prismarin.api.economy.Currency;
+import net.prismarin.api.admin.PlatformApi;
+import net.prismarin.api.cosmetics.CosmeticApi;
+import net.prismarin.api.cosmetics.CosmeticService;
 import net.prismarin.api.economy.EconomyService;
+import net.prismarin.api.joinme.JoinMeApi;
+import net.prismarin.api.joinme.JoinMeService;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.nick.NickService;
 import net.prismarin.api.profile.ProfileService;
@@ -23,15 +28,20 @@ import net.prismarin.core.admin.PrismarinCommand;
 import net.prismarin.core.bridge.PlaceholderBridge;
 import net.prismarin.core.bridge.VaultBridge;
 import net.prismarin.core.chat.AsyncChatListener;
+import net.prismarin.core.chat.ChatDecorations;
 import net.prismarin.core.chatfilter.PaperChatFilter;
 import net.prismarin.core.command.BalanceCommand;
 import net.prismarin.core.command.EconomyCommand;
 import net.prismarin.core.command.LevelCommand;
 import net.prismarin.core.config.CoreConfigComments;
 import net.prismarin.core.config.RankDisplaySettings;
+import net.prismarin.core.cosmetics.CosmeticsCommand;
+import net.prismarin.core.cosmetics.PaperCosmetics;
 import net.prismarin.core.platform.PlatformFeatures;
 import net.prismarin.core.essentials.EssentialsCommands;
 import net.prismarin.core.gui.MenuService;
+import net.prismarin.core.joinme.JoinMeCommand;
+import net.prismarin.core.joinme.PaperJoinMe;
 import net.prismarin.core.moderation.ModerationChannel;
 import net.prismarin.core.moderation.MuteListener;
 import net.prismarin.core.moderation.NetExecListener;
@@ -42,6 +52,7 @@ import net.prismarin.core.network.HeartbeatTask;
 import net.prismarin.core.network.NetworkCommand;
 import net.prismarin.core.network.NetworkMenu;
 import net.prismarin.core.network.PlayCommand;
+import net.prismarin.core.network.QueueBypassListener;
 import net.prismarin.core.nick.NickCommand;
 import net.prismarin.core.nick.NickListener;
 import net.prismarin.core.nick.NickManager;
@@ -52,13 +63,20 @@ import net.prismarin.core.profile.ConnectionListener;
 import net.prismarin.core.rank.MissingLuckPermsCommand;
 import net.prismarin.core.rank.RankCommand;
 import net.prismarin.core.remote.BackendApis;
+import net.prismarin.core.reward.DailyCommand;
+import net.prismarin.core.reward.PaperDailyRewards;
+import net.prismarin.core.reward.VoteRewards;
 import net.prismarin.core.scoreboard.SidebarManager;
 import net.prismarin.core.social.BackendSocial;
+import net.prismarin.core.social.ClanMirror;
+import net.prismarin.core.social.ClanTags;
 import net.prismarin.core.social.SocialClient;
 import net.prismarin.core.tablist.TablistManager;
 import net.prismarin.core.task.PeriodicSaveTask;
 import net.prismarin.core.staff.StaffModeCommand;
 import net.prismarin.core.staff.StaffModeService;
+import net.prismarin.core.stats.PaperStats;
+import net.prismarin.core.stats.StatsCommand;
 import net.prismarin.core.vanish.InventoryInspector;
 import net.prismarin.core.vanish.VanishCommand;
 import net.prismarin.core.vanish.VanishListener;
@@ -91,6 +109,11 @@ public final class PrismarinCorePlugin extends JavaPlugin {
     private VanishListener vanishListener;
     private final List<Command> balanceCommands = new ArrayList<>();
     private NickManager nickManager;
+    private PaperStats stats;
+    private PaperDailyRewards dailyRewards;
+    private VoteRewards voteRewards;
+    private PaperJoinMe joinMe;
+    private PaperCosmetics cosmetics;
 
     @Override
     public void onLoad() {
@@ -172,6 +195,9 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         if (modules.enabled(CoreModules.NETEXEC) && config.redisEnabled()) {
             injector.getInstance(NetExecListener.class).subscribe(services.messageBus());
         }
+        if (modules.enabled(CoreModules.QUEUE)) {
+            pluginManager.registerEvents(injector.getInstance(QueueBypassListener.class), this);
+        }
         if (modules.enabled(CoreModules.PLAY_COMMAND)) {
             registerCommand("play", injector.getInstance(PlayCommand.class));
         } else {
@@ -198,6 +224,20 @@ public final class PrismarinCorePlugin extends JavaPlugin {
             removeCommand("rank");
         }
         injector.getInstance(EssentialsCommands.class).install(modules.enabled(CoreModules.ESSENTIALS));
+        if (modules.enabled(CoreModules.STATS)) {
+            stats = injector.getInstance(PaperStats.class);
+            stats.start();
+            registerCommand("stats", injector.getInstance(StatsCommand.class));
+        } else {
+            removeCommand("stats");
+        }
+        if (modules.enabled(CoreModules.DAILY_REWARDS)) {
+            dailyRewards = injector.getInstance(PaperDailyRewards.class);
+            dailyRewards.start();
+            registerCommand("daily", injector.getInstance(DailyCommand.class));
+        } else {
+            removeCommand("daily");
+        }
         if (config.systemEnabled(PrismarinSystems.NETWORK_STATUS)) {
             pluginManager.registerEvents(injector.getInstance(GameStateMotdListener.class), this);
             NetworkStatusService status = injector.getInstance(NetworkStatusService.class);
@@ -226,7 +266,30 @@ public final class PrismarinCorePlugin extends JavaPlugin {
             getServer().getServicesManager().register(NickService.class, nickManager, this, ServicePriority.Normal);
         }
         injector.getInstance(BackendSocial.class).register();
+        registerClanTags();
         injector.getInstance(BackendApis.class).register(nickManager);
+        if (modules.enabled(CoreModules.VOTE_REWARDS)) {
+            voteRewards = injector.getInstance(VoteRewards.class);
+            voteRewards.start();
+        }
+        if (modules.enabled(CoreModules.JOINME)) {
+            joinMe = injector.getInstance(PaperJoinMe.class);
+            joinMe.start();
+            JoinMeApi.register(joinMe);
+            getServer().getServicesManager().register(JoinMeService.class, joinMe, this, ServicePriority.Normal);
+            registerCommand("joinme", injector.getInstance(JoinMeCommand.class));
+        } else {
+            removeCommand("joinme");
+        }
+        if (modules.enabled(CoreModules.COSMETICS)) {
+            cosmetics = injector.getInstance(PaperCosmetics.class);
+            cosmetics.start();
+            CosmeticApi.register(cosmetics);
+            getServer().getServicesManager().register(CosmeticService.class, cosmetics, this, ServicePriority.Normal);
+            registerCommand("cosmetics", injector.getInstance(CosmeticsCommand.class));
+        } else {
+            removeCommand("cosmetics");
+        }
         injector.getInstance(PaperPlayers.class).enable();
         if (modules.enabled(CoreModules.PLACEHOLDER_API) && pluginManager.getPlugin("PlaceholderAPI") != null) {
             placeholderBridge = PlaceholderBridge.enable(prismarin, nickManager, services.formatter(),
@@ -235,6 +298,12 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         }
         injector.getInstance(RankDisplaySettings.class);
         injector.getInstance(PlatformFeatures.class).start();
+        if (joinMe != null) {
+            PlatformApi.reloads().ifPresent(reloads -> reloads.register("joinme", joinMe::reload));
+        }
+        if (cosmetics != null) {
+            PlatformApi.reloads().ifPresent(reloads -> reloads.register("cosmetics", cosmetics::reload));
+        }
         CoreConfigComments.apply(getDataFolder().toPath().resolve("config.yml"));
         getLogger().info("Enabled as '" + config.serverId() + "' with systems " + prismarin.enabledSystems().stream()
                 .sorted().toList() + " and modules " + modules.enabledModules());
@@ -255,6 +324,11 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         if (placeholderBridge != null) {
             placeholderBridge.disable();
             placeholderBridge = null;
+        }
+        if (cosmetics != null) {
+            CosmeticApi.unregister();
+            cosmetics.stop();
+            cosmetics = null;
         }
         getServer().getServicesManager().unregisterAll(this);
         SocialApi.unregister();
@@ -283,6 +357,23 @@ public final class PrismarinCorePlugin extends JavaPlugin {
             nickManager.stop();
             nickManager = null;
         }
+        if (voteRewards != null) {
+            voteRewards.stop();
+            voteRewards = null;
+        }
+        if (joinMe != null) {
+            JoinMeApi.unregister();
+            joinMe.stop();
+            joinMe = null;
+        }
+        if (dailyRewards != null) {
+            dailyRewards.stop();
+            dailyRewards = null;
+        }
+        if (stats != null) {
+            stats.stop();
+            stats = null;
+        }
         getServer().getMessenger().unregisterOutgoingPluginChannel(this);
         if (saveTask != null) {
             saveTask.cancel();
@@ -302,6 +393,18 @@ public final class PrismarinCorePlugin extends JavaPlugin {
             injector.getInstance(CoreServices.class).close();
             injector = null;
         }
+    }
+
+    private void registerClanTags() {
+        ClanTags tags = injector.getInstance(ClanTags.class);
+        TablistManager tablist = injector.getInstance(TablistManager.class);
+        tablist.register(tags.tablist(), 0);
+        injector.getInstance(ChatDecorations.class).register(tags.chat(), 0);
+        injector.getInstance(ClanMirror.class).onChange(() -> getServer().getScheduler().runTask(this, () -> {
+            if (tablistManager != null) {
+                tablistManager.refresh();
+            }
+        }));
     }
 
     private void shutdownExecutor(ExecutorService executor) {

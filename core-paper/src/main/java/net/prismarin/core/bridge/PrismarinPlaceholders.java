@@ -7,21 +7,32 @@ import java.util.function.Function;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.prismarin.api.Prismarin;
+import net.prismarin.api.admin.NoticeText;
 import net.prismarin.api.economy.Currency;
 import net.prismarin.api.economy.EconomyService;
+import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.nick.NickService;
 import net.prismarin.api.player.NetworkPlayer;
 import net.prismarin.api.player.PlayerService;
 import net.prismarin.api.player.RankDisplay;
 import net.prismarin.api.profile.PlayerProfile;
+import net.prismarin.api.reward.DailyStatus;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerStatus;
+import net.prismarin.api.social.Clan;
+import net.prismarin.api.social.ClanMember;
+import net.prismarin.api.social.ClanRole;
+import net.prismarin.core.cosmetics.CosmeticPlaceholders;
+import net.prismarin.core.stats.StatPlaceholder;
+import net.prismarin.core.stats.StatPlaceholders;
 
 public final class PrismarinPlaceholders {
 
     private static final String DATA_PREFIX = "data_";
     private static final String RANK_PREFIX = "rank_";
     private static final String REAL_RANK_PREFIX = "realrank_";
+    private static final String CLAN_DATA_PREFIX = "clan_data_";
+    private static final String DAILY_PREFIX = "daily_";
 
     private final Prismarin prismarin;
     private final NickService nicks;
@@ -101,11 +112,48 @@ public final class PrismarinPlaceholders {
                     .filter(ServerStatus::online).mapToInt(ServerStatus::players).sum());
             case "network_servers_online" -> String.valueOf(prismarin.serverStatus().statuses().stream()
                     .filter(ServerStatus::online).count());
+            case "has_clan" -> String.valueOf(clan(player).isPresent());
+            case "clan_tag" -> clan(player).flatMap(clan -> prismarin.clans().map(clans -> clans.formatTag(clan)))
+                    .map(text).orElse("");
+            case "clan_tag_raw" -> clan(player).map(Clan::tag).orElse("");
+            case "clan_name" -> clan(player).map(Clan::name).orElse("");
+            case "clan_color" -> clan(player).map(Clan::color).orElse("");
+            case "clan_members" -> clan(player).map(clan -> String.valueOf(clan.size())).orElse("0");
+            case "clan_leader" -> clan(player).flatMap(clan -> clan.member(clan.leader())).map(ClanMember::name)
+                    .orElse("");
+            case "clan_role_id" -> clanRole(player).map(ClanRole::id).orElse("");
+            case "clan_role" -> clanRole(player).map(role -> text.apply(prismarin.locale().render(
+                    "clan.role." + role.id(), locale(player).orElse(Locale.ENGLISH)))).orElse("");
             default -> resolvePrefixed(player, key);
         };
     }
 
+    private Optional<Clan> clan(UUID player) {
+        return player == null ? Optional.empty() : prismarin.clans().flatMap(clans -> clans.clanOf(player));
+    }
+
+    private Optional<ClanRole> clanRole(UUID player) {
+        return clan(player).flatMap(clan -> clan.role(player));
+    }
+
     private String resolvePrefixed(UUID player, String key) {
+        if (key.startsWith(CLAN_DATA_PREFIX)) {
+            String dataKey = key.substring(CLAN_DATA_PREFIX.length());
+            return clan(player).flatMap(clan -> clan.data(dataKey)).orElse("");
+        }
+        if (CosmeticPlaceholders.candidate(key)) {
+            return prismarin.cosmetics()
+                    .map(service -> new CosmeticPlaceholders(service, this::notice).resolve(player, key))
+                    .orElse(null);
+        }
+        if (StatPlaceholder.candidate(key)) {
+            return prismarin.stats()
+                    .map(service -> new StatPlaceholders(service, this::numberLocale).resolve(player, key))
+                    .orElse(null);
+        }
+        if (key.startsWith(DAILY_PREFIX)) {
+            return daily(player, key.substring(DAILY_PREFIX.length()));
+        }
         if (key.startsWith(RANK_PREFIX) && players != null) {
             return rankPart(key.substring(RANK_PREFIX.length()),
                     snapshot(player).map(NetworkPlayer::rank).orElse(RankDisplay.NONE));
@@ -165,6 +213,35 @@ public final class PrismarinPlaceholders {
                     .sum());
         }
         return null;
+    }
+
+    private String daily(UUID player, String part) {
+        if (prismarin.dailyRewards().isEmpty()) {
+            return null;
+        }
+        Optional<DailyStatus> status = player == null ? Optional.empty()
+                : prismarin.dailyRewards().flatMap(service -> service.cached(player));
+        return switch (part) {
+            case "streak" -> String.valueOf(status.map(DailyStatus::streak).orElse(0));
+            case "best" -> String.valueOf(status.map(DailyStatus::bestStreak).orElse(0));
+            case "claims" -> String.valueOf(status.map(DailyStatus::claims).orElse(0L));
+            case "next" -> String.valueOf(status.map(DailyStatus::nextStreak).orElse(1));
+            case "available" -> String.valueOf(status.map(DailyStatus::claimable).orElse(false));
+            default -> null;
+        };
+    }
+
+    private String notice(UUID player, NoticeText notice) {
+        Locale target = locale(player).orElse(Locale.ENGLISH);
+        String template = notice.template(target);
+        LocaleService locale = prismarin.locale();
+        Component shown = locale.raw(template, target).equals(template) ? locale.format(template)
+                : locale.render(template, target);
+        return text.apply(shown);
+    }
+
+    private Locale numberLocale(UUID player) {
+        return locale(player).orElse(Locale.ROOT);
     }
 
     private String rankPart(String part, RankDisplay rank) {

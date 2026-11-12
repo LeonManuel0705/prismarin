@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import net.prismarin.api.social.ClanAccess;
 
 public record SocialRequest(int id, Action action, UUID target, SocialSetting setting, String value, View view,
                             int page, Map<PartyOption, String> options) {
@@ -41,6 +42,16 @@ public record SocialRequest(int id, Action action, UUID target, SocialSetting se
         PARTY_DISBAND("party-disband", false),
         PARTY_WARP("party-warp", false),
         PARTY_SETTING("party-setting", false),
+        CLAN_ACCEPT("clan-accept", true),
+        CLAN_DENY("clan-deny", true),
+        CLAN_JOIN("clan-join", true),
+        CLAN_LEAVE("clan-leave", false),
+        CLAN_KICK("clan-kick", true),
+        CLAN_PROMOTE("clan-promote", true),
+        CLAN_DEMOTE("clan-demote", true),
+        CLAN_TRANSFER("clan-transfer", true),
+        CLAN_DISBAND("clan-disband", false),
+        CLAN_SETTING("clan-setting", false),
         SETTING("setting", false);
 
         private final String id;
@@ -75,6 +86,7 @@ public record SocialRequest(int id, Action action, UUID target, SocialSetting se
         REQUESTS("requests"),
         PARTY("party"),
         PARTY_INVITE("party-invite"),
+        CLAN("clan"),
         SETTINGS("settings");
 
         private final String id;
@@ -138,6 +150,16 @@ public record SocialRequest(int id, Action action, UUID target, SocialSetting se
                 }
                 setting = found.get();
                 value = normalized.get();
+            }
+            if (action.get() == Action.CLAN_SETTING) {
+                if (!text(message, "key").filter(ClanCommands.ACCESS::equals).isPresent()) {
+                    return Optional.empty();
+                }
+                Optional<String> access = text(message, "value").flatMap(ClanAccess::byId).map(ClanAccess::id);
+                if (access.isEmpty()) {
+                    return Optional.empty();
+                }
+                value = access.get();
             }
             Map<PartyOption, String> options = Map.of();
             if (action.get() == Action.PARTY_SETTING) {

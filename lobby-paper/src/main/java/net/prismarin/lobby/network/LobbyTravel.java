@@ -10,7 +10,9 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.profile.ProfileService;
-import net.prismarin.api.server.NetworkConnector;
+import net.prismarin.api.queue.QueueResult;
+import net.prismarin.api.queue.QueueStatus;
+import net.prismarin.api.queue.QueueTarget;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.core.locale.PlayerLocales;
@@ -20,6 +22,7 @@ import net.prismarin.lobby.network.LobbyTarget.ServerTarget;
 import net.prismarin.lobby.network.LobbyTarget.WorldTarget;
 import net.prismarin.lobby.server.ServerConnector;
 import net.prismarin.lobby.world.LobbyWorlds;
+import net.prismarin.shared.status.QueueingConnector;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
@@ -35,14 +38,14 @@ public final class LobbyTravel {
     private final LobbyDirectory lobbies;
     private final LobbyWorlds worlds;
     private final ServerConnector connector;
-    private final NetworkConnector network;
+    private final QueueingConnector network;
     private final ServerDirectory directory;
     private final LocaleService locale;
     private final ProfileService profiles;
 
     @Inject
     public LobbyTravel(LobbyPlugin plugin, LobbyDirectory lobbies, LobbyWorlds worlds, ServerConnector connector,
-                       NetworkConnector network, ServerDirectory directory, LocaleService locale,
+                       QueueingConnector network, ServerDirectory directory, LocaleService locale,
                        ProfileService profiles) {
         this.plugin = plugin;
         this.lobbies = lobbies;
@@ -99,11 +102,8 @@ public final class LobbyTravel {
     }
 
     public void connect(Player player, NetworkServer server) {
-        Locale playerLocale = PlayerLocales.of(player, profiles);
-        player.sendMessage(locale.render("lobby.navigator.connecting", playerLocale,
-                Placeholder.component("server", locale.format(server.displayName()))));
-        player.playSound(TELEPORT, Sound.Emitter.self());
-        connector.connect(player, server.name());
+        network.travel(player.getUniqueId(), QueueTarget.server(server.name())).thenAccept(result -> plugin
+                .getServer().getScheduler().runTask(plugin, () -> arrived(player, server.name(), result)));
     }
 
     public void connect(Player player, String serverName) {
@@ -120,22 +120,42 @@ public final class LobbyTravel {
     }
 
     public void playGroup(Player player, String group) {
-        Locale playerLocale = PlayerLocales.of(player, profiles);
-        network.connectToGroup(player.getUniqueId(), group).thenAccept(result -> plugin.getServer()
+        network.travel(player.getUniqueId(), QueueTarget.group(group)).thenAccept(result -> plugin.getServer()
                 .getScheduler().runTask(plugin, () -> {
-                    if (!player.isOnline()) {
+                    if (!player.isOnline() || result.waiting() || result.status() == QueueStatus.NOT_LEADER) {
                         return;
                     }
-                    if (result.isEmpty()) {
-                        player.sendMessage(locale.render("play.no-server", playerLocale,
+                    if (!result.sent()) {
+                        player.sendMessage(locale.render("play.no-server", PlayerLocales.of(player, profiles),
                                 Placeholder.unparsed("group", group)));
                         deny(player);
                         return;
                     }
-                    player.sendMessage(locale.render("lobby.navigator.connecting", playerLocale,
-                            Placeholder.component("server", locale.format(result.get().displayName()))));
-                    player.playSound(TELEPORT, Sound.Emitter.self());
+                    arrived(player, result.server().orElse(group), result);
                 }));
+    }
+
+    private void arrived(Player player, String fallback, QueueResult result) {
+        if (!player.isOnline() || result.waiting() || result.status() == QueueStatus.NOT_LEADER) {
+            return;
+        }
+        Locale playerLocale = PlayerLocales.of(player, profiles);
+        if (result.status() == QueueStatus.ALREADY_THERE) {
+            player.sendActionBar(locale.render("lobby.navigator.already-here", playerLocale));
+            return;
+        }
+        String name = result.server().orElse(fallback);
+        Component shown = directory.byName(name).map(server -> locale.format(server.displayName()))
+                .orElseGet(() -> Component.text(name));
+        if (!result.sent()) {
+            player.sendMessage(locale.render("lobby.selector.unreachable", playerLocale,
+                    Placeholder.component("lobby", shown)));
+            deny(player);
+            return;
+        }
+        player.sendMessage(locale.render("lobby.navigator.connecting", playerLocale,
+                Placeholder.component("server", shown)));
+        player.playSound(TELEPORT, Sound.Emitter.self());
     }
 
     public void premium(Player player) {

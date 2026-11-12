@@ -26,6 +26,14 @@ class RouteTest {
     }
 
     @Test
+    void aPlayerActionTravelsThroughThatPlayer() {
+        assertEquals(Optional.of(other), Route.prefer(List.of(suspect, other), other, null, true).player());
+        assertEquals(Optional.of(suspect), Route.prefer(List.of(suspect), other, null, false).player());
+        assertEquals(Route.BUS, Route.prefer(List.of(), other, null, true));
+        assertEquals(Optional.of(suspect), Route.prefer(List.of(suspect, other), null, null, false).player());
+    }
+
+    @Test
     void anEmptyServerNeedsTheBus() {
         assertEquals(Route.BUS, Route.choose(List.of(), null, true));
         assertEquals(Route.NONE, Route.choose(List.of(), suspect, false));

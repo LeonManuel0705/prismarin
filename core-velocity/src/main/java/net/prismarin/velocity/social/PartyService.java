@@ -643,17 +643,21 @@ public final class PartyService {
                             .filter(found -> context.visibleTo(player, found));
                     String key = "party.list-" + role.id() + (online.isEmpty() ? "-offline" : "");
                     context.send(player, key, Placeholder.unparsed("player", context.shownTo(player, member)),
-                            Placeholder.unparsed("server", online.map(context::serverOf).orElse("-")));
+                            Placeholder.unparsed("server", online.map(context::serverOf).orElse("-")),
+                            Placeholder.component("clan", context.clanBadge(player, "party", member)));
                 }
             }
             for (UUID invited : current.invites().keySet()) {
                 context.send(player, "party.list-invited", Placeholder.unparsed("player", context.shownTo(player, invited)));
             }
-            player.sendMessage(context.render(player, "party.list-settings",
-                            Placeholder.component("role", context.render(player,
-                                    "party.role." + current.role(player.getUniqueId()).id())))
-                    .append(Component.space())
-                    .append(context.button(player, "party.button.settings", command() + " settings")));
+            Component settingsLine = context.render(player, "party.list-settings",
+                    Placeholder.component("role", context.render(player,
+                            "party.role." + current.role(player.getUniqueId()).id())));
+            if (context.available(SocialSetting.Feature.PARTY, "settings")) {
+                settingsLine = settingsLine.append(Component.space())
+                        .append(context.button(player, "party.button.settings", command() + " settings"));
+            }
+            player.sendMessage(settingsLine);
         });
     }
 

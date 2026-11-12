@@ -28,7 +28,8 @@ net.prismarin.api
 ├── Prismarin                serverId, branding, profiles, economy, locale, messageBus, servers, serverStatus, events,
 │                            enabledSystems(), systemEnabled(name)
 │                            players, friends, parties, reports, punishmentTemplates, nicks, storage, audit,
-│                            maintenance, notifications, levels, vanish, staffMode, chatFilter, alts
+│                            maintenance, notifications, levels, vanish, staffMode, chatFilter, alts,
+│                            stats, dailyRewards, votes, queue
 │                            (Standardmethoden über die Halter unten)
 ├── PrismarinSystems         ECONOMY, LEVELS, NETWORK_STATUS
 ├── PrismarinProvider        get(), isAvailable(); register/unregister nur durch die Core-Plugins
@@ -101,15 +102,50 @@ net.prismarin.api
 │   ├── ProfileService       load/getCached/save/unload/modify
 │   ├── ProfileLoadedEvent   nach dem Laden (created = Erstjoin)
 │   └── ProfileUnloadedEvent nach Speichern und Entladen
+├── queue
+│   ├── QueueService         join, leave, positions, position, size, queues, queue, pause, resume, clear, sendNext,
+│   │                        joinable(server, joinable), closedServers
+│   ├── QueueTarget          Record (kind GROUP/SERVER, name), group(name), server(name), parse("group:x"), id()
+│   ├── QueueResult          Record (status, server, position), sent(), waiting()
+│   ├── QueueStatus          SENT, QUEUED, ALREADY_QUEUED, ALREADY_THERE, NOT_LEADER, UNKNOWN_TARGET, NO_SERVER,
+│   │                        OFFLINE, CANCELLED, DISABLED, FAILED
+│   ├── QueuePosition        Record (target, owner, party, position, size, players, priority, paused, joinedAt, online)
+│   ├── QueueInfo, QueueEntry  Übersicht einer Warteschlange und ein Eintrag darin
+│   ├── QueueJoinedEvent, QueueLeftEvent (Reason), QueueSentEvent, QueuePausedEvent
+│   ├── QueueJoinEvent, QueueSendEvent  abbrechbar, nur auf dem Proxy
+│   └── QueueApi             holder behind Prismarin.queue(), BYPASS_PERMISSION
 ├── server
 │   ├── NetworkServer        Record (name, displayName, host, port, group, properties), GROUP_LOBBY, GROUP_DEFAULT
 │   ├── ServerDirectory      servers(), byName(name), byGroup(group)
 │   ├── ServerStatus         online, players, maxPlayers, latencyMillis, version, prismarin, tps, mspt, RAM, uptime
 │   └── ServerStatusService  statuses(), status(name), refresh()
+├── reward
+│   ├── RewardApi            Halter für DailyRewardService und VoteService, handlers()
+│   ├── Reward               Record (currencies, xp, levels, commands, messages, custom), EMPTY, plus(), Fabriken
+│   ├── RewardContext        Record (source daily/vote, player, name, streak, detail)
+│   ├── RewardHandler, RewardHandlers  eigene Belohnungen per id, global()
+│   ├── DailyRewardService   status, cached, claim, reward(streak), cycle
+│   ├── DailyStatus, DailyClaim (Result CLAIMED/ALREADY_CLAIMED)
+│   ├── DailyRewardClaimedEvent, DailyStreakBrokenEvent
+│   ├── VoteService          sites, vote(name|uuid, service), stats, pending, claim
+│   ├── Vote, VoteSite, VoteStats
+│   └── VoteReceivedEvent, VoteRewardGivenEvent
 ├── staff
 │   ├── StaffModeService     active, enter, leave, toggle, nickIncluded, vanishIncluded
 │   ├── StaffModeChangedEvent
 │   └── StaffModeApi         holder behind Prismarin.staffMode()
+├── stats
+│   ├── StatsApi             Halter hinter Prismarin.stats()
+│   ├── StatsService         increment, set, record, stats, cached, top, cachedTop, rank, cachedRank, periods,
+│   │                        periodId, definition(s), define, format, game(id), games(), defineGame,
+│   │                        registerSource, source(game)
+│   ├── StatKeys             [a-z0-9][a-z0-9.-]{0,63}, game(key), humanize(key), gameId, gameName, inGame
+│   ├── StatPeriod, StatOrder, StatFormat (number, plain, duration, millis, decimal, guess(key))
+│   ├── StatDefinition       Record (key, name, format, order, inStats, inProfile)
+│   ├── StatGame             Record (id, name, icon, color, order, featured), of, withName, withIcon, ...
+│   ├── StatSource           pull source: game, values(player[, period]), periods, topLists, top, of(game, fn)
+│   ├── PlayerStats, StatChange, Leaderboard, LeaderboardEntry
+│   └── StatChangedEvent, StatRecordEvent
 ├── storage
 │   ├── DataStorage          namespace(name) -> DataNamespace
 │   ├── DataNamespace        collection(name) roh, collection(name, Typ[, Gson]) typisiert
@@ -189,4 +225,13 @@ Both are platform neutral interfaces with the Paper implementation of `Prismarin
 
 ## Tests
 
-`PlayerProfileTest`, `CurrencyTest`, `BrandingTest`, `ViewerRulesTest`, `NetworkPlayerTest`, `PlayerAttributesTest`, `PlayerProfileProgressTest` (progress listener rules), `LevelProgressTest`, `VanishApiTest` (holders, toggle defaults, event level), `StorageNamesTest`, `TypedCollectionTest`, `NoticeTextTest`, `AdminModelTest`.
+`StatModelTest`, `StatGameTest` (fallback names, game metadata, guessed formats, lambda sources), `PlayerProfileTest`, `CurrencyTest`, `BrandingTest`, `ViewerRulesTest`, `NetworkPlayerTest`, `PlayerAttributesTest`, `PlayerProfileProgressTest` (progress listener rules), `LevelProgressTest`, `VanishApiTest` (holders, toggle defaults, event level), `StorageNamesTest`, `TypedCollectionTest`, `NoticeTextTest`, `AdminModelTest`, `QueueTargetTest` (targets, ids, results).
+
+## JoinMe and skin faces
+
+`net.prismarin.api.joinme`: `JoinMeService` (behind `Prismarin.joinMe()`, holder `JoinMeApi`), `JoinMe`, `JoinMeSpot`, `JoinMeAudience`, `JoinMeRequest`, `JoinMeResult`, `JoinMeHandler`, `JoinMeScope` (`server`, `groups`, `worlds`, `when`), `JoinMeArrival`, `JoinMeOutcome` and the events `JoinMeCreateEvent`, `JoinMeCreatedEvent`, `JoinMeJoinEvent`, `JoinMeArrivedEvent`, `JoinMeExpiredEvent`, `JoinMePreviewEvent` (placeholders and face rows of a `/joinme preview`, never cancellable). `JoinMeService.preview(uuid)` and `preview(JoinMeRequest)` send the broadcast only to the creator. `net.prismarin.api.skin`: `SkinFaces` (behind `Prismarin.skinFaces()`, holder `SkinFaceApi`) and `ChatFace`. Usage in [`docs/api.md`](../api.md#joinme). Tests: `JoinMeModelTest`, `ChatFaceTest`.
+
+
+## Cosmetics
+
+`net.prismarin.api.cosmetics`: `CosmeticService` (behind `Prismarin.cosmetics()`, holder `CosmeticApi`), `Cosmetic`, `CosmeticSlot` (`TRAIL`, `AURA`, `HAT`, `PROJECTILE_TRAIL`, `KILL_EFFECT`, `WIN_EFFECT` or own ids), `CosmeticLook` with `CosmeticParticles` and `CosmeticHat`, `CosmeticPrice`, `CosmeticRarity`, `CosmeticRenderer`, `CosmeticFrame`, `CosmeticPoint`, `CosmeticSpot`, `CosmeticViewFilter`, `PlayerCosmetics`, `OwnedCosmetic`, `CosmeticSource`, `CosmeticResult`, the effect kinds `CosmeticEffectKind` and `CosmeticEffectFrame` (`CosmeticParticles` carries `kind`, `duration` and `variant`), `CosmeticApi.effectEntity(uuid)` and the events `CosmeticPurchaseEvent`, `CosmeticEquipEvent`, `CosmeticEffectEvent` (all cancellable, the last with its `Trigger`), `CosmeticUnlockedEvent`, `CosmeticUnequippedEvent`. Usage in [`docs/api.md`](../api.md#cosmetics). Tests: `CosmeticModelTest`.
