@@ -28,7 +28,8 @@ net.prismarin.api
 ├── Prismarin                serverId, branding, profiles, economy, locale, messageBus, servers, serverStatus, events,
 │                            enabledSystems(), systemEnabled(name)
 │                            players, friends, parties, reports, punishmentTemplates, nicks, storage, audit,
-│                            maintenance, notifications, levels, vanish, staffMode (Standardmethoden über die Halter unten)
+│                            maintenance, notifications, levels, vanish, staffMode, chatFilter, alts
+│                            (Standardmethoden über die Halter unten)
 ├── PrismarinSystems         ECONOMY, LEVELS, NETWORK_STATUS
 ├── PrismarinProvider        get(), isAvailable(); register/unregister nur durch die Core-Plugins
 ├── admin
@@ -64,6 +65,20 @@ net.prismarin.api
 ├── messaging
 │   ├── MessageBus           publish/subscribe/close/serverId, JSON-Payloads
 │   └── NetworkMessage       Record-Envelope
+├── moderation
+│   ├── ModerationApi        holders behind reports(), punishmentTemplates(), chatFilter(), alts()
+│   ├── ChatFilterService    check(text), filter(ChatMessage), rules(), registerRule, unregisterRule
+│   ├── ChatFilterRule       id(), check(ChatMessage) -> Optional<ChatFilterMatch>, ID pattern
+│   ├── ChatMessage          sender, senderName, channel (PUBLIC, PRIVATE, PARTY, TEXT or own), text
+│   ├── ChatFilterMatch      rule, action, detail, text; block, warn, log, replace, as(action)
+│   ├── ChatFilterAction     BLOCK, REPLACE, WARN, LOG
+│   ├── ChatFilterResult     original, text, blocked, matches; clean, changed, warned, blocking, rules
+│   ├── ChatFilteredEvent    cancellable, on the server that filtered the message
+│   ├── ChatFilterEscalatedEvent  proxy, a rule reached its escalation threshold
+│   ├── AltService           alts(uuid), bannedAlts(uuid), related(first, second)
+│   ├── AltAccount           uuid, name, firstSeen, lastSeen, sharedAddresses, banned, muted
+│   ├── BannedAltJoinEvent   proxy, an account sharing an address with a banned one joined
+│   └── Punishment, Report and template types (see core-velocity.md)
 ├── nick
 │   ├── NickService          isNicked, shownNick, realName, nick, nickRandom, unnick, autoNick, Runden-Marker
 │   ├── NickApi              Halter hinter Prismarin.nicks()

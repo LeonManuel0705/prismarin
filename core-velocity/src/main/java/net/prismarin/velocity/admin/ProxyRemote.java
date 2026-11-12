@@ -35,7 +35,8 @@ public final class ProxyRemote {
         AdminApi.register(context.services().auditService(), available, notifications);
         StorageApi.register(context.services().dataStorage());
         RemoteDispatcher dispatcher = new RemoteDispatcher(context.services().auditService(),
-                () -> Optional.ofNullable(available), notifications, ModerationApi::reports, ModerationApi::templates);
+                () -> Optional.ofNullable(available), notifications, ModerationApi::reports, ModerationApi::templates,
+                ModerationApi::alts);
         new ProxyRemote(context, dispatcher, logger).start();
     }
 

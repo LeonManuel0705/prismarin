@@ -342,3 +342,58 @@ Classes: `ProxyRemote`, `ProxyMaintenance`, `ProxyNotifications`; texts `alerts.
 `update-check` in `config.yml` asks `api.github.com/repos/LeonManuel0705/prismarin/releases/latest` on start and every `interval-hours` (default 6). A newer release is logged once, fires `UpdateAvailableEvent` and, with `notify-staff`, shows staff with `prismarin.admin.update` a clickable note on join.
 
 `metrics.enabled` sends anonymous bStats data (bstats.org): the standard charts plus `storage_mode`, `redis`, `default_language`. bStats is shaded and relocated to `net.prismarin.libs.bstats`, `plugins/bStats/config.yml` switches it off for every plugin.
+
+## Chat filter on the proxy
+
+Module `chat-filter` in `config.yml`. The proxy has its own `chat-filter.yml` in `plugins/prismarin-core` with the same keys as a backend (see [`core-paper.md`](core-paper.md#chat-filteryml)) plus `proxy-commands`.
+
+`ProxyChatFilter` listens to `CommandExecuteEvent` (order `EARLY`). For a player without `prismarin.chatfilter.bypass` it looks for a pattern from `proxy-commands.channels`, filters the message part and then denies the command (blocked) or rewrites it (changed; `command(...)` for proxy commands, `forwardToServer(...)` for backend commands). Commands with signed arguments (`SignedState.SIGNED_WITH_ARGS`) are left alone, because changing or denying them disconnects the client; the private and party commands of PRISMARIN run on the proxy and are never signed.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `proxy-commands.enabled` | `true` | false keeps the proxy from filtering commands; backend hits are still handled |
+| `proxy-commands.channels.private` | `msg`, `tell`, `w`, `whisper`, `m` with `<player> <message>`, `r` and `reply` with `<message>` | the default names of `social.yml` |
+| `proxy-commands.channels.party` | `pc`, `partychat`, `party chat`, `p chat` with `<message>` | |
+| `proxy-commands.channels.<name>` | | any channel of your own, for example `clan: ["cc <message>", "clan chat <message>"]` |
+
+Each entry is the command, optional sub commands and `<argument>`s, and ends with the message. Longer command paths are tried first, wrong entries are logged and skipped. Tested in `ChatCommandPatternsTest`.
+
+`ChatViolations` handles every hit, from the proxy itself and from `chat-violation` messages of the backends:
+
+- **Staff alert** `chat-filter.staff` (`%player%`, `%server%`, `%rules%` with the localised action, `%message%`) with a hover (`%channel%`, `%details%`, `%shown%`) and a click on `/check`, for `prismarin.staff.chatfilter` and the console; at most one alert per player every two seconds.
+- **Audit** entry by "Chat filter" (`chat-filter.name`), action `chat-filter.block`, `.replace`, `.warn` or `.log`, target the player, details `rules (channel): message` (200 characters).
+- **Escalation**: `ViolationCounter` (in `:shared`) counts hits per player and rule for the whole network, backends and proxy together, in memory. When a rule reaches `violations` within `within`: alert `chat-filter.escalated`, audit `chat-filter.escalation`, `PunishmentFlow.punish(target, template, "Chat filter", note)` with the note `chat-filter.escalation-note` (`automatic after 3 hits (words)`), so the escalation steps of the template apply as for staff; nothing is punished when `modules.punishments` is off, the template does not exist (warning in the log) or the player has `prismarin.punish.exempt`. With `report: true`, `ReportFlow.fileWithEvidence` files a report by "Chat filter" (`ReportAction.CONSOLE`) with the reason `report-reason`, the details `chat-filter.report-details` and the counted messages as chat evidence (`> 12:00:01 Steve: text [words, private]`, at most 20 lines); within the merge window it joins an open report against the same player. Reports by `ReportAction.CONSOLE` never thank anyone. Then the counter for that rule starts again and `ChatFilterEscalatedEvent(player, name, rule, violations, template, reported)` fires.
+
+Texts under `chat-filter` in both language files: `name`, `blocked`, `changed`, `warned`, `reason.<rule>`, `action.<action>`, `staff`, `staff-hover`, `escalated`, `escalation-note`, `report-details`. Permissions: `prismarin.chatfilter.bypass` (and `.<rule>`), `prismarin.staff.chatfilter`. Velocity has no permission defaults, give them with LuckPerms.
+
+`ProxyChatFilter` is the `ChatFilterService` behind `Prismarin.chatFilter()` on the proxy; `filter` with a channel of your own is the way for proxy plugins (for example a clan chat) to run their messages through the same rules and escalation.
+
+### Channel `prismarin:moderation`
+
+| Type | Direction | Content |
+| --- | --- | --- |
+| `chat-violation` | server to proxy | `uuid`, `name`, `channel`, `message`, `shown`, `blocked`, `entries[]` (see [`core-paper.md`](core-paper.md#what-goes-to-the-proxy)) |
+
+## Alt accounts
+
+Module `alts` in `config.yml`. `AltTracker` listens to `LoginEvent` (order `LATE`, after bans and maintenance) and stores the address of every login as salted SHA-256 hash through `AddressKeys`, the same instance and salt the IP bans use (IPv6 as its /64 network). Plain addresses are never written anywhere.
+
+| `alts.yml` | Default | Meaning |
+| --- | --- | --- |
+| `max-addresses-per-player` | `10` | addresses kept per player, the oldest goes first |
+| `shared-address-limit` | `10` | an address with more accounts than this is treated as shared (school, mobile network, a proxy in front of the network) and links nobody |
+| `retention` | `90d` | how long an address is remembered after its last login; older entries are removed one minute after the start and once a day |
+| `alert-staff` | `true` | alert when an account joins that shares an address with a banned account |
+| `enforce-bans` | `false` | such accounts are turned away with the ban screen of the banned account, and a new ban disconnects online alts |
+
+On a login that is still allowed, for a player without `prismarin.alts.bypass`: when an alt has a ban in force, `alts.join-alert` goes to `prismarin.staff.alts` and the console (click: `/alts <player>`), the audit log gets `alts.banned-alt` and `BannedAltJoinEvent(player, name, bannedAlts, false)` fires. Without `enforce-bans` the login does not wait for this check. With `enforce-bans` (and `modules.punishments` on) the login waits, is denied with `PunishmentFlow.screen` of the alt's ban, staff see `alts.join-denied`, the audit log `alts.denied` and the event has `denied = true`; `PunishmentIssuedEvent` of a ban disconnects online alts without the bypass (`alts.removed` for staff).
+
+| Command | Effect | Permission |
+| --- | --- | --- |
+| `/alts <player>` | accounts that share an address with the player: online server or last seen, addresses in common, marks for bans and mutes, hover with first and last seen, click for `/check` | `prismarin.staff.alts` |
+
+`/check` and `/pinfo` show a line `Alts:` with up to six names (banned red, muted gold, click for `/check`) while the module is on. Texts under `alts` plus `info.alts` and `punishment.check.alts`.
+
+Storage (shared `DocumentStore`, every storage mode): `alt-accounts/<uuid>` with name, first and last login and the newest `max-addresses-per-player` hashes with first and last use; `alt-addresses/<hash>` with up to `shared-address-limit + 1` accounts (uuid, name, first and last use). A lookup reads the player's hashes, the accounts behind each fresh hash and the current name of each alt; bans and mutes come from `PunishmentService.active`. Classes: `AltTracker`, `AltSettings`, `AltCommands`; shared `AltStore`, `DocumentAltService`. Tests: `AltSettingsTest`, `ChatFilterMessagesTest`, `AltStoreTest`, `RemoteAltsTest`.
+
+`DocumentAltService` is the `AltService` behind `Prismarin.alts()`; backends ask the proxy with the network call `alts-find`.

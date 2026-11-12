@@ -392,14 +392,7 @@ public final class ReportFlow {
 
     CompletableFuture<ReportService.Submission> fileFor(UUID reporter, String reporterName, UUID target,
                                                         String text) {
-        Optional<Player> online = context.proxy().getPlayer(target);
-        CompletableFuture<Optional<Subject>> subject = online.isPresent()
-                ? CompletableFuture.completedFuture(Optional.of(new Subject(target, online.get().getUsername(),
-                        nicks.shownName(online.get()), online)))
-                : context.services().profiles().find(target).thenApply(profile -> profile.map(value ->
-                        new Subject(target, value.getName(), nicks.shownNick(target).orElse(value.getName()),
-                                Optional.empty())));
-        return subject.thenCompose(found -> {
+        return subject(target).thenCompose(found -> {
             if (found.isEmpty()) {
                 return CompletableFuture.failedFuture(new IllegalArgumentException(target + " never joined"));
             }
@@ -414,6 +407,31 @@ public final class ReportFlow {
             return store(reporter, reporterName, found.get(), details.isEmpty() ? label : label + ": " + details,
                     reason.get().id());
         });
+    }
+
+    public CompletableFuture<ReportService.Submission> fileWithEvidence(String reporterName, UUID target,
+                                                                        String reasonId, String details,
+                                                                        List<String> chat) {
+        return subject(target).thenCompose(found -> {
+            if (found.isEmpty()) {
+                return CompletableFuture.failedFuture(new IllegalArgumentException(target + " never joined"));
+            }
+            Optional<ReportReason> reason = registry.reason(reasonId);
+            String label = reason.map(value -> value.plain(context.messages().fallback())).orElse("");
+            String text = label.isEmpty() ? details : details.isEmpty() ? label : label + ": " + details;
+            return store(ReportAction.CONSOLE, reporterName, found.get(), text, reason.map(ReportReason::id)
+                    .orElse(null), chat);
+        });
+    }
+
+    private CompletableFuture<Optional<Subject>> subject(UUID target) {
+        Optional<Player> online = context.proxy().getPlayer(target);
+        return online.isPresent()
+                ? CompletableFuture.completedFuture(Optional.of(new Subject(target, online.get().getUsername(),
+                        nicks.shownName(online.get()), online)))
+                : context.services().profiles().find(target).thenApply(profile -> profile.map(value ->
+                        new Subject(target, value.getName(), nicks.shownNick(target).orElse(value.getName()),
+                                Optional.empty())));
     }
 
     @Subscribe
@@ -584,8 +602,14 @@ public final class ReportFlow {
 
     private CompletableFuture<ReportService.Submission> store(UUID reporter, String reporterName, Subject target,
                                                               String reason, String reasonId) {
-        ChatHistory.Evidence evidence = evidence(target, reasonId);
-        List<String> chat = format(evidence, target.uuid());
+        return store(reporter, reporterName, target, reason, reasonId, null);
+    }
+
+    private CompletableFuture<ReportService.Submission> store(UUID reporter, String reporterName, Subject target,
+                                                              String reason, String reasonId, List<String> attached) {
+        ChatHistory.Evidence evidence = attached == null ? evidence(target, reasonId)
+                : new ChatHistory.Evidence("", List.of());
+        List<String> chat = attached == null ? format(evidence, target.uuid()) : List.copyOf(attached);
         String server = target.online().map(StaffCommands::serverOf)
                 .orElse(evidence.server().isEmpty() ? "offline" : evidence.server());
         String situation = target.online().map(ReportFlow::snapshot)
@@ -692,6 +716,9 @@ public final class ReportFlow {
         }
         List<UUID> offline = new ArrayList<>();
         for (UUID reporter : reporters) {
+            if (ReportAction.CONSOLE.equals(reporter)) {
+                continue;
+            }
             Optional<Player> online = context.proxy().getPlayer(reporter);
             if (online.isPresent()) {
                 context.send(online.get(), "reports.thanks", Placeholder.unparsed("player", targetName));

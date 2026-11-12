@@ -241,6 +241,10 @@ public final class ModerationChannel implements PluginMessageListener {
         player.sendPluginMessage(plugin, ID, message.toString().getBytes(StandardCharsets.UTF_8));
     }
 
+    public void sendChatViolation(Player player, JsonObject violation) {
+        player.sendPluginMessage(plugin, ID, violation.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
     public void sendVanish(Player player, boolean vanished, int level) {
         JsonObject message = new JsonObject();
         message.addProperty("type", "vanish");

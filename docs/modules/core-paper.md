@@ -542,6 +542,7 @@ Classes: `PaperPlayerService`, `PlayerTracker` (events, state reports), `ProxyPl
 | `NotificationService` | `RemoteNotifications`, `Delivery.NO_ROUTE` without a route |
 | `ReportService`, `PunishmentTemplates` | `RemoteReports`, `RemoteTemplates` with a `ModerationCatalog` for `reasons()`, `templates()` and `claimTimeout()`, refreshed at most once a minute and 40 ticks after a join |
 | `NickService` | the `NickManager`, now also behind `Prismarin.nicks()` |
+| `AltService` | `RemoteAlts`, every call goes to the proxy (`alts-find`) |
 
 `PaperProxyLink` carries the calls: it picks an online player other than the one to avoid (a punished player could be kicked before the answer arrives), falls back to the Redis bus and only then to the avoided player, sends `network-request` with that player as carrier, and completes the call when `network-answer` arrives through the same player, after five seconds with a `TimeoutException`, or when the carrier quits. `network-event` messages from the proxy are published on the local `EventBus` (currently `ReportFiledEvent`). `ModerationChannel` only got the two message types and `handleRemote`.
 
@@ -552,3 +553,64 @@ Classes: `PaperPlayerService`, `PlayerTracker` (events, state reports), `ProxyPl
 `update-check` in `config.yml` asks `api.github.com/repos/LeonManuel0705/prismarin/releases/latest` on start and every `interval-hours` (default 6). A newer release is logged once, fires `UpdateAvailableEvent` and, with `notify-staff`, shows staff with `prismarin.admin.update` a clickable note on join.
 
 `metrics.enabled` sends anonymous bStats data (bstats.org): the standard charts plus `storage_mode`, `redis`, `default_language` and `lobby`. bStats is shaded and relocated to `net.prismarin.libs.bstats`, `plugins/bStats/config.yml` switches it off for every plugin.
+
+## Chat filter
+
+`PaperChatFilter` (module `chat-filter`) checks every chat message before it is sent. It listens to `AsyncChatEvent` at priority `LOW` with `ignoreCancelled`: muted players are already stopped by `MuteListener` (`LOWEST`), and the filter runs before PRISMARIN's chat format (`NORMAL`) and before most chat plugins. It works the same when `modules.chat` is off and another plugin formats the chat. A blocked message is cancelled, a changed one continues with the new text. With `compatibility.auto-detect` the module steps aside when ChatSentry, ChatControl or ChatControlRed is installed.
+
+The rules come from the shared engine (`net.prismarin.shared.chatfilter`, see [`shared.md`](shared.md#chat-filter-engine)) in this order: `flood`, `repeat`, `words`, `links`, `caps`, then plugin rules. A `flood` block stops the check, every other rule is checked so staff see all hits. Flood and repeat are counted per player and channel and forgotten on quit.
+
+### `chat-filter.yml`
+
+Written with comments on the first start, missing keys are added on every start. Every rule has `enabled`, `action`, `notify-staff`, `audit`, `skip-channels` and an `escalation` block.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `replacement` | `***` | replaces a word or a link when the action is `replace` |
+| `<rule>.action` | `words` block, `caps` replace, `links` block, `repeat` block, `flood` block | `block` (not sent, the writer is told why), `replace` (only `words`, `links` and `caps`; caps are written small), `warn` (sent, the writer gets a warning), `log` (sent unchanged, only staff and the audit log see it) |
+| `<rule>.notify-staff` | `true` for `words` and `links` | alert on the proxy for `prismarin.staff.chatfilter` |
+| `<rule>.audit` | `true` for `words` and `links` | audit entry `chat-filter.<action>` on the proxy |
+| `<rule>.skip-channels` | `repeat: [private]`, otherwise `[]` | channels the rule ignores (`public`, `private`, `party` or a plugin's channel) |
+| `<rule>.escalation.enabled` | `true` except for `caps` | count hits on the proxy |
+| `<rule>.escalation.violations`, `.within` | `words` 3 in `10m`, `links` 3 in `30m`, `repeat` 5 in `5m`, `flood` 6 in `2m`, `caps` 10 in `10m` | threshold and window |
+| `<rule>.escalation.template` | `chat` for `words`, `spam` otherwise | template from `punishments.yml`, empty for none |
+| `<rule>.escalation.report`, `.report-reason` | `true` for `words` (`chat`) and `links` (`spam`) | automatic report with the counted messages as chat evidence |
+| `words.list` | 29 common German and English insults and slurs | a plain entry matches whole words only, `word*` words that start with it, `*word` words that end with it, `*word*` any word containing it; entries with spaces match words in a row |
+| `words.patterns` | `[]` | regular expressions on the original text, without case |
+| `words.allowed` | `[]` | words that never count |
+| `caps.percent`, `caps.min-letters` | `70`, `8` | share of capitals; shorter messages such as OK, GG or LOL are never checked |
+| `links.block-ips` | `true` | IPv4 addresses with or without port |
+| `links.allowed-domains` | `[]` | allowed domains including their subdomains, for example your own |
+| `links.top-level-domains` | 67 common endings | endings that count without `http://`; addresses with `http://` or `https://` always count |
+| `repeat.similarity`, `.within`, `.history`, `.min-length` | `85`, `30s`, `3`, `4` | similarity in percent (edit distance on the simplified text) to one of the last messages |
+| `flood.messages`, `flood.within` | `4`, `5s` | messages allowed in the window; blocked attempts count too |
+| `custom.<id>` | `{}` | settings for plugin rules by id; an empty `action` keeps the plugin's choice |
+
+How lenient the word match is: case, accents and full width letters are folded (NFKD, `ß` as `ss`), look-alike Cyrillic and Greek letters count as Latin ones, leetspeak is read (`0 o`, `1 i`, `3 e`, `4 a`, `5 s`, `7 t`, `8 b`, `9 g`, `@ a`, `$ s`, `! i`, `| i`, `€ e`, `£ l`), every letter may repeat (`fuuuck`) while doubled letters of an entry stay required (`niger` never matches `nigger`), dots, dashes and zero width spaces inside a word are ignored (`f.u.c.k`), single letters with spaces between them are joined (`f u c k`) and punctuation splits words (`you,idiot`). Replacements keep the punctuation around a word (`idiot!` becomes `***!`). Links are also found as `example dot com`, `example (.) com`, `example [dot] net`, `example . com` and with the ideographic full stop; e-mail addresses do not count.
+
+### Permissions and texts
+
+| Permission | Default | Effect |
+| --- | --- | --- |
+| `prismarin.chatfilter.bypass` | `op` | skips the whole filter |
+| `prismarin.chatfilter.bypass.<rule>` | not declared, so `op` | skips one rule, for example `prismarin.chatfilter.bypass.caps` |
+
+Texts under `chat-filter` in `messages_de.yml` and `messages_en.yml`: `blocked`, `changed`, `warned` with `%reason%` from `reason.<rule>`; plugin rules use `reason.custom` unless the operator adds `reason.<id>`. Only the strongest action is told: block, then warn, then replace.
+
+### What goes to the proxy
+
+When a hit needs the proxy (alert, audit or escalation), the filter sends `chat-violation` on `prismarin:moderation` through the writing player, on the main thread:
+
+| Field | Content |
+| --- | --- |
+| `uuid`, `name`, `channel` | the writer and the channel |
+| `message`, `shown`, `blocked` | the original text (at most 512 characters), the shown text (empty when blocked) |
+| `entries[]` | per rule `rule`, `action`, `detail` (word, domain, percentage), `alert`, `audit`, `escalation` (`enabled`, `violations`, `window` in ms, `template`, `report`, `report-reason`) |
+
+The proxy takes it only from a `ServerConnection` whose player is `uuid`, checks every field again (rule ids, actions, lengths, ids of templates and reasons, at most 16 entries, windows between one second and seven days) and does the rest, see [`core-velocity.md`](core-velocity.md#chat-filter-on-the-proxy). Without a PRISMARIN proxy, or with its module off, the backend still blocks, changes and warns.
+
+### API
+
+`PaperChatFilter` is the `ChatFilterService` behind `Prismarin.chatFilter()` and in the `ServicesManager` while the module is on (see [`api.md`](../api.md#chat-filter)). `filter` uses the online player for bypass permissions and the text to the writer, `check` never touches player state. `ChatFilteredEvent` is fired on the local `EventBus`, on the chat thread.
+
+Classes: `chatfilter/PaperChatFilter`; `ModerationChannel.sendChatViolation`; `CoreModule` provides `ChatFilterSettings`. Tests: `ChatFilterMessagesTest` (both languages, placeholders, a reason per rule) and the engine tests in `:shared`.

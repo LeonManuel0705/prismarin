@@ -168,6 +168,8 @@ permissions:
     default: op
   prismarin.admin.update:
     default: op
+  prismarin.chatfilter.bypass:
+    default: op
   prismarin.staff.mode:
     default: op
   prismarin.admin.level:

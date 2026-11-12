@@ -15,7 +15,8 @@ public final class ModuleState {
             CoreModules.CHAT, List.of("EssentialsChat", "ChatControl", "ChatControlRed", "VentureChat", "LPC",
                     "DeluxeChat", "CarbonChat", "ChatManager"),
             CoreModules.NICK, List.of("EazyNick", "NickNamer", "BetterNick"),
-            CoreModules.ESSENTIALS, List.of("Essentials", "CMI"));
+            CoreModules.ESSENTIALS, List.of("Essentials", "CMI"),
+            CoreModules.CHAT_FILTER, List.of("ChatSentry", "ChatControl", "ChatControlRed"));
 
     private static final Map<String, String> REQUIRED_SYSTEMS = Map.of(
             CoreModules.ECONOMY_COMMANDS, PrismarinSystems.ECONOMY,

@@ -1,6 +1,6 @@
 # PRISMARIN API
 
-Everything PRISMARIN does for a network is reachable from other plugins through the `:api` module: players, profiles, currencies, storage, friends, parties, nicks, reports, punishments, the audit log, maintenance, staff alerts, game states and the server directory. A game plugin or an anticheat never needs its own database, its own nick handling or its own connection to the proxy.
+Everything PRISMARIN does for a network is reachable from other plugins through the `:api` module: players, profiles, currencies, storage, friends, parties, nicks, reports, punishments, the chat filter, alt accounts, the audit log, maintenance, staff alerts, game states and the server directory. A game plugin or an anticheat never needs its own database, its own nick handling or its own connection to the proxy.
 
 This page lists every service, how to get it on Paper and on Velocity, the events, and short examples. The example plugin in [`example-paper`](../example-paper) uses most of it in small classes. Module details live in [`docs/modules`](modules).
 
@@ -70,7 +70,7 @@ depend: [PrismarinCore]
 Prismarin prismarin = PrismarinProvider.get();
 ```
 
-The same instances are registered in the Bukkit `ServicesManager`: `Prismarin`, `PlayerService`, `FriendService`, `PartyService`, `NickService` (when the nick module is on), `DataStorage`, `AuditService`, `MaintenanceService`, `NotificationService`, `ReportService` and `PunishmentTemplates`.
+The same instances are registered in the Bukkit `ServicesManager`: `Prismarin`, `PlayerService`, `FriendService`, `PartyService`, `NickService` (when the nick module is on), `DataStorage`, `AuditService`, `MaintenanceService`, `NotificationService`, `ReportService`, `PunishmentTemplates`, `AltService` and `ChatFilterService` (when the chat filter module is on).
 
 ```java
 NotificationService notifications = Bukkit.getServicesManager().load(NotificationService.class);
@@ -114,6 +114,8 @@ public final class MyPlugin {
 | `friends()`, `parties()` | `Optional<FriendService>`, `Optional<PartyService>` | yes | when the module is on |
 | `reports()` | `Optional<ReportService>` | forwarded to the proxy | when `modules.reports` is on |
 | `punishmentTemplates()` | `Optional<PunishmentTemplates>` | forwarded to the proxy | when `modules.punishments` is on |
+| `chatFilter()` | `Optional<ChatFilterService>` | this server's filter when `modules.chat-filter` is on | the proxy's filter for private and party messages when `modules.chat-filter` is on |
+| `alts()` | `Optional<AltService>` | forwarded to the proxy | when `modules.alts` is on |
 | `nicks()` | `Optional<NickService>` | when `modules.nick` is on | empty |
 | `storage()` | `DataStorage` | yes | yes |
 | `audit()` | `AuditService` | yes | yes |
@@ -231,6 +233,80 @@ On the proxy both services run directly. On a backend they forward every call to
 
 `ReportFiledEvent` fires on the proxy and, relayed by the proxy, on every backend with players online. Details: [`core-velocity.md`](modules/core-velocity.md#reports-ban-lists-and-the-moderation-api).
 
+## Chat filter
+
+```java
+prismarin.chatFilter().ifPresent(filter -> {
+    ChatFilterResult sign = filter.check(String.join(" ", lines));
+    if (sign.blocked()) {
+        event.setCancelled(true);
+    }
+
+    ChatFilterResult clan = filter.filter(new ChatMessage(uuid, name, "clan", text));
+    if (!clan.blocked()) {
+        clanChat.broadcast(clan.text());
+    }
+
+    filter.registerRule(new ChatFilterRule() {
+        @Override
+        public String id() {
+            return "no-spoilers";
+        }
+
+        @Override
+        public Optional<ChatFilterMatch> check(ChatMessage message) {
+            return message.text().contains("the ending")
+                    ? Optional.of(ChatFilterMatch.replace(id(), "spoiler", message.text().replace("the ending", "***")))
+                    : Optional.empty();
+        }
+    });
+});
+
+prismarin.events().subscribe(ChatFilteredEvent.class, event -> {
+    if (event.message().channel().equals("clan") && event.result().rules().equals(List.of("caps"))) {
+        event.setCancelled(true);
+    }
+});
+```
+
+| Call | What it does |
+|:---|:---|
+| `check(text)` | runs the content rules (`words`, `links`, `caps` and plugin rules) without player state and without side effects. For signs, books, item names, clan tags |
+| `filter(message)` | everything PRISMARIN does with its own chat: every rule including `flood` and `repeat` (counted per player and channel), `ChatFilteredEvent`, the text for the writer, the staff alert, the audit log and the escalation on the proxy. Use it only for messages PRISMARIN does not filter itself, otherwise flood and repeat count twice |
+| `rules()` | ids of the active rules: `flood`, `repeat`, `words`, `links`, `caps`, then plugin rules |
+| `registerRule(rule)`, `unregisterRule(id)` | plugin rules run after the built-in ones and see the text after their replacements. Ids match `[a-z0-9][a-z0-9_-]{0,31}`, built-in ids are refused, a second rule with the same id replaces the first. Operators tune them in `chat-filter.yml` under `custom.<id>` (enabled, action, staff alert, audit, channels, escalation) |
+
+| Type | What it holds |
+|:---|:---|
+| `ChatMessage` | sender (or `NOBODY`), sender name, channel (`public`, `private`, `party`, `text` or a name of your own) and text |
+| `ChatFilterMatch` | rule id, `ChatFilterAction`, detail (the word, domain or percentage that matched) and, for `REPLACE`, the changed text. Factories `block`, `warn`, `log`, `replace` |
+| `ChatFilterAction` | `BLOCK` (not sent), `REPLACE` (sent changed), `WARN` (sent, the writer is warned), `LOG` (sent, only staff and the audit log know) |
+| `ChatFilterResult` | original and shown text, `blocked`, every match; `clean()`, `changed()`, `warned()`, `blocking()`, `rules()` |
+
+The filter runs where the message is: a backend filters its public chat (`AsyncChatEvent` at priority `LOW`, so it also works when another plugin formats the chat), the proxy filters the commands listed under `proxy-commands` in its own `chat-filter.yml` (private and party messages). The backend reports every hit that needs the proxy as `chat-violation` on `prismarin:moderation`; the proxy shows it to `prismarin.staff.chatfilter`, writes the audit log and counts hits for the whole network. After `escalation.violations` hits of one rule within `escalation.within` the proxy applies the punishment template `escalation.template` with the next step of the player's record (actor "Chat filter") and, with `escalation.report: true`, files a report whose chat evidence is exactly the messages that counted. `ChatFilterEscalatedEvent` follows on the proxy.
+
+`ChatFilteredEvent` fires on the server that filtered the message, after the rules and before the writer is told. Cancelling it lets the original message through and skips the alert, the audit entry and the escalation. Details and every setting: [`core-paper.md`](modules/core-paper.md#chat-filter) and [`core-velocity.md`](modules/core-velocity.md#chat-filter-on-the-proxy).
+
+## Alt accounts
+
+```java
+prismarin.alts().ifPresent(alts -> alts.bannedAlts(uuid).thenAccept(banned -> {
+    if (!banned.isEmpty()) {
+        log(name + " shares an address with the banned account " + banned.getFirst().name());
+    }
+}));
+prismarin.events().subscribe(BannedAltJoinEvent.class, event ->
+        log(event.name() + " joined with " + event.bannedAlts().size() + " banned alts, denied " + event.denied()));
+```
+
+| Call | Result |
+|:---|:---|
+| `alts(uuid)` | every account that used one of the player's addresses within the retention, newest first, as `AltAccount` (uuid, name, first and last seen, number of shared addresses, `banned`, `muted`) |
+| `bannedAlts(uuid)` | only the accounts with a ban in force |
+| `related(first, second)` | whether `second` is one of the alts of `first` |
+
+The proxy stores a salted SHA-256 hash of every login address (IPv6 as its /64 network) with the salt of the IP bans, never the address itself, and neither the address nor the hash ever leaves the proxy through the API. Addresses that more accounts share than `shared-address-limit` (schools, mobile networks, a proxy in front of the network) link nobody. On a backend every call goes to the proxy and fails with "alt detection is off on the proxy" when `modules.alts` is off there. Details: [`core-velocity.md`](modules/core-velocity.md#alt-accounts).
+
 ## Punishments
 
 `punishments()` is the raw `PunishmentService`: `punish`, `active`, `history`, `inForce`, `revoke`. It writes to the shared storage directly and does not kick or notify; for the full flow (escalation, kick, staff message, audit) use `punishmentTemplates().punish`.
@@ -340,6 +416,8 @@ Subscribe with `prismarin.events().subscribe(Type.class, handler)` and keep the 
 | `PunishmentIssuedEvent`, `PunishmentRevokedEvent` | `moderation` | the server that issued or revoked it, usually the proxy |
 | `ReportFiledEvent` | `moderation` | the proxy, relayed to backends with players |
 | `ReportMergedEvent`, `ReportClaimedEvent`, `ReportReleasedEvent`, `ReportClosedEvent` | `moderation` | the proxy |
+| `ChatFilteredEvent` | `moderation` | the server that filtered the message: the backend for public chat, the proxy for private and party messages; cancellable |
+| `ChatFilterEscalatedEvent`, `BannedAltJoinEvent` | `moderation` | the proxy |
 | `FriendRequestEvent`, `FriendAddedEvent`, `FriendRemovedEvent` | `social` | the proxy |
 | `PartyCreatedEvent`, `PartyInviteEvent`, `PartyJoinedEvent`, `PartyLeftEvent`, `PartyRoleChangedEvent`, `PartySettingsChangedEvent`, `PartyDisbandedEvent` | `social` | the proxy, and backends with a member or invitee online |
 | `MaintenanceChangedEvent` | `admin` | the proxy |

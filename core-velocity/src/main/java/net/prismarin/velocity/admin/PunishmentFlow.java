@@ -23,6 +23,7 @@ import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
+import net.prismarin.api.moderation.AltAccount;
 import net.prismarin.api.moderation.Punishment;
 import net.prismarin.api.moderation.PunishmentRequest;
 import net.prismarin.api.moderation.PunishmentType;
@@ -58,11 +59,11 @@ public final class PunishmentFlow {
     private final Map<String, DateTimeFormatter> formats = new ConcurrentHashMap<>();
     private final Map<String, PunishmentTemplate> added = new LinkedHashMap<>();
 
-    public PunishmentFlow(AdminContext context, PunishmentSettings settings) {
+    public PunishmentFlow(AdminContext context, PunishmentSettings settings, AddressKeys addresses) {
         this.context = context;
         this.settings = settings;
         this.nicks = new NickDirectory(context.services().documents());
-        this.addresses = new AddressKeys(context.services().documents());
+        this.addresses = addresses;
         context.channel().handlePunishments(this::chosen);
         settings.problems().forEach(problem -> LOGGER.warn("{}: {}", PunishmentSettings.FILE_NAME, problem));
     }
@@ -484,16 +485,19 @@ public final class PunishmentFlow {
                 return;
             }
             Subject subject = found.get();
+            CompletableFuture<Optional<List<AltAccount>>> alts = AltCommands.lookup(subject.uuid());
             context.services().punishments().history(subject.uuid())
                     .thenCombine(context.services().reports().openAgainst(subject.uuid())
-                            .exceptionally(error -> List.of()), (history, reports) -> {
-                        sendCheck(source, subject, history, reports);
+                            .exceptionally(error -> List.of()), Map::entry)
+                    .thenCombine(alts, (record, accounts) -> {
+                        sendCheck(source, subject, record.getKey(), record.getValue(), accounts);
                         return null;
                     }).exceptionally(error -> failed(source, error));
         }).exceptionally(error -> failed(source, error));
     }
 
-    private void sendCheck(CommandSource source, Subject subject, List<Punishment> history, List<Report> reports) {
+    private void sendCheck(CommandSource source, Subject subject, List<Punishment> history, List<Report> reports,
+                           Optional<List<AltAccount>> alts) {
         long now = now();
         boolean visible = subject.online() != null && context.vanish().canSee(source, subject.online());
         context.send(source, KEY + "check.header", Placeholder.unparsed("player", subject.name()),
@@ -527,6 +531,8 @@ public final class PunishmentFlow {
                     Placeholder.unparsed("count", String.valueOf(outcome.previous())),
                     Placeholder.unparsed("next", stepText(source, outcome.step())));
         }
+        alts.ifPresent(accounts -> context.send(source, KEY + "check.alts", Placeholder.component("alts",
+                AltCommands.names(context, source, accounts))));
         source.sendMessage(context.messages().render(source, KEY + "check.footer",
                         Placeholder.unparsed("player", subject.name()))
                 .clickEvent(ClickEvent.runCommand("/history " + subject.name())));

@@ -40,6 +40,7 @@ import net.prismarin.core.rank.ExternalRankFormatProvider;
 import net.prismarin.core.rank.LuckPermsRankFormatProvider;
 import net.prismarin.core.rank.RankDisplayProvider;
 import net.prismarin.core.rank.RankFormatProvider;
+import net.prismarin.shared.chatfilter.ChatFilterSettings;
 import net.prismarin.shared.config.ConfigLoader;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.platform.CoreServices;
@@ -157,6 +158,12 @@ public final class CoreModule extends AbstractModule {
     @Singleton
     NickSettings nickSettings() {
         return NickSettings.load(dataDirectory().resolve(NickSettings.FILE_NAME));
+    }
+
+    @Provides
+    @Singleton
+    ChatFilterSettings chatFilterSettings() {
+        return ChatFilterSettings.load(dataDirectory().resolve(ChatFilterSettings.FILE_NAME), false);
     }
 
     @Provides

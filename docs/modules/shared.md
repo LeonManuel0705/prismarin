@@ -109,6 +109,7 @@ Die Pakete `network` und `admin` tragen die API-Dienste, die auf dem Proxy leben
 | `report-file`, `report-open`, `report-find`, `report-claim`, `report-release`, `report-close` | `reporter`, `reporter-name`, `target`, `reason`, `id`, `staff`, `verdict` | `submission`, `reports`, `report` |
 | `reason-register`, `reason-unregister`, `template-register`, `template-unregister` | `reason`, `template` oder `id` | `{}` |
 | `template-preview`, `template-punish` | `target`, `template`, `actor`, `note` | `preview` bzw. `punishment` |
+| `alts-find` | `player` | `alts` (`AltAccount`s), `truncated` |
 
 Jede Nachricht bleibt unter 30 000 Bytes, Listen werden mit `truncated` gekürzt. Records werden mit `ApiJson` geschrieben und beim Lesen von ihren eigenen Konstruktoren geprüft; Fehler gehen als lesbarer Text zurück und werden beim Aufrufer zu `RemoteCallException`. Ohne Weg zum Proxy wirft der Link `NoRouteException`: Meldungen liefern dann `Delivery.NO_ROUTE`, Audit-Einträge bleiben lokal.
 
@@ -180,3 +181,25 @@ Integration (`@Tag("integration")`, separater `integrationTest`-Task, nur CI —
 - Neue Cross-Server-Features nutzen `MessageBus` mit eigenem Channel-Namen und Gson-Payload — keine Bus-Änderung nötig.
 - Weitere Sprachen: `BUNDLED_LANGUAGES` in `YamlLocaleService` erweitern und `messages_<lang>.yml` beilegen.
 - `ProfileServiceImpl`/`EconomyServiceImpl` akzeptieren einen externen Executor für Tests und geteilte Pools.
+
+## Chat filter engine
+
+Package `net.prismarin.shared.chatfilter`, used by the Paper filter and the proxy filter:
+
+| Class | Job |
+| --- | --- |
+| `ChatFilterSettings` | record of `chat-filter.yml` with `load(file, proxy)`, defaults, comments (`YamlComments`), problems for wrong values; `policy(rule)` for built-in and plugin rules |
+| `ChatFilterEngine` | runs `flood`, `repeat`, `words`, `links`, `caps` and plugin rules; `check(text)` without state, `filter(message, bypassed)` with flood and repeat state per player and channel; `register`, `unregister`, `rules`, `forget` |
+| `TextNormalizer` | folding (case, NFKD accents, `ß`, look-alikes), canonical words with leetspeak, trimming, simplified text for repeats |
+| `WordMatcher` | words with wildcards and phrases, repeat tolerant patterns, joined single letters, regular expressions, allowed words; returns `Span`s in the original text |
+| `LinkMatcher` | domains with a known ending or a scheme, IPv4, obfuscated dots mapped back to the original text, allowed domains with subdomains |
+| `CapsCheck`, `ChatState` | share of capitals and softening; flood window and repeat history with edit distance |
+| `Span` | start, end, detail; `merge`, `replace` |
+| `ViolationCounter` | escalation counting per player and rule with a sliding window, returns the trigger with the last 20 evidence lines and starts again |
+| `ChatViolation` | the `chat-violation` wire message between backend and proxy, `of(message, result, settings)`, `toJson`, `parse` with validation |
+
+Tests: `TextNormalizerTest`, `WordMatcherTest` (leetspeak, repeated letters, separators, phrases, wildcards, Scunthorpe, Niger, normal capital words), `LinkMatcherTest`, `ChatStateTest`, `ChatFilterEngineTest`, `ViolationCounterTest`, `ChatFilterSettingsTest`, `ChatViolationTest`.
+
+## Alt account storage
+
+`moderation/AltStore` keeps the collections `alt-accounts` and `alt-addresses` (see [`core-velocity.md`](core-velocity.md#alt-accounts)) with striped locks per document, bounded lists and a retention; `prune()` removes expired entries. `moderation/DocumentAltService` implements `AltService` on top of it and marks bans and mutes through `PunishmentService`. `network/RemoteAlts` is the backend side of the network call `alts-find`.

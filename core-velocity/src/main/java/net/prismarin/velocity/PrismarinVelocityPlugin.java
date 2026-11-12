@@ -29,24 +29,33 @@ import net.prismarin.api.level.LevelApi;
 import net.prismarin.api.moderation.ModerationApi;
 import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
+import net.prismarin.shared.chatfilter.ChatFilterSettings;
 import net.prismarin.shared.config.ConfigComments;
 import net.prismarin.shared.config.ConfigLoader;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.config.PlatformSettings;
 import net.prismarin.shared.level.ProfileLevelService;
+import net.prismarin.shared.moderation.AltStore;
+import net.prismarin.shared.moderation.DocumentAltService;
 import net.prismarin.shared.platform.CoreServices;
 import net.prismarin.shared.server.YamlServerDirectory;
 import net.prismarin.shared.status.NetworkStatusService;
 import net.prismarin.shared.status.SelectingConnector;
 import net.prismarin.shared.status.SimpleGameStateService;
+import net.prismarin.velocity.admin.AddressKeys;
 import net.prismarin.velocity.admin.AdminContext;
 import net.prismarin.velocity.admin.AdminSettings;
 import net.prismarin.velocity.admin.AlertMonitor;
+import net.prismarin.velocity.admin.AltCommands;
+import net.prismarin.velocity.admin.AltSettings;
+import net.prismarin.velocity.admin.AltTracker;
 import net.prismarin.velocity.admin.ChatHistory;
+import net.prismarin.velocity.admin.ChatViolations;
 import net.prismarin.velocity.admin.InfoCommands;
 import net.prismarin.velocity.admin.ModerationChannel;
 import net.prismarin.velocity.admin.ModerationListener;
 import net.prismarin.velocity.admin.OperatorRegistry;
+import net.prismarin.velocity.admin.ProxyChatFilter;
 import net.prismarin.velocity.admin.ProxyInfoCommand;
 import net.prismarin.velocity.admin.ProxyMaintenance;
 import net.prismarin.velocity.admin.ProxyPunishmentTemplates;
@@ -197,6 +206,7 @@ public final class PrismarinVelocityPlugin {
                 register(commands, entry.getKey(), entry.getValue());
             }
         });
+        ReportFlow reports = null;
         if (config.moduleEnabled(ProxyModules.REPORTS)) {
             ChatHistory chatHistory = null;
             if (context.settings().chatEvidence().enabled()) {
@@ -204,15 +214,19 @@ public final class PrismarinVelocityPlugin {
                 proxy.getEventManager().register(this, chatHistory);
             }
             ReportFlow reportFlow = new ReportFlow(context, chatHistory);
+            reports = reportFlow;
             proxy.getEventManager().register(this, reportFlow);
             ModerationApi.registerReports(new ProxyReportApi(context, reportFlow));
             proxy.getScheduler().buildTask(this, reportFlow::releaseIdle).repeat(1, TimeUnit.MINUTES).schedule();
             register(commands, List.of("report"), ReportCommands.report(context, reportFlow));
             register(commands, List.of("reports"), ReportCommands.reports(context, reportFlow));
         }
+        AddressKeys addresses = new AddressKeys(context.services().documents());
+        PunishmentFlow punishmentFlow = null;
         if (config.moduleEnabled(ProxyModules.PUNISHMENTS)) {
             PunishmentFlow punishments = new PunishmentFlow(context,
-                    PunishmentSettings.load(dataDirectory.resolve(PunishmentSettings.FILE_NAME)));
+                    PunishmentSettings.load(dataDirectory.resolve(PunishmentSettings.FILE_NAME)), addresses);
+            punishmentFlow = punishments;
             ModerationApi.registerTemplates(new ProxyPunishmentTemplates(punishments));
             proxy.getEventManager().register(this, new ModerationListener(context, punishments));
             PunishmentCommands.all(context, punishments).forEach((names, command) -> register(commands, names, command));
@@ -224,6 +238,7 @@ public final class PrismarinVelocityPlugin {
                 }
             });
         }
+        registerModeration(config, context, addresses, punishmentFlow, reports);
         OperatorRegistry operators = null;
         if (context.settings().trustBackendOperators()) {
             operators = new OperatorRegistry();
@@ -239,6 +254,30 @@ public final class PrismarinVelocityPlugin {
                     .delay(30, TimeUnit.SECONDS)
                     .repeat(context.settings().alertIntervalSeconds(), TimeUnit.SECONDS)
                     .schedule();
+        }
+    }
+
+    private void registerModeration(CoreConfig config, AdminContext context, AddressKeys addresses,
+                                    PunishmentFlow punishments, ReportFlow reports) {
+        if (config.moduleEnabled(ProxyModules.CHAT_FILTER)) {
+            ChatViolations violations = new ChatViolations(context, punishments, reports, Clock.systemUTC());
+            ProxyChatFilter chatFilter = new ProxyChatFilter(context,
+                    ChatFilterSettings.load(dataDirectory.resolve(ChatFilterSettings.FILE_NAME), true), violations,
+                    Clock.systemUTC());
+            proxy.getEventManager().register(this, chatFilter);
+            ModerationApi.registerChatFilter(chatFilter);
+        }
+        if (config.moduleEnabled(ProxyModules.ALTS)) {
+            AltSettings settings = AltSettings.load(dataDirectory.resolve(AltSettings.FILE_NAME));
+            DocumentAltService alts = new DocumentAltService(new AltStore(context.services().documents(),
+                    Clock.systemUTC(), settings.maxAddresses(), settings.sharedLimit(), settings.retentionMillis()),
+                    context.services().punishments(), executor);
+            AltTracker tracker = new AltTracker(context, settings, alts, addresses, punishments);
+            proxy.getEventManager().register(this, tracker);
+            ModerationApi.registerAlts(alts);
+            register(proxy.getCommandManager(), List.of("alts"), AltCommands.alts(context, alts));
+            proxy.getScheduler().buildTask(this, tracker::prune).delay(1, TimeUnit.MINUTES)
+                    .repeat(1, TimeUnit.DAYS).schedule();
         }
     }
 

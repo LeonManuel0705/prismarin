@@ -7,6 +7,7 @@ import net.prismarin.api.admin.AdminApi;
 import net.prismarin.api.admin.AuditService;
 import net.prismarin.api.admin.MaintenanceService;
 import net.prismarin.api.admin.NotificationService;
+import net.prismarin.api.moderation.AltService;
 import net.prismarin.api.moderation.ModerationApi;
 import net.prismarin.api.moderation.PunishmentTemplates;
 import net.prismarin.api.moderation.ReportService;
@@ -18,6 +19,7 @@ import net.prismarin.core.PrismarinCorePlugin;
 import net.prismarin.core.social.BackendFriendService;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.network.ModerationCatalog;
+import net.prismarin.shared.network.RemoteAlts;
 import net.prismarin.shared.network.RemoteAudit;
 import net.prismarin.shared.network.RemoteMaintenance;
 import net.prismarin.shared.network.RemoteNotifications;
@@ -59,10 +61,12 @@ public final class BackendApis implements Listener {
         NotificationService notifications = new RemoteNotifications(link);
         ReportService reports = new RemoteReports(link, catalog);
         PunishmentTemplates templates = new RemoteTemplates(link, catalog);
+        AltService alts = new RemoteAlts(link);
         StorageApi.register(storage);
         AdminApi.register(audit, maintenance, notifications);
         ModerationApi.registerReports(reports);
         ModerationApi.registerTemplates(templates);
+        ModerationApi.registerAlts(alts);
         ServicesManager manager = plugin.getServer().getServicesManager();
         manager.register(DataStorage.class, storage, plugin, ServicePriority.Normal);
         manager.register(AuditService.class, audit, plugin, ServicePriority.Normal);
@@ -70,6 +74,7 @@ public final class BackendApis implements Listener {
         manager.register(NotificationService.class, notifications, plugin, ServicePriority.Normal);
         manager.register(ReportService.class, reports, plugin, ServicePriority.Normal);
         manager.register(PunishmentTemplates.class, templates, plugin, ServicePriority.Normal);
+        manager.register(AltService.class, alts, plugin, ServicePriority.Normal);
         if (nicks != null) {
             NickApi.register(nicks);
         }

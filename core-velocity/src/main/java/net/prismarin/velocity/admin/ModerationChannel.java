@@ -58,6 +58,11 @@ public final class ModerationChannel {
         void request(Player carrier, String server, JsonObject message);
     }
 
+    public interface ViolationHandler {
+
+        void violation(Player carrier, String server, JsonObject message);
+    }
+
     private final VanishRegistry vanish;
     private final PlayerLocaleRegistry locales;
     private volatile OperatorRegistry operators;
@@ -67,6 +72,7 @@ public final class ModerationChannel {
     private volatile PlayerHandler players;
     private volatile MenuHandler reportsMenu;
     private volatile RemoteHandler remote;
+    private volatile ViolationHandler violations;
 
     public ModerationChannel(VanishRegistry vanish, PlayerLocaleRegistry locales) {
         this.vanish = vanish;
@@ -122,6 +128,10 @@ public final class ModerationChannel {
 
     public void handleRemote(RemoteHandler remote) {
         this.remote = remote;
+    }
+
+    public void handleViolations(ViolationHandler violations) {
+        this.violations = violations;
     }
 
     public void handlePlayers(PlayerHandler players) {
@@ -245,6 +255,10 @@ public final class ModerationChannel {
             RemoteHandler remoteHandler = remote;
             if (NetworkCalls.REQUEST.equals(type) && remoteHandler != null && carrier.getUniqueId().equals(subject)) {
                 remoteHandler.request(carrier, connection.getServerInfo().getName(), message);
+            }
+            ViolationHandler violationHandler = violations;
+            if ("chat-violation".equals(type) && violationHandler != null && carrier.getUniqueId().equals(subject)) {
+                violationHandler.violation(carrier, connection.getServerInfo().getName(), message);
             }
             PlayerHandler playerHandler = players;
             if (playerHandler != null && carrier.getUniqueId().equals(subject)) {

@@ -5,6 +5,8 @@ import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import net.prismarin.api.level.LevelApi;
 import net.prismarin.api.level.LevelService;
+import net.prismarin.api.moderation.ChatFilterService;
+import net.prismarin.api.moderation.ModerationApi;
 import net.prismarin.api.staff.StaffModeApi;
 import net.prismarin.api.staff.StaffModeService;
 import net.prismarin.api.vanish.VanishApi;
@@ -13,6 +15,7 @@ import net.prismarin.core.api.ChatService;
 import net.prismarin.core.api.SidebarService;
 import net.prismarin.core.api.TablistService;
 import net.prismarin.core.chat.ChatDecorations;
+import net.prismarin.core.chatfilter.PaperChatFilter;
 import net.prismarin.core.gui.MenuService;
 import net.prismarin.core.gui.MenuStyle;
 import net.prismarin.core.level.PaperLevels;
@@ -34,6 +37,7 @@ public final class PaperApis {
     private final Provider<SidebarManager> sidebar;
     private final Provider<TablistManager> tablist;
     private final Provider<ChatDecorations> chat;
+    private final Provider<PaperChatFilter> chatFilter;
     private final MenuService menus;
     private final MenuStyle menuStyle;
 
@@ -41,7 +45,8 @@ public final class PaperApis {
     public PaperApis(PrismarinCorePlugin plugin, ModuleState modules, PaperLevels levels,
                      Provider<PaperVanishService> vanish, Provider<PaperStaffModeService> staffMode,
                      Provider<SidebarManager> sidebar, Provider<TablistManager> tablist,
-                     Provider<ChatDecorations> chat, MenuService menus, MenuStyle menuStyle) {
+                     Provider<ChatDecorations> chat, Provider<PaperChatFilter> chatFilter, MenuService menus,
+                     MenuStyle menuStyle) {
         this.plugin = plugin;
         this.modules = modules;
         this.levels = levels;
@@ -50,6 +55,7 @@ public final class PaperApis {
         this.sidebar = sidebar;
         this.tablist = tablist;
         this.chat = chat;
+        this.chatFilter = chatFilter;
         this.menus = menus;
         this.menuStyle = menuStyle;
     }
@@ -79,6 +85,11 @@ public final class PaperApis {
         if (modules.enabled(CoreModules.CHAT)) {
             services.register(ChatService.class, chat.get(), plugin, ServicePriority.Normal);
         }
+        if (modules.enabled(CoreModules.CHAT_FILTER)) {
+            ChatFilterService service = chatFilter.get();
+            ModerationApi.registerChatFilter(service);
+            services.register(ChatFilterService.class, service, plugin, ServicePriority.Normal);
+        }
         services.register(MenuService.class, menus, plugin, ServicePriority.Normal);
         services.register(MenuStyle.class, menuStyle, plugin, ServicePriority.Normal);
     }
@@ -87,5 +98,6 @@ public final class PaperApis {
         LevelApi.unregister();
         VanishApi.unregister();
         StaffModeApi.unregister();
+        ModerationApi.registerChatFilter(null);
     }
 }

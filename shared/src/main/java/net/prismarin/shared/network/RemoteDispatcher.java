@@ -17,6 +17,7 @@ import net.prismarin.api.admin.Delivery;
 import net.prismarin.api.admin.MaintenanceService;
 import net.prismarin.api.admin.StaffAlert;
 import net.prismarin.api.admin.StaffChat;
+import net.prismarin.api.moderation.AltService;
 import net.prismarin.api.moderation.PunishmentTemplate;
 import net.prismarin.api.moderation.PunishmentTemplates;
 import net.prismarin.api.moderation.Report;
@@ -40,15 +41,23 @@ public final class RemoteDispatcher {
     private final NoticeSink notices;
     private final Supplier<Optional<ReportService>> reports;
     private final Supplier<Optional<PunishmentTemplates>> templates;
+    private final Supplier<Optional<AltService>> alts;
 
     public RemoteDispatcher(AuditService audit, Supplier<Optional<MaintenanceService>> maintenance, NoticeSink notices,
                             Supplier<Optional<ReportService>> reports,
                             Supplier<Optional<PunishmentTemplates>> templates) {
+        this(audit, maintenance, notices, reports, templates, Optional::empty);
+    }
+
+    public RemoteDispatcher(AuditService audit, Supplier<Optional<MaintenanceService>> maintenance, NoticeSink notices,
+                            Supplier<Optional<ReportService>> reports,
+                            Supplier<Optional<PunishmentTemplates>> templates, Supplier<Optional<AltService>> alts) {
         this.audit = Objects.requireNonNull(audit, "audit");
         this.maintenance = Objects.requireNonNull(maintenance, "maintenance");
         this.notices = Objects.requireNonNull(notices, "notices");
         this.reports = Objects.requireNonNull(reports, "reports");
         this.templates = Objects.requireNonNull(templates, "templates");
+        this.alts = Objects.requireNonNull(alts, "alts");
     }
 
     public CompletableFuture<JsonObject> dispatch(NetworkCalls.Request request, String origin) {
@@ -100,6 +109,7 @@ public final class RemoteDispatcher {
             case TEMPLATE_PUNISH -> templates().punish(ApiJson.uuid(body, "target"), ApiJson.string(body, "template"),
                     ApiJson.stringOr(body, "actor", ""), ApiJson.stringOr(body, "note", ""))
                     .thenApply(punishment -> single("punishment", ApiJson.tree(punishment)));
+            case ALTS_FIND -> alts().alts(ApiJson.uuid(body, "player")).thenApply(found -> listed("alts", found));
         };
     }
 
@@ -142,6 +152,10 @@ public final class RemoteDispatcher {
 
     private PunishmentTemplates templates() {
         return templates.get().orElseThrow(() -> new IllegalStateException("punishments are off on the proxy"));
+    }
+
+    private AltService alts() {
+        return alts.get().orElseThrow(() -> new IllegalStateException("alt detection is off on the proxy"));
     }
 
     private static CompletableFuture<JsonObject> done(Runnable action) {

@@ -21,6 +21,8 @@ public final class ProxyModules {
     public static final String PLAYER_INFO = "player-info";
     public static final String AUDIT = "audit";
     public static final String NETEXEC = "netexec";
+    public static final String CHAT_FILTER = "chat-filter";
+    public static final String ALTS = "alts";
     public static final String SERVER_MAINTENANCE = "server-maintenance";
     public static final String NETWORK_ALERTS = "network-alerts";
     public static final String FRIENDS = "friends";
@@ -29,7 +31,7 @@ public final class ProxyModules {
 
     public static final List<String> ALL = List.of(MOTD, MAINTENANCE, HUB_COMMAND, SENDALL_COMMAND, LOBBY_FALLBACK,
             LOBBY_BALANCING, STAFF_CHAT, STAFF_LIST, FIND, SEND, GOTO, ALERT, PUNISHMENTS, REPORTS, PLAYER_INFO, AUDIT,
-            NETEXEC, SERVER_MAINTENANCE, NETWORK_ALERTS, FRIENDS, PARTY, PRIVATE_MESSAGES);
+            CHAT_FILTER, ALTS, NETEXEC, SERVER_MAINTENANCE, NETWORK_ALERTS, FRIENDS, PARTY, PRIVATE_MESSAGES);
 
     private ProxyModules() {
         throw new AssertionError();

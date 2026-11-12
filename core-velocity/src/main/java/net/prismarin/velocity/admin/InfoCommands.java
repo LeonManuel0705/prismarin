@@ -10,13 +10,18 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.title.Title;
 import net.prismarin.api.economy.EconomyService;
+import net.prismarin.api.moderation.AltAccount;
+import net.prismarin.api.moderation.Punishment;
 import net.prismarin.api.moderation.PunishmentType;
+import net.prismarin.api.profile.PlayerProfile;
 import net.prismarin.api.server.NetworkServer;
 import net.prismarin.shared.admin.AuditLog;
 
@@ -51,8 +56,12 @@ public final class InfoCommands {
                     }
                     AdminContext.Target target = found.get();
                     Optional<Player> online = context.proxy().getPlayer(target.uuid());
+                    CompletableFuture<Optional<List<AltAccount>>> alts = AltCommands.lookup(target.uuid());
                     context.services().profiles().find(target.uuid()).thenCombine(
-                            context.services().punishments().history(target.uuid()), (profile, history) -> {
+                            context.services().punishments().history(target.uuid()), Map::entry)
+                            .thenCombine(alts, (record, accounts) -> {
+                                Optional<PlayerProfile> profile = record.getKey();
+                                List<Punishment> history = record.getValue();
                                 context.send(source, "info.header", Placeholder.unparsed("player", target.name()),
                                         Placeholder.unparsed("uuid", target.uuid().toString()));
                                 context.send(source, online.isPresent() ? "info.online" : "info.offline",
@@ -79,6 +88,8 @@ public final class InfoCommands {
                                                 entry.type() == PunishmentType.BAN && entry.inForce(now)))),
                                         Placeholder.unparsed("muted", String.valueOf(history.stream().anyMatch(entry ->
                                                 entry.type() == PunishmentType.MUTE && entry.inForce(now)))));
+                                accounts.ifPresent(linked -> context.send(source, "info.alts",
+                                        Placeholder.component("alts", AltCommands.names(context, source, linked))));
                                 return null;
                             });
                 });

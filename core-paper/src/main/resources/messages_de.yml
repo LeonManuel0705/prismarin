@@ -320,6 +320,17 @@ staff-mode:
   part-none: "ohne Nick und Vanish"
 moderation:
   muted: "%error_prefix%Du bist stummgeschaltet. Grund: <white>%reason%</white><gray>, noch</gray> <white>%remaining%</white><gray>.</gray>"
+chat-filter:
+  blocked: "%error_prefix%Deine Nachricht wurde nicht gesendet. %reason%</gray>"
+  changed: "%brand_prefix%Deine Nachricht wurde angepasst. %reason%</gray>"
+  warned: "%brand_prefix%<color:#FBBF24>Achtung:</color> %reason%</gray>"
+  reason:
+    words: "Bitte bleib freundlich im Chat."
+    caps: "Bitte schreib nicht in Großbuchstaben."
+    links: "Links und Serveradressen sind hier nicht erlaubt."
+    repeat: "Bitte schick nicht noch einmal dieselbe Nachricht."
+    flood: "Du schreibst zu schnell, warte einen Moment."
+    custom: "Sie verstößt gegen die Chatregeln."
 admin:
   info-header: "%brand_prefix%PRISMARIN <white>%version%</white> auf <color:#22D3EE>%server%</color></gray>"
   info-storage: " <gray>Speicher</gray> <white>%storage%</white> <dark_gray>·</dark_gray> <gray>Bus</gray> <white>%bus%</white>"

@@ -21,10 +21,11 @@ public final class CoreModules {
     public static final String NICK = "nick";
     public static final String STAFF_MODE = "staff-mode";
     public static final String ESSENTIALS = "essentials";
+    public static final String CHAT_FILTER = "chat-filter";
 
     public static final List<String> ALL = List.of(CHAT, TABLIST, SIDEBAR, JOIN_MESSAGES, ECONOMY_COMMANDS,
             NETWORK_MENU, PLAY_COMMAND, VANISH, MUTE_ENFORCEMENT, NETEXEC, VAULT, PLACEHOLDER_API, LEVEL_COMMANDS,
-            RANK_COMMANDS, NICK, ESSENTIALS);
+            RANK_COMMANDS, NICK, ESSENTIALS, CHAT_FILTER);
 
     private CoreModules() {
         throw new AssertionError();

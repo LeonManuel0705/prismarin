@@ -40,7 +40,8 @@ public final class NetworkCalls {
         TEMPLATE_REGISTER,
         TEMPLATE_UNREGISTER,
         TEMPLATE_PREVIEW,
-        TEMPLATE_PUNISH;
+        TEMPLATE_PUNISH,
+        ALTS_FIND;
 
         public String id() {
             return name().toLowerCase(Locale.ROOT).replace('_', '-');

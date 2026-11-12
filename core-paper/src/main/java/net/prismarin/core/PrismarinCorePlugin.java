@@ -23,6 +23,7 @@ import net.prismarin.core.admin.PrismarinCommand;
 import net.prismarin.core.bridge.PlaceholderBridge;
 import net.prismarin.core.bridge.VaultBridge;
 import net.prismarin.core.chat.AsyncChatListener;
+import net.prismarin.core.chatfilter.PaperChatFilter;
 import net.prismarin.core.command.BalanceCommand;
 import net.prismarin.core.command.EconomyCommand;
 import net.prismarin.core.command.LevelCommand;
@@ -139,6 +140,9 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         registerCommand("prismarin", injector.getInstance(PrismarinCommand.class));
         if (modules.enabled(CoreModules.MUTE_ENFORCEMENT)) {
             pluginManager.registerEvents(injector.getInstance(MuteListener.class), this);
+        }
+        if (modules.enabled(CoreModules.CHAT_FILTER)) {
+            pluginManager.registerEvents(injector.getInstance(PaperChatFilter.class), this);
         }
         if (modules.enabled(CoreModules.VANISH)) {
             vanishListener = injector.getInstance(VanishListener.class);

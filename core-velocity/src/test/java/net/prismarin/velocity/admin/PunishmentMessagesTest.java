@@ -37,7 +37,7 @@ class PunishmentMessagesTest {
             "staff.issued", "staff.issued-hover", "staff.step", "staff.replaced", "staff.nicked", "staff.revoked",
             "staff.revoked-note", "staff.address-blocked",
             "check.header", "check.online", "check.offline", "check.active", "check.no-ban", "check.no-mute",
-            "check.counts", "check.offences", "check.footer",
+            "check.counts", "check.offences", "check.alts", "check.footer",
             "history.header", "history.empty", "history.entry", "history.entry-active", "history.entry-expired",
             "history.entry-lifted", "history.entry-replaced", "history.previous", "history.next",
             "menu.title", "menu.target", "menu.active", "menu.record", "menu.template", "menu.next",

@@ -16,6 +16,8 @@ import net.prismarin.api.level.LevelApi;
 import net.prismarin.api.level.LevelService;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.api.messaging.MessageBus;
+import net.prismarin.api.moderation.AltService;
+import net.prismarin.api.moderation.ChatFilterService;
 import net.prismarin.api.moderation.ModerationApi;
 import net.prismarin.api.moderation.PunishmentService;
 import net.prismarin.api.moderation.PunishmentTemplates;
@@ -89,6 +91,14 @@ public interface Prismarin {
 
     default Optional<PunishmentTemplates> punishmentTemplates() {
         return ModerationApi.templates();
+    }
+
+    default Optional<ChatFilterService> chatFilter() {
+        return ModerationApi.chatFilter();
+    }
+
+    default Optional<AltService> alts() {
+        return ModerationApi.alts();
     }
 
     default Optional<LevelService> levels() {

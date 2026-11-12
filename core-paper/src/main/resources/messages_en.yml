@@ -320,6 +320,17 @@ staff-mode:
   part-none: "without nick and vanish"
 moderation:
   muted: "%error_prefix%You are muted. Reason: <white>%reason%</white><gray>, remaining</gray> <white>%remaining%</white><gray>.</gray>"
+chat-filter:
+  blocked: "%error_prefix%Your message was not sent. %reason%</gray>"
+  changed: "%brand_prefix%Your message was changed. %reason%</gray>"
+  warned: "%brand_prefix%<color:#FBBF24>Careful:</color> %reason%</gray>"
+  reason:
+    words: "Please keep the chat friendly."
+    caps: "Please do not write in capital letters."
+    links: "Links and server addresses are not allowed here."
+    repeat: "Please do not send the same message again."
+    flood: "You are writing too fast, wait a moment."
+    custom: "It breaks the chat rules."
 admin:
   info-header: "%brand_prefix%PRISMARIN <white>%version%</white> on <color:#22D3EE>%server%</color></gray>"
   info-storage: " <gray>Storage</gray> <white>%storage%</white> <dark_gray>·</dark_gray> <gray>Bus</gray> <white>%bus%</white>"
