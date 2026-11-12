@@ -164,6 +164,10 @@ permissions:
     default: true
   prismarin.admin.info:
     default: op
+  prismarin.admin.reload:
+    default: op
+  prismarin.admin.update:
+    default: op
   prismarin.staff.mode:
     default: op
   prismarin.admin.level:

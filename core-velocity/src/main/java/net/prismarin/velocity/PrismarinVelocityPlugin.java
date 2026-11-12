@@ -32,13 +32,13 @@ import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.shared.config.ConfigComments;
 import net.prismarin.shared.config.ConfigLoader;
 import net.prismarin.shared.config.CoreConfig;
+import net.prismarin.shared.config.PlatformSettings;
 import net.prismarin.shared.level.ProfileLevelService;
 import net.prismarin.shared.platform.CoreServices;
 import net.prismarin.shared.server.YamlServerDirectory;
 import net.prismarin.shared.status.NetworkStatusService;
 import net.prismarin.shared.status.SelectingConnector;
 import net.prismarin.shared.status.SimpleGameStateService;
-import net.prismarin.velocity.library.RuntimeLibraries;
 import net.prismarin.velocity.admin.AdminContext;
 import net.prismarin.velocity.admin.AdminSettings;
 import net.prismarin.velocity.admin.AlertMonitor;
@@ -64,17 +64,20 @@ import net.prismarin.velocity.command.HubCommand;
 import net.prismarin.velocity.command.MaintenanceCommand;
 import net.prismarin.velocity.command.SendAllCommand;
 import net.prismarin.velocity.config.ProxyConfigStore;
+import net.prismarin.velocity.library.RuntimeLibraries;
 import net.prismarin.velocity.listener.LobbyRedirectListener;
 import net.prismarin.velocity.listener.MaintenanceLoginListener;
 import net.prismarin.velocity.listener.PingListener;
 import net.prismarin.velocity.locale.PlayerLocaleRegistry;
 import net.prismarin.velocity.locale.ProxyMessages;
 import net.prismarin.velocity.motd.MotdBuilder;
+import net.prismarin.velocity.platform.ProxyPlatform;
 import net.prismarin.velocity.player.ProxyPlayers;
 import net.prismarin.velocity.server.LobbyBalancer;
 import net.prismarin.velocity.server.ProxyConnectorTransport;
 import net.prismarin.velocity.server.ProxyServerDirectory;
 import net.prismarin.velocity.social.SocialModule;
+import org.bstats.velocity.Metrics;
 import org.slf4j.Logger;
 
 @Plugin(id = "prismarin-core", name = "PrismarinCore", version = BuildConstants.VERSION, authors = {"Leon"})
@@ -87,12 +90,17 @@ public final class PrismarinVelocityPlugin {
     private ExecutorService executor;
     private CoreServices services;
     private RuntimeLibraries libraries;
+    private final Metrics.Factory metricsFactory;
+    private PlatformSettings platformSettings = PlatformSettings.DEFAULT;
+    private ProxyPlatform platform;
 
     @Inject
-    public PrismarinVelocityPlugin(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory) {
+    public PrismarinVelocityPlugin(ProxyServer proxy, Logger logger, @DataDirectory Path dataDirectory,
+                                   Metrics.Factory metricsFactory) {
         this.proxy = proxy;
         this.logger = logger;
         this.dataDirectory = dataDirectory;
+        this.metricsFactory = metricsFactory;
     }
 
     @Subscribe
@@ -109,6 +117,9 @@ public final class PrismarinVelocityPlugin {
         proxy.getEventManager().register(this, playerLocales);
         ProxyMessages messages = new ProxyMessages(services.locale(), Locale.forLanguageTag(coreConfig.defaultLocale()),
                 playerLocales);
+        platform = new ProxyPlatform(this, proxy, logger, platformSettings, coreConfig, services.locale(), messages,
+                services.events(), metricsFactory);
+        platform.start(BuildConstants.VERSION);
         ProxyConfigStore configStore = new ProxyConfigStore(dataDirectory.resolve("proxy.yml"), executor, logger);
         VanishRegistry vanish = new VanishRegistry();
         ModerationChannel moderationChannel = new ModerationChannel(vanish, playerLocales);
@@ -222,7 +233,7 @@ public final class PrismarinVelocityPlugin {
         }
         register(commands, List.of("prismarinproxy", "pproxy"), new ProxyInfoCommand(context, dataDirectory,
                 proxy.getPluginManager().fromInstance(this).flatMap(container -> container.getDescription().getVersion())
-                        .orElse("?"), operators, libraries::ensure));
+                        .orElse("?"), operators, libraries::ensure, platform));
         if (config.moduleEnabled(ProxyModules.NETWORK_ALERTS)) {
             proxy.getScheduler().buildTask(this, new AlertMonitor(context))
                     .delay(30, TimeUnit.SECONDS)
@@ -240,6 +251,10 @@ public final class PrismarinVelocityPlugin {
 
     @Subscribe
     public void onProxyShutdown(ProxyShutdownEvent event) {
+        if (platform != null) {
+            platform.stop();
+            platform = null;
+        }
         PrismarinProvider.unregister();
         ModerationApi.unregister();
         LevelApi.unregister();
@@ -258,6 +273,7 @@ public final class PrismarinVelocityPlugin {
         Path file = dataDirectory.resolve("config.yml");
         seedResource(file, "config.yml");
         CoreConfig config = ConfigLoader.load(file, ProxyModules.ALL);
+        platformSettings = PlatformSettings.load(file);
         ConfigComments.apply(file, Map.of());
         return config;
     }

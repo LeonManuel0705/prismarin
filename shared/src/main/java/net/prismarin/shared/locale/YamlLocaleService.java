@@ -50,7 +50,8 @@ public final class YamlLocaleService implements LocaleService {
     private final Map<String, Map<String, String>> messages = new ConcurrentHashMap<>();
     private final Map<CacheKey, Component> componentCache = new ConcurrentHashMap<>();
     private final String fallbackLanguage;
-    private final Set<String> languages;
+    private final Path dataDirectory;
+    private volatile Set<String> languages;
 
     public YamlLocaleService(Path dataDirectory, String defaultLanguage) {
         this(dataDirectory, defaultLanguage, TextFormatter.plain());
@@ -59,7 +60,23 @@ public final class YamlLocaleService implements LocaleService {
     public YamlLocaleService(Path dataDirectory, String defaultLanguage, TextFormatter formatter) {
         this.formatter = formatter;
         this.fallbackLanguage = defaultLanguage.toLowerCase(Locale.ROOT);
-        Set<String> loaded = new LinkedHashSet<>();
+        this.dataDirectory = dataDirectory;
+        Map<String, Map<String, String>> loaded = load(dataDirectory);
+        messages.putAll(loaded);
+        this.languages = Collections.unmodifiableSet(new LinkedHashSet<>(loaded.keySet()));
+    }
+
+    public synchronized int reload() {
+        Map<String, Map<String, String>> loaded = load(dataDirectory);
+        messages.keySet().retainAll(loaded.keySet());
+        messages.putAll(loaded);
+        componentCache.clear();
+        languages = Collections.unmodifiableSet(new LinkedHashSet<>(loaded.keySet()));
+        return loaded.size();
+    }
+
+    private static Map<String, Map<String, String>> load(Path dataDirectory) {
+        Map<String, Map<String, String>> result = new LinkedHashMap<>();
         try {
             Files.createDirectories(dataDirectory);
             for (String language : BUNDLED_LANGUAGES) {
@@ -87,14 +104,13 @@ public final class YamlLocaleService implements LocaleService {
                 if (!merged.isEmpty()) {
                     merged.putIfAbsent(LANGUAGE_NAME, nativeName(language));
                     merged.putIfAbsent(LANGUAGE_ICON, DEFAULT_ICON);
-                    messages.put(language, merged);
-                    loaded.add(language);
+                    result.put(language, merged);
                 }
             }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-        this.languages = Collections.unmodifiableSet(loaded);
+        return result;
     }
 
     @Override

@@ -3,6 +3,7 @@ package net.prismarin.core.rank;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
@@ -17,11 +18,16 @@ public final class RankDisplayProvider implements RankFormatProvider {
     private static final int CACHE_LIMIT = 1024;
 
     private final RankFormatProvider delegate;
-    private final RankDisplaySettings settings;
+    private final Supplier<RankDisplaySettings> settings;
     private final TextFormatter formatter;
     private final Map<List<Object>, Component> cache = new ConcurrentHashMap<>();
 
     public RankDisplayProvider(RankFormatProvider delegate, RankDisplaySettings settings, TextFormatter formatter) {
+        this(delegate, () -> settings, formatter);
+    }
+
+    public RankDisplayProvider(RankFormatProvider delegate, Supplier<RankDisplaySettings> settings,
+                               TextFormatter formatter) {
         this.delegate = delegate;
         this.settings = settings;
         this.formatter = formatter;
@@ -29,22 +35,22 @@ public final class RankDisplayProvider implements RankFormatProvider {
 
     @Override
     public Component prefix(Player player) {
-        return render(settings.beforeName(), delegate.prefix(player), delegate.label(player));
+        return render(settings.get().beforeName(), delegate.prefix(player), delegate.label(player));
     }
 
     @Override
     public Component ownPrefix(Player player) {
-        return render(settings.beforeName(), delegate.ownPrefix(player), delegate.ownLabel(player));
+        return render(settings.get().beforeName(), delegate.ownPrefix(player), delegate.ownLabel(player));
     }
 
     @Override
     public Component label(Player player) {
-        return render(settings.alone(), delegate.prefix(player), delegate.label(player));
+        return render(settings.get().alone(), delegate.prefix(player), delegate.label(player));
     }
 
     @Override
     public Component ownLabel(Player player) {
-        return render(settings.alone(), delegate.ownPrefix(player), delegate.ownLabel(player));
+        return render(settings.get().alone(), delegate.ownPrefix(player), delegate.ownLabel(player));
     }
 
     @Override
@@ -70,11 +76,12 @@ public final class RankDisplayProvider implements RankFormatProvider {
     Component render(String template, Component prefix, Component label) {
         Component safePrefix = prefix == null ? Component.empty() : prefix;
         Component safeLabel = label == null ? safePrefix : label;
-        return cache.computeIfAbsent(List.of(template, safePrefix, safeLabel), key -> {
+        String trim = settings.get().trim();
+        return cache.computeIfAbsent(List.of(template, trim, safePrefix, safeLabel), key -> {
             if (cache.size() > CACHE_LIMIT) {
                 cache.clear();
             }
-            Component rank = PrefixStyle.trimTrailing(safeLabel, settings.trim());
+            Component rank = PrefixStyle.trimTrailing(safeLabel, trim);
             if (!PrefixStyle.visible(rank) && !PrefixStyle.visible(safePrefix)) {
                 return Component.empty();
             }

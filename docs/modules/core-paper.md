@@ -544,3 +544,11 @@ Classes: `PaperPlayerService`, `PlayerTracker` (events, state reports), `ProxyPl
 | `NickService` | the `NickManager`, now also behind `Prismarin.nicks()` |
 
 `PaperProxyLink` carries the calls: it picks an online player other than the one to avoid (a punished player could be kicked before the answer arrives), falls back to the Redis bus and only then to the avoided player, sends `network-request` with that player as carrier, and completes the call when `network-answer` arrives through the same player, after five seconds with a `TimeoutException`, or when the carrier quits. `network-event` messages from the proxy are published on the local `EventBus` (currently `ReportFiledEvent`). `ModerationChannel` only got the two message types and `handleRemote`.
+
+## Reload, update check and metrics
+
+`/prismarin reload` (permission `prismarin.admin.reload`) reloads the language files and the rank display plus every part another plugin registered through `prismarin.reloads()`, and lists what failed. Storage, Redis and module switches need a restart.
+
+`update-check` in `config.yml` asks `api.github.com/repos/LeonManuel0705/prismarin/releases/latest` on start and every `interval-hours` (default 6). A newer release is logged once, fires `UpdateAvailableEvent` and, with `notify-staff`, shows staff with `prismarin.admin.update` a clickable note on join.
+
+`metrics.enabled` sends anonymous bStats data (bstats.org): the standard charts plus `storage_mode`, `redis`, `default_language` and `lobby`. bStats is shaded and relocated to `net.prismarin.libs.bstats`, `plugins/bStats/config.yml` switches it off for every plugin.

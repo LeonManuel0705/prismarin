@@ -26,6 +26,13 @@ public final class ConfigComments {
                     "/netexec and instant updates. Without it every server only knows itself.")),
             Map.entry("locale.default", List.of("Language for players whose client language has no messages_<tag>.yml.",
                     "Add a file such as messages_fr.yml to the plugin folder to support another language.")),
+            Map.entry("metrics", List.of("Anonymous usage statistics through bStats (bstats.org): server software, versions,",
+                    "player count and storage mode, never names, IPs or chat. plugins/bStats/config.yml turns it off",
+                    "for every plugin at once.")),
+            Map.entry("update-check", List.of("Asks GitHub for a newer PRISMARIN release on start and then regularly.")),
+            Map.entry("update-check.interval-hours", List.of("Hours between two checks.")),
+            Map.entry("update-check.notify-staff", List.of(
+                    "Staff with prismarin.admin.update get a clickable note on join while an update is available.")),
             Map.entry("branding", List.of("Your network's name and colours. Used by %brand%, %brand_prefix%,",
                     "<brand_primary> and <brand_accent> in every text.")),
             Map.entry("branding.primary-color", List.of("Hex colour #RRGGBB.")),

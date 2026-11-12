@@ -222,6 +222,10 @@ admin:
   migrate-start: "%brand_prefix%Ziehe Daten von <color:#22D3EE>%from%</color> nach <color:#22D3EE>%to%</color> um ...</gray>"
   migrate-done: "%success_prefix%Fertig: <white>%profiles%</white> Profile, <white>%balances%</white> Kontostände, <white>%documents%</white> Dokumente. Stell jetzt <color:#22D3EE>storage.mode: %to%</color> ein und starte neu.</gray>"
   migrate-failed: "%error_prefix%Umzug abgebrochen: <white>%reason%</white></gray>"
+  reload-done: "%success_prefix%Neu geladen: <white>%parts%</white>.</gray>"
+  reload-failed: "%error_prefix%<white>%part%</white> konnte nicht neu geladen werden: %reason%</gray>"
+  reload-restart: "%brand_prefix%Speicher, Redis und abgeschaltete Module ändern sich erst nach einem Neustart.</gray>"
+  update-available: "%brand_prefix%PRISMARIN <color:#22D3EE>%latest%</color> ist verfügbar, dieser Proxy nutzt <white>%current%</white>. <dark_gray>(Klick)</dark_gray></gray>"
 punishment:
   permanent: "dauerhaft"
   never: "nie"

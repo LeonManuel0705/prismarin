@@ -3,6 +3,7 @@ package net.prismarin.velocity.admin;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.command.SimpleCommand;
 import com.velocitypowered.api.proxy.ConsoleCommandSource;
+import com.velocitypowered.api.proxy.Player;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
@@ -11,9 +12,11 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.prismarin.api.admin.ReloadResult;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.storage.ProfileStorage;
 import net.prismarin.shared.storage.StorageMigration;
+import net.prismarin.velocity.platform.ProxyPlatform;
 
 public final class ProxyInfoCommand implements SimpleCommand {
 
@@ -22,23 +25,29 @@ public final class ProxyInfoCommand implements SimpleCommand {
     private final String version;
     private final OperatorRegistry operators;
     private final Consumer<Collection<String>> libraries;
+    private final ProxyPlatform platform;
 
     public ProxyInfoCommand(AdminContext context, Path dataDirectory, String version, OperatorRegistry operators,
-                            Consumer<Collection<String>> libraries) {
+                            Consumer<Collection<String>> libraries, ProxyPlatform platform) {
         this.context = context;
         this.dataDirectory = dataDirectory;
         this.version = version;
         this.operators = operators;
         this.libraries = libraries;
+        this.platform = platform;
     }
 
     @Override
     public void execute(Invocation invocation) {
         CommandSource source = invocation.source();
+        String[] args = invocation.arguments();
+        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
+            reload(source);
+            return;
+        }
         if (!context.allowed(source, "prismarin.admin.info")) {
             return;
         }
-        String[] args = invocation.arguments();
         if (args.length == 3 && args[0].equalsIgnoreCase("migrate")) {
             migrate(source, args[1], args[2]);
             return;
@@ -57,11 +66,25 @@ public final class ProxyInfoCommand implements SimpleCommand {
                 Placeholder.unparsed("operators", operators == null ? "-" : String.valueOf(operators.count())));
     }
 
+    private void reload(CommandSource source) {
+        if (!context.allowed(source, ProxyPlatform.RELOAD_PERMISSION)) {
+            return;
+        }
+        String actor = source instanceof Player player ? player.getUsername() : "console";
+        ReloadResult result = platform.reload(actor);
+        context.send(source, "admin.reload-done", Placeholder.unparsed("parts", String.join(", ", result.reloaded())));
+        result.failed().forEach((part, reason) -> context.send(source, "admin.reload-failed",
+                Placeholder.unparsed("part", part), Placeholder.unparsed("reason", reason)));
+        context.send(source, "admin.reload-restart");
+    }
+
     @Override
     public List<String> suggest(Invocation invocation) {
         String[] args = invocation.arguments();
         if (args.length <= 1) {
-            return StaffCommands.filter(List.of("info", "migrate"), args.length == 0 ? "" : args[0]);
+            List<String> options = invocation.source().hasPermission(ProxyPlatform.RELOAD_PERMISSION)
+                    ? List.of("info", "migrate", "reload") : List.of("info", "migrate");
+            return StaffCommands.filter(options, args.length == 0 ? "" : args[0]);
         }
         if (args.length <= 3 && args[0].equalsIgnoreCase("migrate")) {
             return StaffCommands.filter(Stream.of(CoreConfig.StorageMode.values()).map(Enum::name).toList(),

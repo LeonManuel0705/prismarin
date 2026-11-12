@@ -334,3 +334,11 @@ prismarin.punishmentTemplates().ifPresent(templates -> templates.preview(suspect
 - `%server%` is the backend the request came from (`proxy` for proxy plugins).
 
 Classes: `ProxyRemote`, `ProxyMaintenance`, `ProxyNotifications`; texts `alerts.plugin` in both language files. The wire format and its tests are described in `shared.md`.
+
+## Reload, update check and metrics
+
+`/prismarinproxy reload` (permission `prismarin.admin.reload`) reloads the language files plus every part another plugin registered through `prismarin.reloads()`, and lists what failed. Storage, Redis and module switches need a restart.
+
+`update-check` in `config.yml` asks `api.github.com/repos/LeonManuel0705/prismarin/releases/latest` on start and every `interval-hours` (default 6). A newer release is logged once, fires `UpdateAvailableEvent` and, with `notify-staff`, shows staff with `prismarin.admin.update` a clickable note on join.
+
+`metrics.enabled` sends anonymous bStats data (bstats.org): the standard charts plus `storage_mode`, `redis`, `default_language`. bStats is shaded and relocated to `net.prismarin.libs.bstats`, `plugins/bStats/config.yml` switches it off for every plugin.

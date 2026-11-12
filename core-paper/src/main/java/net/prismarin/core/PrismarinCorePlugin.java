@@ -28,6 +28,7 @@ import net.prismarin.core.command.EconomyCommand;
 import net.prismarin.core.command.LevelCommand;
 import net.prismarin.core.config.CoreConfigComments;
 import net.prismarin.core.config.RankDisplaySettings;
+import net.prismarin.core.platform.PlatformFeatures;
 import net.prismarin.core.essentials.EssentialsCommands;
 import net.prismarin.core.gui.MenuService;
 import net.prismarin.core.moderation.ModerationChannel;
@@ -229,6 +230,7 @@ public final class PrismarinCorePlugin extends JavaPlugin {
             getLogger().info("Registered PlaceholderAPI expansion %prismarin_...%");
         }
         injector.getInstance(RankDisplaySettings.class);
+        injector.getInstance(PlatformFeatures.class).start();
         CoreConfigComments.apply(getDataFolder().toPath().resolve("config.yml"));
         getLogger().info("Enabled as '" + config.serverId() + "' with systems " + prismarin.enabledSystems().stream()
                 .sorted().toList() + " and modules " + modules.enabledModules());
@@ -253,6 +255,9 @@ public final class PrismarinCorePlugin extends JavaPlugin {
         getServer().getServicesManager().unregisterAll(this);
         SocialApi.unregister();
         PaperApis.unregister();
+        if (injector != null) {
+            injector.getInstance(PlatformFeatures.class).stop();
+        }
         if (injector != null) {
             injector.getInstance(PaperPlayers.class).disable();
             injector.getInstance(BackendApis.class).unregister();

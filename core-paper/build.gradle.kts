@@ -1,5 +1,6 @@
 plugins {
     id("prismarin.java")
+    id("com.gradleup.shadow") version "9.4.3"
 }
 
 val includedProjects: Configuration by configurations.creating {
@@ -12,6 +13,9 @@ dependencies {
     implementation(project(":shared"))
     includedProjects(project(":api"))
     includedProjects(project(":shared"))
+    includedProjects(libs.bstats.bukkit)
+    includedProjects(libs.bstats.base)
+    implementation(libs.bstats.bukkit)
 
     compileOnly(libs.paper.api)
     compileOnly(libs.luckperms.api)
@@ -52,10 +56,19 @@ tasks.processResources {
 }
 
 tasks.jar {
-    dependsOn(includedProjects)
+    archiveClassifier.set("plain")
+}
+
+tasks.shadowJar {
+    archiveClassifier.set("")
+    configurations = listOf(includedProjects)
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     manifest {
         attributes("Multi-Release" to "true")
     }
-    from(includedProjects.elements.map { elements -> elements.map { zipTree(it.asFile) } })
+    relocate("org.bstats", "net.prismarin.libs.bstats")
+}
+
+tasks.assemble {
+    dependsOn(tasks.shadowJar)
 }

@@ -21,7 +21,9 @@ import net.prismarin.api.profile.ProfileService;
 import net.prismarin.api.server.NetworkConnector;
 import net.prismarin.api.server.ServerDirectory;
 import net.prismarin.core.config.GameStateSettings;
+import net.prismarin.core.config.RankDisplayHolder;
 import net.prismarin.core.config.RankDisplaySettings;
+import net.prismarin.shared.config.PlatformSettings;
 import net.prismarin.core.config.MenuSettings;
 import net.prismarin.core.config.VanishSettings;
 import net.prismarin.core.network.PaperConnectorTransport;
@@ -198,10 +200,10 @@ public final class CoreModule extends AbstractModule {
     RankFormatProvider rankFormatProvider(LocaleService localeService, CoreServices services,
                                           PermissionSnapshots snapshots, ProfileService profiles,
                                           ModuleState modules, NickRegistry nicks,
-                                          Provider<FakeRankFormat> fakeRank, RankDisplaySettings display) {
+                                          Provider<FakeRankFormat> fakeRank, RankDisplayHolder display) {
         DefaultRankFormatProvider fallback = new DefaultRankFormatProvider(localeService, snapshots, profiles);
         RankFormatProvider base = plugin.getServer().getPluginManager().getPlugin("LuckPerms") != null
-                ? new LuckPermsRankFormatProvider(services.formatter(), fallback, display.luckPermsMeta())
+                ? new LuckPermsRankFormatProvider(services.formatter(), fallback, display.get().luckPermsMeta())
                 : fallback;
         RankFormatProvider real = new ExternalRankFormatProvider(base, RankSources.global());
         RankFormatProvider shown = modules.enabled(CoreModules.NICK)
@@ -212,8 +214,19 @@ public final class CoreModule extends AbstractModule {
 
     @Provides
     @Singleton
-    RankDisplaySettings rankDisplaySettings(CoreConfig config) {
-        return RankDisplaySettings.load(configPath());
+    RankDisplayHolder rankDisplayHolder(CoreConfig config) {
+        return new RankDisplayHolder(configPath(), RankDisplaySettings.load(configPath()));
+    }
+
+    @Provides
+    RankDisplaySettings rankDisplaySettings(RankDisplayHolder holder) {
+        return holder.get();
+    }
+
+    @Provides
+    @Singleton
+    PlatformSettings platformSettings(CoreConfig config) {
+        return PlatformSettings.load(configPath());
     }
 
     private Path dataDirectory() {

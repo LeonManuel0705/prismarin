@@ -10,9 +10,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.prismarin.api.Prismarin;
+import net.prismarin.api.admin.ReloadResult;
 import net.prismarin.api.locale.LocaleService;
 import net.prismarin.core.ModuleState;
 import net.prismarin.core.PrismarinCorePlugin;
+import net.prismarin.core.platform.PlatformFeatures;
 import net.prismarin.shared.config.CoreConfig;
 import net.prismarin.shared.storage.ProfileStorage;
 import net.prismarin.shared.storage.StorageMigration;
@@ -34,21 +36,27 @@ public final class PrismarinCommand implements TabExecutor {
     private final ModuleState modules;
     private final LocaleService locale;
     private final ExecutorService executor;
+    private final PlatformFeatures platform;
 
     @Inject
     public PrismarinCommand(PrismarinCorePlugin plugin, Prismarin prismarin, CoreConfig config, ModuleState modules,
-                            LocaleService locale, ExecutorService executor) {
+                            LocaleService locale, ExecutorService executor, PlatformFeatures platform) {
         this.plugin = plugin;
         this.prismarin = prismarin;
         this.config = config;
         this.modules = modules;
         this.locale = locale;
         this.executor = executor;
+        this.platform = platform;
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         Locale target = sender instanceof Player player ? player.locale() : Locale.forLanguageTag(config.defaultLocale());
+        if (args.length == 1 && args[0].equalsIgnoreCase("reload")) {
+            reload(sender, target);
+            return true;
+        }
         if (!sender.hasPermission(PERMISSION)) {
             sender.sendMessage(locale.render("general.no-permission", target));
             return true;
@@ -67,7 +75,9 @@ public final class PrismarinCommand implements TabExecutor {
             return List.of();
         }
         if (args.length == 1) {
-            return Stream.of("info", "migrate").filter(option -> option.startsWith(args[0].toLowerCase(Locale.ROOT)))
+            return Stream.of("info", "migrate", "reload")
+                    .filter(option -> !option.equals("reload") || sender.hasPermission(PlatformFeatures.RELOAD_PERMISSION))
+                    .filter(option -> option.startsWith(args[0].toLowerCase(Locale.ROOT)))
                     .toList();
         }
         if (args.length <= 3 && args[0].equalsIgnoreCase("migrate")) {
@@ -75,6 +85,19 @@ public final class PrismarinCommand implements TabExecutor {
                     .filter(option -> option.startsWith(args[args.length - 1].toUpperCase(Locale.ROOT))).toList();
         }
         return List.of();
+    }
+
+    private void reload(CommandSender sender, Locale target) {
+        if (!sender.hasPermission(PlatformFeatures.RELOAD_PERMISSION)) {
+            sender.sendMessage(locale.render("general.no-permission", target));
+            return;
+        }
+        ReloadResult result = platform.reload(sender.getName());
+        sender.sendMessage(locale.render("admin.reload-done", target,
+                Placeholder.unparsed("parts", String.join(", ", result.reloaded()))));
+        result.failed().forEach((part, reason) -> sender.sendMessage(locale.render("admin.reload-failed", target,
+                Placeholder.unparsed("part", part), Placeholder.unparsed("reason", reason))));
+        sender.sendMessage(locale.render("admin.reload-restart", target));
     }
 
     private void info(CommandSender sender, Locale target) {

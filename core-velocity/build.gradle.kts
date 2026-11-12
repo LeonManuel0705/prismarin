@@ -9,6 +9,7 @@ dependencies {
     implementation(project(":api"))
     implementation(project(":shared"))
     implementation(libs.jar.relocator)
+    implementation(libs.bstats.velocity)
 
     compileOnly(libs.velocity.api)
     annotationProcessor(libs.velocity.api)
@@ -116,4 +117,5 @@ tasks.shadowJar {
     relocate("org.mariadb.jdbc", "net.prismarin.libs.mariadb")
     relocate("me.lucko.jarrelocator", "net.prismarin.libs.jarrelocator")
     relocate("org.objectweb.asm", "net.prismarin.libs.asm")
+    relocate("org.bstats", "net.prismarin.libs.bstats")
 }

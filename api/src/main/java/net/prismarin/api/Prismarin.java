@@ -6,6 +6,9 @@ import net.prismarin.api.admin.AdminApi;
 import net.prismarin.api.admin.AuditService;
 import net.prismarin.api.admin.MaintenanceService;
 import net.prismarin.api.admin.NotificationService;
+import net.prismarin.api.admin.PlatformApi;
+import net.prismarin.api.admin.ReloadService;
+import net.prismarin.api.admin.UpdateService;
 import net.prismarin.api.brand.Branding;
 import net.prismarin.api.economy.EconomyService;
 import net.prismarin.api.event.EventBus;
@@ -114,6 +117,14 @@ public interface Prismarin {
 
     default Optional<MaintenanceService> maintenance() {
         return AdminApi.maintenance();
+    }
+
+    default ReloadService reloads() {
+        return PlatformApi.reloads().orElseThrow(PlatformApi::missing);
+    }
+
+    default Optional<UpdateService> updates() {
+        return PlatformApi.updates();
     }
 
     default NotificationService notifications() {

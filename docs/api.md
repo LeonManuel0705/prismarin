@@ -280,6 +280,19 @@ prismarin.notifications().broadcast(Broadcast.group("bedwars", NoticeText.of("<g
 
 Texts are rendered per receiver in the language PRISMARIN knows for him. Limits: 1024 characters per text, 16 languages, 16 placeholders with up to 256 characters.
 
+## Reload and updates
+
+`/prismarin reload` on a backend and `/prismarinproxy reload` on the proxy (permission `prismarin.admin.reload`) reload every registered part and fire `PrismarinReloadedEvent(result, actor)`. PRISMARIN registers its languages and, on Paper, the rank display. Another plugin adds its own config:
+
+```java
+Subscription part = prismarin.reloads().register("bedwars", this::loadConfig);
+prismarin.events().subscribe(PrismarinReloadedEvent.class, event -> getLogger().info(event.result().reloaded().toString()));
+```
+
+A failing part is reported in `ReloadResult#failed` and does not stop the others. Storage, Redis and module switches still need a restart.
+
+`prismarin.updates()` checks GitHub for a newer release (`update-check` in `config.yml`, every 6 hours by default) and fires `UpdateAvailableEvent` once per new version. `available()` returns the pending update, staff with `prismarin.admin.update` get a clickable note on join.
+
 ## Game state, servers and connecting
 
 ```java
