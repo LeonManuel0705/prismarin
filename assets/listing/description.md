@@ -15,7 +15,7 @@ Every system can be switched off, every text lives in YAML with MiniMessage, `&`
 
 Optional: LuckPerms for ranks, Vault or VaultUnlocked for other plugins' economy, PlaceholderAPI in both directions.
 
-![Left: what works right after installing. Right: Java code using the PRISMARIN API](https://raw.githubusercontent.com/LeonManuel0705/prismarin/main/assets/listing/twoways.png)
+![Top: what works right after installing. Bottom: Java code using the PRISMARIN API](https://raw.githubusercontent.com/LeonManuel0705/prismarin/main/assets/listing/twoways.png)
 
 ## Features
 
