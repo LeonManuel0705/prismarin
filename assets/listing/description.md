@@ -64,6 +64,8 @@ The pictures recreate the in-game views with PRISMARIN's default English texts.
 
 ### Queue and JoinMe
 
+![A JoinMe in the lobby chat with the skin face drawn in blocks next to game, server, time left and a join button, plus the messages for the creator and the player who clicked](https://raw.githubusercontent.com/LeonManuel0705/prismarin/main/assets/listing/joinme.png)
+
 * Full servers and groups put players in a queue instead of refusing them, with the place in the action bar
 * Priorities by permission, parties wait as one and only go in together, staff can pause, clear and push queues
 * `/joinme` sends a clickable invite with the creator's skin face drawn in chat to the lobbies
