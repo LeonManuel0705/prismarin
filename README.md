@@ -18,6 +18,14 @@ The point of the architecture is that a game mode never talks to a database. It 
 
 All three come in one ZIP with a short install guide on the [latest GitHub release](https://github.com/LeonManuel0705/prismarin/releases/latest). Out of the box every server keeps its data in local files, which is enough to try it out. For one shared profile across all servers switch `storage.mode` to MySQL, MariaDB or MongoDB, and add Redis for live updates between servers.
 
+## Screenshots
+
+Taken on a test network running PRISMARIN 1.1.0.
+
+<img src="assets/listing/screenshots/01-joinme.png" alt="JoinMe invite with the player's face in chat" width="49%"> <img src="assets/listing/screenshots/02-network.png" alt="Network overview with TPS, memory and uptime per server" width="49%">
+<img src="assets/listing/screenshots/03-reports.png" alt="Staff report menu with reasons and claim state" width="49%"> <img src="assets/listing/screenshots/04-clan.png" alt="Clan menu with role and join setting" width="49%">
+<img src="assets/listing/screenshots/05-cosmetics.png" alt="Cosmetics menu with categories" width="49%">
+
 ## What a network gets
 
 | Area | What it does |
