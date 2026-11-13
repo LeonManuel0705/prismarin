@@ -1,8 +1,22 @@
 # PRISMARIN
 
+![PRISMARIN, a network framework for Paper and Velocity](assets/listing/banner.png)
+
+**Download:** [Hangar](https://hangar.papermc.io/0CPSLeon/Prismarin) · [SpigotMC](https://www.spigotmc.org/resources/prismarin.140512/) · [GitHub Releases](https://github.com/LeonManuel0705/prismarin/releases/latest) · Lobby add-on on [Hangar](https://hangar.papermc.io/0CPSLeon/PRISMARIN-Lobby-Extension)
+
 A framework for Minecraft networks on Paper and Velocity. Profiles, currencies, localisation, events, a cross server message bus and a server directory live in one shared layer, and a network plugs its own game servers in behind it, whether that is an existing game plugin or a mode written from scratch.
 
 The point of the architecture is that a game mode never talks to a database. It asks the profile service for a player, the economy service for a balance, or the message bus to reach another server. The implementation behind those interfaces can be JSON files or SQLite on a laptop, or MySQL, MariaDB, MongoDB and Redis across a real network, without a single line changing in the game mode.
+
+## Download and install
+
+| Jar | Goes on |
+|:---|:---|
+| `PrismarinCore.jar` | every Paper backend |
+| `PrismarinVelocity.jar` | the Velocity proxy |
+| `PrismarinLobby.jar` | lobby servers, optional |
+
+All three come in one ZIP with a short install guide on the [latest GitHub release](https://github.com/LeonManuel0705/prismarin/releases/latest). Out of the box every server keeps its data in local files, which is enough to try it out. For one shared profile across all servers switch `storage.mode` to MySQL, MariaDB or MongoDB, and add Redis for live updates between servers.
 
 ## What a network gets
 
@@ -199,7 +213,7 @@ servers:
 
 ## Testing
 
-More than 700 unit tests run on every build. 5 more classes are integration tests, tagged separately, that spin up real MongoDB, Redis, MySQL and MariaDB containers through Testcontainers.
+More than 1,400 unit tests run on every build. 5 more classes are integration tests, tagged separately, that spin up real MongoDB, Redis, MySQL and MariaDB containers through Testcontainers.
 
 ```bash
 ./gradlew build             # compile plus unit tests
@@ -209,7 +223,7 @@ More than 700 unit tests run on every build. 5 more classes are integration test
 
 ## Status
 
-Version 1.0.0 is the first stable release. On top of the 0.x series it brings friends, parties with roles and private messages, a cross server nick system with skins and fake ranks, reports with a staff menu, chat evidence and claims, punishment templates that escalate, ban and mute lists, a staff mode, an essentials module, a reworked lobby with several lobbies and custom items, LuckPerms display names, and a public API for every system: players, levels, vanish, staff mode, storage for other plugins, audit log, maintenance, staff notifications, sidebar, tab list, chat, menus and the lobby. See `docs/api.md` and the example plugin in `example-paper`. Next on the roadmap is publishing on Hangar and Modrinth.
+Version 1.1.0 is the current release. On top of 1.0 it brings clans with roles and a clan chat, network wide stats with weekly and monthly leaderboards, daily and vote rewards, a server queue with priorities and parties, JoinMe invites and 81 cosmetics. Every system has a public API, see `docs/api.md` and the example plugin in `example-paper`.
 
 ## License
 
