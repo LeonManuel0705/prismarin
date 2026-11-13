@@ -1,33 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="PRISMARIN server icon">
-  <defs>
-    <linearGradient id="prism" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#22D3EE"/>
-      <stop offset="0.55" stop-color="#27D4D9"/>
-      <stop offset="1" stop-color="#2DD4BF"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.38" r="0.75">
-      <stop offset="0" stop-color="#ECFEFF" stop-opacity="0.5"/>
-      <stop offset="0.45" stop-color="#ECFEFF" stop-opacity="0.16"/>
-      <stop offset="1" stop-color="#ECFEFF" stop-opacity="0"/>
-    </radialGradient>
-  </defs>
-  <rect x="0" y="0" width="64" height="64" rx="14" fill="#0F172A"/>
-  <g transform="scale(0.25)">
-    <path d="M 114.14 40 Q 128 32 141.86 40 L 197.28 72 Q 211.14 80 211.14 96 L 211.14 160 Q 211.14 176 197.28 184 L 141.86 216 Q 128 224 114.14 216 L 58.72 184 Q 44.86 176 44.86 160 L 44.86 96 Q 44.86 80 58.72 72 Z" fill="url(#prism)"/>
-    <path d="M 114.14 40 Q 128 32 141.86 40 L 197.28 72 Q 211.14 80 211.14 96 L 211.14 160 Q 211.14 176 197.28 184 L 141.86 216 Q 128 224 114.14 216 L 58.72 184 Q 44.86 176 44.86 160 L 44.86 96 Q 44.86 80 58.72 72 Z" fill="url(#glow)"/>
-    <polygon points="50.68,83.36 128,38.72 128,84.8 90.59,106.4" fill="#ECFEFF" opacity="0.14"/>
-    <polygon points="128,38.72 205.32,83.36 165.41,106.4 128,84.8" fill="#ECFEFF" opacity="0.07"/>
-    <polygon points="128,84.8 165.41,106.4 165.41,149.6 128,171.2 90.59,149.6 90.59,106.4" fill="#ECFEFF" opacity="0.08"/>
-    <polygon points="205.32,172.64 128,217.28 128,171.2 165.41,149.6" fill="#0F172A" opacity="0.10"/>
-    <polygon points="128,217.28 50.68,172.64 90.59,149.6 128,171.2" fill="#0F172A" opacity="0.06"/>
-    <g stroke="#ECFEFF" stroke-opacity="0.28" stroke-width="4" stroke-linecap="round" fill="none">
-      <line x1="128" y1="38.72" x2="128" y2="84.8"/>
-      <line x1="205.32" y1="83.36" x2="165.41" y2="106.4"/>
-      <line x1="205.32" y1="172.64" x2="165.41" y2="149.6"/>
-      <line x1="128" y1="217.28" x2="128" y2="171.2"/>
-      <line x1="50.68" y1="172.64" x2="90.59" y2="149.6"/>
-      <line x1="50.68" y1="83.36" x2="90.59" y2="106.4"/>
-      <polygon points="128,84.8 165.41,106.4 165.41,149.6 128,171.2 90.59,149.6 90.59,106.4"/>
-    </g>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" shape-rendering="crispEdges" role="img" aria-label="PRISMARIN server icon">
+  <rect width="64" height="64" fill="#0F172A"/>
+  <rect x="42" y="4" width="8" height="4" fill="#A5F3FC"/>
+  <rect x="54" y="4" width="4" height="4" fill="#A5F3FC"/>
+  <rect x="42" y="8" width="8" height="4" fill="#A5F3FC"/>
+  <rect x="6" y="12" width="4" height="4" fill="#2DD4BF"/>
+  <rect x="10" y="12" width="8" height="4" fill="#14B8A6"/>
+  <rect x="18" y="12" width="20" height="4" fill="#22D3EE"/>
+  <rect x="54" y="12" width="4" height="4" fill="#CCFBF1"/>
+  <rect x="6" y="16" width="4" height="4" fill="#2DD4BF"/>
+  <rect x="10" y="16" width="8" height="4" fill="#14B8A6"/>
+  <rect x="18" y="16" width="28" height="4" fill="#22D3EE"/>
+  <rect x="6" y="20" width="4" height="4" fill="#2DD4BF"/>
+  <rect x="10" y="20" width="8" height="4" fill="#14B8A6"/>
+  <rect x="18" y="20" width="32" height="4" fill="#22D3EE"/>
+  <rect x="6" y="24" width="4" height="4" fill="#2DD4BF"/>
+  <rect x="10" y="24" width="8" height="4" fill="#14B8A6"/>
+  <rect x="38" y="24" width="12" height="4" fill="#22D3EE"/>
+  <rect x="6" y="28" width="4" height="4" fill="#2DD4BF"/>
+  <rect x="10" y="28" width="8" height="4" fill="#14B8A6"/>
+  <rect x="38" y="28" width="12" height="4" fill="#22D3EE"/>
+  <rect x="6" y="32" width="4" height="4" fill="#2DD4BF"/>
+  <rect x="10" y="32" width="8" height="4" fill="#14B8A6"/>
+  <rect x="22" y="32" width="8" height="4" fill="#22D3EE"/>
+  <rect x="38" y="32" width="12" height="4" fill="#22D3EE"/>
+  <rect x="6" y="36" width="4" height="4" fill="#2DD4BF"/>
+  <rect x="10" y="36" width="8" height="4" fill="#14B8A6"/>
+  <rect x="22" y="36" width="4" height="4" fill="#22D3EE"/>
+  <rect x="38" y="36" width="12" height="4" fill="#22D3EE"/>
+  <rect x="6" y="40" width="4" height="4" fill="#2DD4BF"/>
+  <rect x="10" y="40" width="8" height="4" fill="#14B8A6"/>
+  <rect x="22" y="40" width="28" height="4" fill="#22D3EE"/>
+  <rect x="6" y="44" width="4" height="4" fill="#2DD4BF"/>
+  <rect x="10" y="44" width="8" height="4" fill="#14B8A6"/>
+  <rect x="26" y="44" width="20" height="4" fill="#22D3EE"/>
+  <rect x="6" y="48" width="4" height="4" fill="#2DD4BF"/>
+  <rect x="10" y="48" width="8" height="4" fill="#14B8A6"/>
+  <rect x="30" y="48" width="16" height="4" fill="#0891B2"/>
+  <rect x="6" y="52" width="4" height="4" fill="#2DD4BF"/>
+  <rect x="10" y="52" width="8" height="4" fill="#14B8A6"/>
+  <rect x="6" y="56" width="8" height="4" fill="#14B8A6"/>
+  <rect x="14" y="56" width="4" height="4" fill="#0F766E"/>
 </svg>

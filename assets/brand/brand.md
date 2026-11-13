@@ -88,8 +88,12 @@ Player entries are sorted by rank weight; rank tag before the name in the rank c
 
 ## Logo usage
 
-- `logo.svg` — the emblem: rounded hexagonal prismarine crystal, cyan-teal gradient, facet lines. Use standalone from 24 px upwards; below that use a flat single-color variant.
-- `wordmark.svg` — emblem plus PRISMARIN lettering. Use in web headers, launcher screens, documents.
-- `server-icon.svg` / `server-icon.png` — emblem on the `#0F172A` rounded square, 64x64, for the Minecraft server list. Regenerate the PNG from the SVG whenever the emblem changes.
-- Clear space around the emblem: at least 25 % of its width on every side.
-- Do not recolor, rotate, outline, add text inside, or place the emblem on mid-tone backgrounds that kill the gradient contrast. Preferred backgrounds: `#0F172A` or white.
+The logo is the wave P: a pixel sprite whose bowl curls in like a wave, with spray pixels breaking off the crest. It is drawn on a 13 × 14 pixel grid in flat colours, no gradients.
+
+- `logo.svg` — the sprite on its own grid. Scale it only by whole numbers (2×, 3×, 4×) with nearest-neighbour scaling (`image-rendering: pixelated`), so no pixel blurs.
+- `wordmark.svg` — sprite plus the pixel lettering PRISMARIN in white, for dark backgrounds.
+- `wordmark-on-light.svg` — the same with navy lettering and darker spray pixels, for white or light backgrounds.
+- `server-icon.svg` / `server-icon.png` — the sprite at 4× on `#0F172A`, 64 × 64, for the Minecraft server list.
+- `assets/listing/icon.png` — the sprite at 48× on `#0F172A`, 1024 × 1024, for Hangar, Spigot and GitHub.
+- Clear space around the sprite: at least two sprite pixels on every side.
+- Do not recolor, rotate, outline, smooth or anti-alias the sprite. Preferred backgrounds: `#0F172A` or white.
